@@ -8,6 +8,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 // copy-to-clipboard removed per app constraints
 
 import {fetchTaskResult, getSuccessfulUnitTaskResults} from '../utils/tasks';
+import { compareNatural } from '../utils/naturalSort';
 import useCapabilityExamplesOverride from '../hooks/useCapabilityExamplesOverride';
 
 function dedupeCapabilitiesAcrossUnits(resultByUnit) {
@@ -28,7 +29,7 @@ function dedupeCapabilitiesAcrossUnits(resultByUnit) {
   return Array.from(map.values()).map((e) => ({
     ...e,
     unit_count: e.units.size,
-    units: Array.from(e.units).sort(),
+    units: Array.from(e.units).sort(compareNatural),
   }));
 }
 

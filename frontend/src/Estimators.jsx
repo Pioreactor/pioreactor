@@ -26,6 +26,7 @@ import PioreactorsIcon from './components/PioreactorsIcon';
 import EstimatorIcon from './components/EstimatorIcon';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import { readyGreen } from "./utils/color";
+import { compareNatural, sortNatural } from "./utils/naturalSort";
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
 import EmptyState from "./components/EmptyState";
 
@@ -104,7 +105,7 @@ function EstimatorData({ loading, rawData }) {
     const deviceSet = new Set();
     const deviceMap = {};
 
-    setWorkers(Object.keys(allMachines));
+    setWorkers(sortNatural(Object.keys(allMachines)));
 
     Object.values(allMachines).forEach((machine) => {
       Object.entries(machine ?? {}).forEach(([deviceName, estimators]) => {
@@ -187,7 +188,7 @@ function EstimatorData({ loading, rawData }) {
         return bTime - aTime;
       }
 
-      const unitCmp = a.pioreactor_unit.localeCompare(b.pioreactor_unit);
+      const unitCmp = compareNatural(a.pioreactor_unit, b.pioreactor_unit);
       if (unitCmp !== 0) return unitCmp;
 
       return a.estimator_name.localeCompare(b.estimator_name);

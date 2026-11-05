@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { compareNatural } from "./naturalSort";
 
 export const COVERAGE_STATUS = {
   ACTIVE: "active",
@@ -42,7 +43,7 @@ function getUnitKeys(availableByUnit, activeByUnit) {
       ...Object.keys(availableByUnit || {}),
       ...Object.keys(activeByUnit || {}),
     ]),
-  ).sort();
+  ).sort(compareNatural);
 }
 
 export function deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit) {

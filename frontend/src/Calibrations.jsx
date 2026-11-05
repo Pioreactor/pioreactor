@@ -22,6 +22,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import { fetchTaskResult, getSuccessfulUnitTaskResults } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
+import { byUnit, compareNatural, sortNatural } from "./utils/naturalSort";
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -53,7 +54,7 @@ export function getFailedCalibrationUploadUnits(taskPayload) {
   return Object.entries(result)
     .filter(([_unit, unitResult]) => !unitResult || unitResult.ok === false)
     .map(([unit]) => unit)
-    .sort((a, b) => a.localeCompare(b));
+    .sort(compareNatural);
 }
 
 export function buildCalibrationUploadFailureMessage(failedUnits) {
@@ -195,7 +196,7 @@ export function UploadCalibrationDialog({
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.json();
-        setWorkers(data.map(worker => worker.pioreactor_unit));
+        setWorkers(sortNatural(data.map(byUnit)));
         setSelectedWorker((currentWorker) => {
           if (currentWorker) {
             return currentWorker;
@@ -438,7 +439,7 @@ function CalibrationData({ loading, rawData }) {
     const deviceSet = new Set();
     const deviceMap = {}; // deviceName -> array of calibrations
 
-    setWorkers(Object.keys(allMachines))
+    setWorkers(sortNatural(Object.keys(allMachines)))
     //    Keys like media_pump, waste_pump, od, stirring, alt_media_pump, etc.
     Object.values(allMachines).forEach((machine) => {
       // machine is an object like:
@@ -535,7 +536,7 @@ function CalibrationData({ loading, rawData }) {
         return bTime - aTime; // newest first
       }
 
-      const unitCmp = a.pioreactor_unit.localeCompare(b.pioreactor_unit);
+      const unitCmp = compareNatural(a.pioreactor_unit, b.pioreactor_unit);
       if (unitCmp !== 0) return unitCmp;
 
       return a.calibration_name.localeCompare(b.calibration_name);

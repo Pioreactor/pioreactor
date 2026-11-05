@@ -31,6 +31,7 @@ import {
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { experimentPathSegment } from "../utils/url";
+import { compareNatural } from "../utils/naturalSort";
 import { Box } from "@mui/material";
 
 // Activate the UTC plugin
@@ -179,8 +180,6 @@ function Chart(props) {
   const pendingPointsRef = useRef(new Map());
   const flushTimerRef = useRef(null);
 
-  const names = useMemo(() => Object.keys(seriesMap), [seriesMap]);
-
   const ChartContainer = useMemo(
     () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
     [allowZoom]
@@ -234,6 +233,12 @@ function Chart(props) {
       return head + tail;
     },
     [seriesLabelParts]
+  );
+
+  // Legend and draw order follow the display label, not server or live-arrival order.
+  const names = useMemo(
+    () => Object.keys(seriesMap).sort((a, b) => compareNatural(seriesLabel(a), seriesLabel(b))),
+    [seriesMap, seriesLabel]
   );
 
   // Measured the way VictoryLegend measures its labels, so the layout matches what it draws.

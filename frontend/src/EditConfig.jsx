@@ -22,6 +22,7 @@ import 'prismjs/components/prism-ini';
 import dayjs from "dayjs";
 import { useParams, useNavigate } from 'react-router';
 import { textIcon } from "./theme";
+import { byUnit, compareNatural } from "./utils/naturalSort";
 
 
 const CURRENT_VERSION = "__current__";
@@ -229,8 +230,8 @@ function EditableCodeDiv() {
         }
 
         const unitTargets = json
-          .map((entry) => entry.pioreactor_unit)
-          .sort()
+          .map(byUnit)
+          .sort(compareNatural)
           .map((unit) => ({ name: `${unit} unit config`, value: unit }));
 
         setState(prev => {

@@ -37,6 +37,7 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
 import { getConfig } from "./utils/config";
+import { byUnit, compareNatural, sortNatural } from "./utils/naturalSort";
 import { disconnectedGrey, lostRed, inactiveGrey, readyGreen } from "./utils/color";
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import Snackbar from './components/Snackbar';
@@ -234,7 +235,7 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
             model_version: model[1],
             ipv4_address: requestBody.ipv4_address || null,
           },
-        ].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
+        ].sort((a, b) => compareNatural(a.pioreactor_unit, b.pioreactor_unit)))
         setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
     })
     .catch((err) => {
@@ -1031,7 +1032,7 @@ function Inventory({title}) {
         }
         const data = await response.json();
         if (isActive) {
-          setWorkers(data);
+          setWorkers(sortNatural(data, byUnit));
         }
       } catch (error) {
         console.error('Error fetching workers:', error);

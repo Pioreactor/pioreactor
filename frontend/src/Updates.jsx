@@ -34,6 +34,7 @@ import FormControl from '@mui/material/FormControl';
 import { useMQTT } from './providers/MQTTContext';
 import useLeaderHostname from "./hooks/useLeaderHostname";
 import DialogCloseButton from "./components/DialogCloseButton";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -135,7 +136,7 @@ function UploadArchiveAndConfirm(props) {
         const response = await fetch(`/api/units`);
         if (response.ok) {
           const units = await response.json();
-          setUnits(units.map(u => u.pioreactor_unit));
+          setUnits(sortNatural(units.map(byUnit)));
         } else {
           console.error('Failed to fetch units:', response.statusText);
         }
@@ -357,7 +358,7 @@ export function UpdateFromInternetAndConfirm(props) {
         const response = await fetch(`/api/units`);
         if (response.ok) {
           const units = await response.json();
-          setUnits(units.map(u => u.pioreactor_unit));
+          setUnits(sortNatural(units.map(byUnit)));
         } else {
           console.error('Failed to fetch units:', response.statusText);
         }
@@ -474,7 +475,7 @@ function UpdateFromUsbAndConfirm(props) {
         const response = await fetch(`/api/units`);
         if (response.ok) {
           const units = await response.json();
-          setUnits(units.map(u => u.pioreactor_unit));
+          setUnits(sortNatural(units.map(byUnit)));
         } else {
           console.error('Failed to fetch units:', response.statusText);
         }

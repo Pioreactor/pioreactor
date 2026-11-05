@@ -23,6 +23,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Link, useParams, useNavigate } from "react-router";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 import { styled } from "@mui/material/styles";
 import PioreactorsIcon from "./components/PioreactorsIcon";
 import PluginIcon from "./components/PluginIcon";
@@ -758,7 +759,7 @@ function PluginContainer() {
         }
 
         const data = await response.json();
-        const nextUnits = Array.isArray(data) ? data.map((unit) => unit.pioreactor_unit) : [];
+        const nextUnits = Array.isArray(data) ? sortNatural(data.map(byUnit)) : [];
 
         if (!isActive) {
           return;

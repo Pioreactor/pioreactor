@@ -18,6 +18,7 @@ import { styled } from "@mui/material/styles";
 import PioreactorIcon from "./PioreactorIcon";
 import ListSubheader from '@mui/material/ListSubheader';
 import DialogCloseButton from "./DialogCloseButton";
+import { byUnit, sortNatural } from "../utils/naturalSort";
 
 
 const fetchJSON = async (endpoint) => {
@@ -89,7 +90,7 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
           fetchJSON("/api/models"),
         ]);
 
-        const missing = (workersPayload || []).filter(hasMissingModelDetails);
+        const missing = sortNatural((workersPayload || []).filter(hasMissingModelDetails), byUnit);
 
         if (missing.length > 0) {
           const initialSelections = missing.reduce(

@@ -91,6 +91,7 @@ import {
   updatePublishedSettingValue,
 } from "./utils/jobs";
 import { experimentPathSegment } from "./utils/url";
+import { byUnit, compareNatural, sortNatural } from "./utils/naturalSort";
 import {
   disconnectedGrey,
   lostRed,
@@ -196,7 +197,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
     fetch("/api/workers/assignments")
       .then((data) => data.json())
       .then((json) => {
-        setWorkers(json);
+        setWorkers(sortNatural(json, byUnit));
         const assignments = json.reduce((map, item) => {
           map[item.pioreactor_unit] = item.experiment === experiment;
           return map;
@@ -1841,7 +1842,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   const sortedAssignedUnits = useMemo(() => {
     return [...assignedUnits]
       .filter((worker) => worker?.pioreactor_unit)
-      .sort((a, b) => a.pioreactor_unit.localeCompare(b.pioreactor_unit));
+      .sort((a, b) => compareNatural(a.pioreactor_unit, b.pioreactor_unit));
   }, [assignedUnits]);
 
   const formatUnitLabel = (unitName) => {
@@ -3233,7 +3234,7 @@ function Pioreactors({title}) {
       })
       .then((data) => {
         if (!isCancelled) {
-          setWorkers(data);
+          setWorkers(sortNatural(data, byUnit));
         }
       })
       .catch((error) => {

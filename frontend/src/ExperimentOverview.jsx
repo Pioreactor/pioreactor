@@ -14,6 +14,7 @@ import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
 import { getConfig, getRelabelMap } from "./utils/config";
 import { colors, ColorCycler } from "./utils/color";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -173,7 +174,7 @@ function Overview(props) {
         const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`);
         if (response.ok) {
           const units = await response.json();
-          setUnits(units);
+          setUnits(sortNatural(units, byUnit));
           setHasFetchedUnits(true);
         } else {
           console.error('Failed to fetch workers:', response.statusText);

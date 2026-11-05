@@ -16,6 +16,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';
 import PioreactorsIcon from './components/PioreactorsIcon';
 import { experimentPathSegment } from "./utils/url";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 import { textIcon } from "./theme";
 
 function Logs(props) {
@@ -46,7 +47,7 @@ function Logs(props) {
         const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/historical_worker_assignments`);
         if (response.ok) {
           const units = await response.json();
-          setAssignedUnits(units.map(u => u.pioreactor_unit));
+          setAssignedUnits(sortNatural(units.map(byUnit)));
         } else {
           console.error('Failed to fetch workers:', response.statusText);
         }

@@ -29,7 +29,8 @@ test.each(["linear", "none"])("sensor legends keep circular swatches and remain 
     expect(symbol.getAttribute("d")).toMatch(/a/i);
     expect(symbol.style.fill).toBe("#0077BB");
   }
-  const legend = legendSymbols()[1];
+  // Legend entries are sorted by label, so 45° (channel 2) comes first.
+  const legend = legendSymbols()[0];
   fireEvent.click(legend);
   await waitFor(() => expect(legend.style.fill).toBe("white"));
   fireEvent.click(legend);
@@ -109,4 +110,26 @@ test("legend labels use the available width and only long ones are shortened", a
   } finally {
     TextSize._approximateTextSizeInternal.impl = realImpl;
   }
+});
+
+test("legend entries are in natural order by display label", async () => {
+  const series = ["pio10", "Pio3", "pio2", "pio1"];
+  global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+    series,
+    data: series.map(() => [
+      { x: "2026-09-01T01:00:00Z", y: 1 },
+      { x: "2026-09-01T02:00:00Z", y: 2 },
+    ]),
+  }) });
+  const { container } = render(<Chart
+    chartKey="od" dataSource="od_readings" experiment="exp1" experimentStartTime="2026-09-01T00:00:00Z"
+    fixedDecimals={2} interpolation="linear" lookback={24} topic="od_reading/od1"
+    relabelMap={{ pio1: "zeta" }}
+    unitsColorMap={Object.fromEntries(series.map((name) => [name, "#0077BB"]))} title="OD" yAxisLabel="OD"
+  />);
+  const legendTexts = () => [...container.querySelectorAll("text")]
+    .map((node) => node.textContent)
+    .filter((text) => /^(pio|Pio|zeta)/.test(text));
+  await waitFor(() => expect(legendTexts()).toHaveLength(4));
+  expect(legendTexts()).toEqual(["pio2", "Pio3", "pio10", "zeta"]);
 });
