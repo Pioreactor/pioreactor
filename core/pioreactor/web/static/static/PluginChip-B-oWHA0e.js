@@ -1,1 +1,0 @@
-import{j as a,C as i,L as l,aW as r}from"./main-RsihJFk_.js";import{u}from"./useLeaderHostname-CWjBv6Dv.js";function c({name:s,unit:t,sx:e}){const o=u(),n=t||o;return a.jsx(i,{size:"small",icon:a.jsx(r,{}),label:s,clickable:!0,component:l,to:n?`/plugins/${n}`:"/plugins",sx:e,"data-plugin-name":s})}export{c as P};
