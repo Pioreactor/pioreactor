@@ -30,7 +30,7 @@ from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.camera import camera_captured_image
-from pioreactor.camera import camera_is_enabled
+from pioreactor.camera import get_camera_detection_status
 from pioreactor.config import config
 from pioreactor.hardware import get_available_pd_channels
 from pioreactor.hardware import is_HAT_present
@@ -682,7 +682,7 @@ BUILTIN_SELF_TESTS: tuple[SelfTest, ...] = (
 
 def get_builtin_self_tests() -> list[SelfTest]:
     tests = list(BUILTIN_SELF_TESTS)
-    if camera_is_enabled():
+    if get_camera_detection_status() == "detected":
         tests.append(test_camera_capture)
     return tests
 

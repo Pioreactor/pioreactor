@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { TextDecoder, TextEncoder } from "util";
 
@@ -195,6 +195,62 @@ describe("Pioreactors unit configuration loading", () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.resetAllMocks();
+  });
+
+  test("shows camera self-tests only on detected units in the bulk controls", async () => {
+    const selfTestDefinition = {
+      job_name: "self_test",
+      display_name: "Self-test",
+      display: false,
+      source: "app",
+      published_settings: [
+        { key: "all_tests_passed", type: "boolean", display: false },
+        { key: "test_pioreactor_HAT_present", type: "boolean", display: false },
+        { key: "test_camera_capture", type: "boolean", display: false },
+      ],
+    };
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/config/shared") {
+        return Promise.resolve({ ok: true, text: async () => "[camera]\nenabled=0\n" });
+      }
+      if (url === "/api/experiments/exp1/workers") {
+        return jsonResponse([worker("unit-1"), worker("unit-2")]);
+      }
+      if (url === "/api/models") {
+        return jsonResponse({ models: [] });
+      }
+      if (url === "/api/jobs/descriptors" || url.endsWith("/jobs/descriptors")) {
+        return jsonResponse([selfTestDefinition]);
+      }
+      if (url === "/api/settings/descriptors" || url.endsWith("/settings/descriptors")) {
+        return jsonResponse([]);
+      }
+      if (url === "/api/experiments/exp1/unit_labels") {
+        return jsonResponse({});
+      }
+      if (url.startsWith("/api/config/units/")) {
+        return jsonResponse({ configs: { "unit-1": {}, "unit-2": {} } });
+      }
+      if (url === "/api/experiments/exp1/cameras") {
+        return jsonResponse({ cameras: {
+          "unit-1": { ok: true, value: { detection_status: "detected" } },
+          "unit-2": { ok: true, value: { detection_status: "configured_camera_not_detected" } },
+        } });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    renderPioreactors();
+    await screen.findAllByText("unit-1");
+    expect(global.fetch.mock.calls.some(([url]) => url.endsWith("/cameras"))).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Control all Pioreactors" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Self-test" }));
+
+    const cameraCheck = await screen.findByText("Camera captures an image");
+    const unit1Results = cameraCheck.closest(".MuiAccordion-root");
+    expect(within(unit1Results).getByText("unit-1")).toBeInTheDocument();
+    expect(screen.getAllByText("Camera captures an image")).toHaveLength(1);
+    expect(screen.getAllByText("Pioreactor HAT is detected")).toHaveLength(2);
   });
 
   test("uses one filtered bulk request while preserving unit failures and shared fallback", async () => {

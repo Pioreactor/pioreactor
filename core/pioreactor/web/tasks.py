@@ -49,7 +49,6 @@ from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.camera import camera_auto_capture_is_enabled
-from pioreactor.camera import camera_is_enabled
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import CameraUnavailableError
@@ -209,9 +208,6 @@ def camera_snapshot_is_due(unit: str, experiment: str, interval_minutes: int) ->
 @periodic_task(crontab(minute="*"), priority=20)
 @huey.lock_task("camera-lock")
 def capture_camera_still_periodic_task() -> dict[str, Any]:
-    if not camera_is_enabled():
-        return {"captured": False, "reason": "camera_disabled"}
-
     interval_minutes = camera_snapshot_interval_minutes()
     if interval_minutes == 0 or not camera_auto_capture_is_enabled():
         return {"captured": False, "reason": "disabled"}

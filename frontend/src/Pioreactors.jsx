@@ -1,4 +1,5 @@
 import PageHeader from "./components/PageHeader";
+import useCameraResource from "./hooks/useCameraResource";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
@@ -525,6 +526,11 @@ function SettingsActionsDialog({
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestExperiment = "$experiment";
   const selfTestSettings = jobs?.self_test?.publishedSettings || null;
+  const { data: cameraStatus, error: cameraStatusError } = useCameraResource({
+    url: open && tabValue === 4
+      ? `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(selfTestExperiment)}/status`
+      : null,
+  });
 
   const selfTestSettingTypes = useMemo(() => {
     if (!selfTestSettings) {
@@ -537,8 +543,8 @@ function SettingsActionsDialog({
   }, [selfTestSettings]);
 
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, config.camera?.enabled === "1"),
-    [selfTestSettings, config.camera?.enabled]
+    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraStatus?.detection_status === "detected"),
+    [selfTestSettings, cameraStatus]
   );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(settingsCollections || {}).filter(job => job.metadata.display)
@@ -1369,6 +1375,9 @@ function SettingsActionsDialog({
           <ControlDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
+          {cameraStatusError && (
+            <Alert severity="warning">Could not check camera availability. Reopen this tab to retry.</Alert>
+          )}
           <Typography gutterBottom>
             Self-test
           </Typography>
@@ -1539,10 +1548,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     }, {});
   }, [selfTestDefinition]);
 
-  const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, config.camera?.enabled === "1"),
-    [selfTestDefinition, config.camera?.enabled]
-  );
+  const { data: cameraStatuses, error: cameraStatusesError } = useCameraResource({
+    url: open && tabValue === 4
+      ? `/api/experiments/${experimentPathSegment(experiment)}/cameras`
+      : null,
+  });
   const bioreactorSettingsGroup = useMemo(
     () => buildBioreactorSettingsCollection(
       settingsDescriptors.find((descriptor) => descriptor.key === "bioreactor")?.published_settings || [],
@@ -2212,6 +2222,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
             <Box>
               {sortedAssignedUnits.map((worker) => {
                 const unitName = worker.pioreactor_unit;
+                const cameraResult = cameraStatuses?.cameras?.[unitName];
+                const availableSelfTestGroups = getAvailableSelfTestGroupsFromDefinition(
+                  selfTestDefinition,
+                  cameraResult?.ok === true && cameraResult.value.detection_status === "detected",
+                );
                 return (
                   <Accordion
                     key={`self-test-${unitName}`}
@@ -2232,6 +2247,9 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
                       </Box>
                     </AccordionSummary>
                     <AccordionDetails>
+                      {(cameraStatusesError || cameraResult?.ok === false) && (
+                        <Alert severity="warning">Could not check camera availability. Reopen this tab to retry.</Alert>
+                      )}
                       {availableSelfTestGroups.length === 0 ? (
                         <Typography variant="body2">No self-test checks available.</Typography>
                       ) : (

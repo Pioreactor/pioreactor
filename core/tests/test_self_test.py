@@ -24,10 +24,20 @@ def reset_self_test_registry(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize("enabled", ["0", "1"])
-def test_camera_self_test_requires_enabled_camera(monkeypatch: pytest.MonkeyPatch, enabled: str) -> None:
+@pytest.mark.parametrize("detection_status", ["detected", "configured_camera_not_detected", "unknown"])
+def test_camera_self_test_requires_detected_camera(
+    monkeypatch: pytest.MonkeyPatch, enabled: str, detection_status: str
+) -> None:
     monkeypatch.setitem(self_test_mod.config["camera"], "enabled", enabled)
+    monkeypatch.setitem(self_test_mod.config["camera"], "capture_backend", "rpicam")
+    monkeypatch.setattr("pioreactor.camera.dev_camera_stills_are_available", lambda *_args: False)
+    monkeypatch.setattr("pioreactor.camera.find_camera_capture_command", lambda _backend: "rpicam-still")
+    monkeypatch.setattr(
+        "pioreactor.camera.get_cached_rpicam_camera_detection_status",
+        lambda _command, _index: detection_status,
+    )
 
-    assert (self_test_mod.test_camera_capture in get_all_tests()) == (enabled == "1")
+    assert (self_test_mod.test_camera_capture in get_all_tests()) == (detection_status == "detected")
 
 
 @pytest.mark.parametrize("capture_result", ["photo", "empty", "error"])

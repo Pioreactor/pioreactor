@@ -630,9 +630,9 @@ const SELF_TEST_GROUPS = [
   },
 ];
 
-function getAvailableSelfTestGroupsForKeys(keys, cameraEnabled) {
+function getAvailableSelfTestGroupsForKeys(keys, cameraDetected) {
   const availableKeys = new Set(keys);
-  const groups = cameraEnabled
+  const groups = cameraDetected
     ? [...SELF_TEST_GROUPS, {
       title: "Camera",
       tests: [{ key: "test_camera_capture", label: "Camera captures an image" }],
@@ -646,20 +646,20 @@ function getAvailableSelfTestGroupsForKeys(keys, cameraEnabled) {
     .filter((group) => group.tests.length > 0);
 }
 
-export function getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraEnabled) {
+export function getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraDetected) {
   if (!selfTestSettings) {
     return [];
   }
-  return getAvailableSelfTestGroupsForKeys(Object.keys(selfTestSettings), cameraEnabled);
+  return getAvailableSelfTestGroupsForKeys(Object.keys(selfTestSettings), cameraDetected);
 }
 
-export function getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, cameraEnabled) {
+export function getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, cameraDetected) {
   if (!selfTestDefinition) {
     return [];
   }
   return getAvailableSelfTestGroupsForKeys(
     selfTestDefinition.published_settings.map((field) => field.key),
-    cameraEnabled,
+    cameraDetected,
   );
 }
 

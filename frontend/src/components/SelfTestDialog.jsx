@@ -16,6 +16,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import {Typography} from '@mui/material';
+import Alert from '@mui/material/Alert';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -27,6 +28,9 @@ import { runPioreactorJob } from "../utils/jobs";
 import { readyGreen, lostRed } from "../utils/color";
 import DialogCloseButton from "./DialogCloseButton";
 import { textIcon } from "../theme";
+import { getAvailableSelfTestGroupsFromSettings } from "./PioreactorCardShared";
+import useCameraResource from "../hooks/useCameraResource";
+import { experimentPathSegment } from "../utils/url";
 
 
 const ManageDivider = styled(Divider)(({ theme }) => ({
@@ -34,8 +38,15 @@ const ManageDivider = styled(Divider)(({ theme }) => ({
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
 
-export default function SelfTestDialog({disabled, experiment, unit, label , selfTestState, selfTestTests, cameraEnabled}) {
+export default function SelfTestDialog({disabled, experiment, unit, label , selfTestState, selfTestTests}) {
   const [open, setOpen] = useState(false);
+  const { data: cameraStatus, error: cameraStatusError } = useCameraResource({
+    url: open
+      ? `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/status`
+      : null,
+  });
+  const cameraDetected = cameraStatus?.detection_status === "detected";
+  const selfTestGroups = getAvailableSelfTestGroupsFromSettings(selfTestTests?.publishedSettings, cameraDetected);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -133,8 +144,11 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" component="p" gutterBottom>
-            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring{cameraEnabled ? ", plus the camera" : ""}.
+            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring{cameraDetected ? ", plus the camera" : ""}.
           </Typography>
+          {cameraStatusError && (
+            <Alert severity="warning">Could not check camera availability. Reopen this dialog to retry.</Alert>
+          )}
           <RequirementsAlert sx={{mb: 2, pb: 0}}>
             Add a closed vial, half-filled with water or clear media, and stirbar into the Pioreactor.
             <Box
@@ -164,131 +178,31 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
             <ManageDivider/>
 
-            <List component="nav"
-              subheader={
-                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
-                  LEDs & photodiodes
-                </ListSubheader>
-              }
-            >
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_pioreactor_HAT_present", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Pioreactor HAT is detected" />
-              </ListItem>
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_all_positive_correlations_between_pds_and_leds", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Photodiodes are responsive to IR LED" secondary={
-                    (selfTestTests && selfTestTests?.publishedSettings["correlations_between_pds_and_leds"]?.value) ?
-                      JSON.parse(selfTestTests.publishedSettings["correlations_between_pds_and_leds"].value).map(led_pd => `${led_pd[0]} ⇝ ${led_pd[1]}`).join(",  ") :
-                      ""
-                    }/>
-              </ListItem>
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_ambient_light_interference", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="No ambient IR light detected" />
-              </ListItem>
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_dark_offset_correction_is_effective", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Dark offset correction returns photodiodes to baseline" />
-              </ListItem>
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_REF_is_lower_than_0_dot_256_volts", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Reference photodiode is correct magnitude" />
-              </ListItem>
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_REF_is_in_correct_position", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Reference photodiode is in correct position" />
-              </ListItem>
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_PD_is_near_0_volts_for_blank", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Photodiode measures near zero signal for clear water or media" />
-              </ListItem>
-
-            </List>
-
-            <List component="nav"
-              subheader={
-                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
-                  Heating & temperature
-                </ListSubheader>
-              }
-            >
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_detect_heating_pcb", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Heating PCB is detected" />
-              </ListItem>
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_positive_correlation_between_temperature_and_heating", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Heating is responsive" />
-              </ListItem>
-            </List>
-
-
-            <List component="nav"
-              subheader={
-                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
-                  Stirring
-                </ListSubheader>
-              }
-            >
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_positive_correlation_between_rpm_and_stirring", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Stirring RPM is responsive" />
-              </ListItem>
-
-
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_aux_power_is_not_too_high", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="AUX power supply is appropriate value" />
-              </ListItem>
-
-
-            </List>
-
-          {cameraEnabled && (
+          {selfTestGroups.map((group) => (
             <List
+              key={group.title}
               subheader={
                 <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky disableGutters>
-                  Camera
+                  {group.title}
                 </ListSubheader>
               }
             >
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_camera_capture", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Camera captures an image" />
-              </ListItem>
+              {group.tests.map((test) => (
+                <ListItem key={test.key} sx={{pt: 0, pb: 0}}>
+                  <ListItemIcon sx={{minWidth: "30px"}}>
+                    {displayIcon(test.key, selfTestState)}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={test.label}
+                    secondary={test.secondaryKey && selfTestTests?.publishedSettings[test.secondaryKey]?.value
+                      ? JSON.parse(selfTestTests.publishedSettings[test.secondaryKey].value)
+                        .map((ledPd) => `${ledPd[0]} ⇝ ${ledPd[1]}`).join(",  ")
+                      : ""}
+                  />
+                </ListItem>
+              ))}
             </List>
-          )}
+          ))}
 
           <ManageDivider/>
           <Typography variant="body2" component="p" gutterBottom>

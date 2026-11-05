@@ -1,4 +1,5 @@
 import PageHeader from "./components/PageHeader";
+import useCameraResource from "./hooks/useCameraResource";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
@@ -270,6 +271,11 @@ function SettingsActionsDialog(props) {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestExperiment = "$experiment";
   const selfTestSettings = props.jobs?.self_test?.publishedSettings || null;
+  const { data: cameraStatus, error: cameraStatusError } = useCameraResource({
+    url: open && tabValue === 4
+      ? `/api/workers/${encodeURIComponent(props.unit)}/camera/experiments/${experimentPathSegment(selfTestExperiment)}/status`
+      : null,
+  });
   const selfTestSettingTypes = useMemo(() => {
     if (!selfTestSettings) {
       return {};
@@ -280,8 +286,8 @@ function SettingsActionsDialog(props) {
     }, {});
   }, [selfTestSettings]);
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, props.config?.camera?.enabled === "1"),
-    [selfTestSettings, props.config?.camera?.enabled]
+    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraStatus?.detection_status === "detected"),
+    [selfTestSettings, cameraStatus]
   );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(props.settingsCollections || {}).filter(job => job.metadata.display)
@@ -1094,6 +1100,9 @@ function SettingsActionsDialog(props) {
           <ControlDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
+          {cameraStatusError && (
+            <Alert severity="warning">Could not check camera availability. Reopen this tab to retry.</Alert>
+          )}
           <Typography gutterBottom>
             Self-test
           </Typography>

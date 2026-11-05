@@ -154,10 +154,6 @@ def camera_should_be_kept_active() -> bool:
     )
 
 
-def camera_is_enabled() -> bool:
-    return config.getboolean("camera", "enabled", fallback=False)
-
-
 def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
     if backend == "v4l2":
         return shutil.which("fswebcam")
@@ -527,6 +523,23 @@ def clear_camera_hardware_detection_cache() -> None:
     camera_hardware_detection_cache.clear()
 
 
+def get_camera_detection_status(dot_pioreactor: Path | None = None) -> CameraDetectionStatus:
+    """Detect the configured camera without capturing or storing an image."""
+    backend = get_camera_capture_backend()
+    camera_index = get_camera_index() if backend == "rpicam" else None
+    device_path = get_camera_device_path() if backend == "v4l2" else None
+    capture_command = find_camera_capture_command(backend)
+    if dev_camera_stills_are_available(dot_pioreactor):
+        return "detected"
+    if capture_command is None:
+        return "unknown"
+    if backend == "rpicam":
+        assert camera_index is not None
+        return get_cached_rpicam_camera_detection_status(capture_command, camera_index)
+    assert device_path is not None
+    return get_v4l2_camera_detection_status(device_path)
+
+
 def camera_auto_capture_is_enabled() -> bool:
     with local_persistent_storage(CAMERA_SETTINGS_CACHE_NAME) as storage:
         return storage.getboolean(AUTO_CAPTURE_ENABLED_KEY, fallback=True)
@@ -560,20 +573,9 @@ def get_camera_status(
     dot_pioreactor: Path | None = None,
 ) -> dict[str, object]:
     backend = get_camera_capture_backend()
-    camera_index = get_camera_index() if backend == "rpicam" else None
-    device_path = get_camera_device_path() if backend == "v4l2" else None
     capture_command = find_camera_capture_command(backend)
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
-    if dev_stills_available:
-        detection_status: CameraDetectionStatus = "detected"
-    elif capture_command is None:
-        detection_status = "unknown"
-    elif backend == "rpicam":
-        assert camera_index is not None
-        detection_status = get_cached_rpicam_camera_detection_status(capture_command, camera_index)
-    else:
-        assert device_path is not None
-        detection_status = get_v4l2_camera_detection_status(device_path)
+    detection_status = get_camera_detection_status(dot_pioreactor)
     latest_metadata = load_latest_camera_still_metadata(
         unit, experiment=experiment, dot_pioreactor=dot_pioreactor
     )

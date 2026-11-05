@@ -857,7 +857,6 @@ function WorkerCard({
             label={null}
             selfTestState={selfTestJob ? selfTestJob.state : null}
             selfTestTests={selfTestJob}
-            cameraEnabled={config.camera?.enabled === "1"}
           />
           <Unassign
             unit={unit}
