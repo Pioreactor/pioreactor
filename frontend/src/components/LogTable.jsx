@@ -24,6 +24,8 @@ import { Link } from 'react-router';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
 import EmptyState from './EmptyState';
+import LoadingState from './LoadingState';
+import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { experimentPathSegment } from "../utils/url";
@@ -77,29 +79,49 @@ const HIGHLIGHTABLE_CHIP_SX = {
 
 function LogTable({ units, byDuration, experimentStartTime, experiment, config, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const clusterUnits = useClusterUnits();
 
   useEffect(() => {
+    let isCancelled = false;
     const getData = async () => {
-      const response = await fetch(
-        `/api/experiments/${experimentPathSegment(experiment)}/recent_logs?` +
-          new URLSearchParams({
-            min_level: config.logging.ui_log_level,
-          })
-      );
-      const logs = await response.json();
-      setListOfLogs(
-        logs.map((log) => ({
-          ...log,
-          key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
-        }))
-      );
+      setLoading(true);
+      setError(false);
+      setListOfLogs([]);
+      try {
+        const response = await fetch(
+          `/api/experiments/${experimentPathSegment(experiment)}/recent_logs?` +
+            new URLSearchParams({
+              min_level: config.logging.ui_log_level,
+            })
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch recent experiment logs");
+        }
+        const logs = await response.json();
+        if (!isCancelled) {
+          setListOfLogs(
+            logs.map((log) => ({
+              ...log,
+              key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
+            }))
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) setError(true);
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
     };
 
     if (experiment && Object.keys(config).length) {
       getData();
     }
+    return () => {
+      isCancelled = true;
+    };
   }, [experiment, config]);
 
   const relabelUnit = (unit) => {
@@ -199,14 +221,20 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
               </TableRow>
             </TableHead>
             <TableBody>
-              {listOfLogs.length === 0 && (
+              {(loading || error || listOfLogs.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={4} sx={{ borderBottom: 0 }}>
-                    <EmptyState>
-                      No recent experiment logs.
-                      <br />
-                      New activity will appear here automatically.
-                    </EmptyState>
+                    {loading ? (
+                      <LoadingState label="Loading recent experiment logs" />
+                    ) : error ? (
+                      <Alert severity="error">Unable to load recent experiment logs. Refresh the page to try again.</Alert>
+                    ) : (
+                      <EmptyState>
+                        No recent experiment logs.
+                        <br />
+                        New activity will appear here automatically.
+                      </EmptyState>
+                    )}
                   </TableCell>
                 </TableRow>
               )}

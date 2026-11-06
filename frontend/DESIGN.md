@@ -642,6 +642,9 @@ Rules:
 - Use a `Backdrop` only when the user truly must not interact with the page
   until the operation completes. Backdrops should be used very rarely.
 - Reserve content space for loading states to avoid layout shifts.
+- Overview cards use `LoadingState` for a centred spinner in a reserved area
+  while fetching data. Show `EmptyState` only after a successful empty response,
+  and an error `Alert` when fetching fails.
 - Empty states should explain what is empty and, when useful, provide the next
   action.
 - Use `src/components/EmptyState.jsx` for an empty page region, card, or

@@ -16,9 +16,13 @@ export function useRunningProfiles() {
 export function RunningProfilesProvider({ children, experiment }) {
   const [runningProfiles, setRunningProfiles] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+  const fetchRequestId = React.useRef(0);
 
   // Use a callback for fetching the running profiles
   const fetchRunningProfiles = React.useCallback(async () => {
+    const requestId = ++fetchRequestId.current;
+    setError(false);
     // If we don't yet know the experiment, don't hit the API.
     if (!experiment) {
       setRunningProfiles([]);
@@ -35,17 +39,21 @@ export function RunningProfilesProvider({ children, experiment }) {
         throw new Error(`Failed to fetch running profiles: ${response.statusText}`);
       }
       const data = await response.json();
-      setRunningProfiles(data);
+      if (requestId === fetchRequestId.current) setRunningProfiles(data);
     } catch (error) {
-      console.error('Error fetching running profiles:', error);
+      if (requestId === fetchRequestId.current) setError(true);
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestId.current) setLoading(false);
     }
   }, [experiment]);
 
   // Fetch running profiles once on mount, and whenever `experiment` changes
   React.useEffect(() => {
+    setRunningProfiles([]);
     fetchRunningProfiles();
+    return () => {
+      fetchRequestId.current += 1;
+    };
   }, [fetchRunningProfiles]);
 
   // Helper to re-fetch
@@ -109,6 +117,7 @@ export function RunningProfilesProvider({ children, experiment }) {
   const value = {
     runningProfiles,
     loading,
+    error,
     stopProfile,
     startProfile,
     refreshRunningProfiles

@@ -25,7 +25,7 @@ test("changing start time refreshes per-unit and total rates with a new cache ke
       return { ok: true, json: async () => [{ pioreactor_unit: "unit1" }, { pioreactor_unit: "unit2" }] };
     }
     const mediaRate = new URL(url, "http://localhost").searchParams.get("started_at") === newStart ? 1 : 9;
-    return { json: async () => ({ unit1: { mediaRate, altMediaRate: 0 }, all: { mediaRate, altMediaRate: 0 } }) };
+    return { ok: true, json: async () => ({ unit1: { mediaRate, altMediaRate: 0 }, all: { mediaRate, altMediaRate: 0 } }) };
   });
   const view = startedAt => <MemoryRouter><MediaCard experiment="exp1" startedAt={startedAt} /></MemoryRouter>;
   const { rerender } = render(view(originalStart));

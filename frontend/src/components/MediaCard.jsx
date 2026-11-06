@@ -16,6 +16,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from "./PioreactorsIcon"
 import EmptyState from "./EmptyState";
+import LoadingState from "./LoadingState";
 import { useMQTT } from '../providers/MQTTContext';
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
@@ -27,11 +28,14 @@ function MediaCard({experiment, startedAt, relabelMap}) {
   const [historicalUnits, setHistoricalUnits] = useState(null);
   const [assignmentsError, setAssignmentsError] = useState(false);
   const [throughputByUnit, setThroughputByUnit] = useState({});
-  const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
+  const [rates, setRates] = useState(null);
+  const [ratesError, setRatesError] = useState(false);
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   useEffect(() => {
     let isCancelled = false;
+    setHistoricalUnits(null);
+    setAssignmentsError(false);
 
     async function getHistoricalUnits() {
       try {
@@ -98,14 +102,24 @@ function MediaCard({experiment, startedAt, relabelMap}) {
 
   useEffect(() => {
     let isCancelled = false;
+    setRates(null);
+    setRatesError(false);
 
     async function getRecentRates() {
-      const query = new URLSearchParams({ started_at: startedAt });
-      const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates?${query}`);
-      const data = await response.json();
-
-      if (!isCancelled) {
-        setRates(data);
+      try {
+        const query = new URLSearchParams({ started_at: startedAt });
+        const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates?${query}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch media rates");
+        }
+        const data = await response.json();
+        if (!isCancelled) {
+          setRates(data);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setRatesError(true);
+        }
       }
     }
 
@@ -139,13 +153,15 @@ function MediaCard({experiment, startedAt, relabelMap}) {
 
         {assignmentsError ? (
           <Alert severity="error">Unable to load Pioreactor assignment history. Refresh the page to try again.</Alert>
-        ) : historicalUnits === null ? (
-          <EmptyState>Loading Pioreactors...</EmptyState>
+        ) : ratesError ? (
+          <Alert severity="error">Unable to load dosing rates. Refresh the page to try again.</Alert>
+        ) : historicalUnits === null || rates === null ? (
+          <LoadingState label="Loading dosing data" />
         ) : historicalUnits.length === 0 && (
           <EmptyState>No Pioreactors have been assigned to this experiment.</EmptyState>
         )}
 
-        {historicalUnits?.length > 0 && (
+        {!assignmentsError && !ratesError && rates && historicalUnits?.length > 0 && (
         <TableContainer sx={{ maxHeight: '300px', width: '100%', overflowY: 'auto' }}>
           <Table size="small" aria-label="media throughput">
             <TableHead>

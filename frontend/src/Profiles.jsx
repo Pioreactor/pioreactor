@@ -40,6 +40,7 @@ import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 import { saveNewExperimentProfile } from "./utils/experimentProfiles";
 import { textIcon } from "./theme";
 import EmptyState from "./components/EmptyState";
+import LoadingState from "./components/LoadingState";
 
 dayjs.extend(utc);
 
@@ -321,7 +322,7 @@ function RunProfilesContainer(props) {
 
 function RunningProfilesContainer() {
   const confirm = useConfirm();
-  const { runningProfiles, loading, stopProfile } = useRunningProfiles();
+  const { runningProfiles, loading, error, stopProfile } = useRunningProfiles();
 
   const onStop = (job_id) => {
     confirm({
@@ -346,11 +347,12 @@ function RunningProfilesContainer() {
             Profiles running
           </Typography>
           {loading && (
-            <Box sx={{ textAlign: "center", mt: 2 }}>
-              <CircularProgress size={33}/>
-            </Box>
+            <LoadingState label="Loading running profiles" />
           )}
-          {!loading && runningProfiles.length === 0 && (
+          {!loading && error && (
+            <Alert severity="error">Unable to load running profiles. Refresh the page to try again.</Alert>
+          )}
+          {!loading && !error && runningProfiles.length === 0 && (
             <EmptyState>No profiles are currently running.</EmptyState>
           )}
           {!loading && runningProfiles.length > 0 && (
