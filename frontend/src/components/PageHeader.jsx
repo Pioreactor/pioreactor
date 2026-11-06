@@ -19,7 +19,7 @@ export default function PageHeader({ title, actions, navigation, sx }) {
       >
         {navigation || (
           <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", overflowWrap: "anywhere" }}>
-            {title}
+            <span style={{ userSelect: "all" }}>{title}</span>
           </Typography>
         )}
         {actions && (

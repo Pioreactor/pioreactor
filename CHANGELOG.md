@@ -1,3 +1,9 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Fixed repeated shutdown signals interrupting job cleanup during software updates or Huey restarts, which could leave stopped activities showing as ready or lost in MQTT and leave old automation names and settings in the UI.
+
 ### 26.12.0
 
 #### Breaking changes

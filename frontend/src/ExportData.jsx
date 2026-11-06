@@ -75,7 +75,9 @@ function parseExportStateFromSearch(search) {
   return {
     ...DEFAULT_EXPORT_STATE,
     experimentSelection,
-    partitionByUnitSelection: searchParams.get("partition_by_unit") === "true",
+    partitionByUnitSelection: searchParams.has("partition_by_unit")
+      ? searchParams.get("partition_by_unit") === "true"
+      : DEFAULT_EXPORT_STATE.partitionByUnitSelection,
     selectedDatasets,
     startTime,
     endTime,

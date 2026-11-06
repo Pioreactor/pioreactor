@@ -343,7 +343,7 @@ function SingleEstimatorPage(props) {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", overflowWrap: "anywhere" }}>
-            Estimator: {estimatorName}
+            Estimator: <span style={{ userSelect: "all" }}>{estimatorName}</span>
           </Typography>
           {isActive && (
             <Chip

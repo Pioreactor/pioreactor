@@ -974,27 +974,29 @@ function InventoryDisplay({
                 />
               </Grid>
             )}
-            <Grid key="add-new" size={{ md: 6, xs: 12, sm: 12 }}>
-              <Card
-                variant="outlined"
-                onClick={() => document.getElementById('add-new-pioreactor-button')?.click()}
-                sx={{
-                  minWidth: 275,
-                  minHeight: 360,
-                  border: `2px dashed ${uiColors.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}>
-                <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={uiColors.textSecondary}/>
-                  <Typography color="text.secondary" align="center">
-                    Add new Pioreactor
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            {workers.length < 4 && (
+              <Grid key="add-new" size={{ md: 6, xs: 12, sm: 12 }}>
+                <Card
+                  variant="outlined"
+                  onClick={() => document.getElementById('add-new-pioreactor-button')?.click()}
+                  sx={{
+                    minWidth: 275,
+                    minHeight: 360,
+                    border: `2px dashed ${uiColors.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}>
+                  <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={uiColors.textSecondary}/>
+                    <Typography color="text.secondary" align="center">
+                      Add new Pioreactor
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
           </>
         )}
     </Grid>

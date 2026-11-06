@@ -74,6 +74,39 @@ describe("ExportData", () => {
     expect(global.fetch.mock.calls.some(([url]) => url === "/api/experiments")).toBe(false);
   });
 
+  test.each([
+    ["", true],
+    ["&partition_by_unit=true", true],
+    ["&partition_by_unit=false", false],
+  ])("keeps the partition checkbox and export payload in sync for %s", async (query, initiallyChecked) => {
+    global.fetch = jest.fn(async (url) => ({
+      ok: true,
+      json: async () => url === "/api/datasets/exportable"
+        ? [{ dataset_name: "od_readings", display_name: "OD readings", description: "Optical density readings.", source: "app" }]
+        : {},
+    }));
+    fetchTaskResult.mockResolvedValue({ result: { filename: "export.zip" } });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderExportData(`/export-data?experiment=exp-1&datasets=od_readings${query}`);
+    await screen.findByRole("checkbox", { name: "OD readings" });
+    fireEvent.click(screen.getByText("Export options"));
+    const partitionCheckbox = screen.getByRole("checkbox", { name: "Partition output CSVs by Pioreactor" });
+    expect(partitionCheckbox.checked).toBe(initiallyChecked);
+
+    for (const checked of [!initiallyChecked, initiallyChecked, !initiallyChecked]) {
+      fireEvent.click(partitionCheckbox);
+      expect(partitionCheckbox.checked).toBe(checked);
+
+      fireEvent.click(screen.getByRole("button", { name: /^export 1$/i }));
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /^export 1$/i })).toBeEnabled();
+      });
+      const request = fetchTaskResult.mock.calls.at(-1)[1];
+      expect(JSON.parse(request.fetchOptions.body).partition_by_unit).toBe(checked);
+    }
+  });
+
   test("preserves a comma-containing experiment from the URL", async () => {
     useExperiment.mockReturnValue({
       allExperiments: [{ experiment: "E coli, 37C" }],

@@ -393,7 +393,7 @@ function SingleCalibrationPage(props) {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", overflowWrap: "anywhere" }}>
-            Calibration: {calibrationName}
+            Calibration: <span style={{ userSelect: "all" }}>{calibrationName}</span>
           </Typography>
           {isActive && (
             <Chip

@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import signal
+import subprocess
+import sys
 from contextlib import redirect_stdout
 from io import StringIO
+from textwrap import dedent
 
 import pytest
 from pioreactor.utils import signal_handlers
@@ -174,3 +177,44 @@ def test_callable_stack_remove_returns_false_when_callable_is_missing() -> None:
     with StringIO() as output, redirect_stdout(output):
         my_stack("Alice")
         assert output.getvalue() == "Hello, Alice!\n"
+
+
+@pytest.mark.parametrize("temporary_callback", [False, True])
+def test_repeated_sigterm_during_cleanup_finishes_callback(temporary_callback: bool) -> None:
+    # A separate process is essential: the regression restores SIG_DFL during
+    # cleanup, so the second signal kills Python without unwinding its frames.
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            dedent(
+                """
+                import os
+                import signal
+                import sys
+                from pioreactor.utils.signal_handlers import append_signal_handler, remove_signal_handler
+
+                def temporary(*args: object) -> None:
+                    pass
+
+                def cleanup(*args: object) -> None:
+                    if sys.argv[1] == "True":
+                        # The thermostat constructs and closes a temporary PWM
+                        # while its job's SIGTERM callback is executing.
+                        append_signal_handler(signal.SIGTERM, temporary)
+                        remove_signal_handler(signal.SIGTERM, temporary)
+                    os.kill(os.getpid(), signal.SIGTERM)
+                    print("cleanup finished", flush=True)
+
+                append_signal_handler(signal.SIGTERM, cleanup)
+                os.kill(os.getpid(), signal.SIGTERM)
+                """
+            ),
+            str(temporary_callback),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "cleanup finished"
