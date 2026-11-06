@@ -183,7 +183,6 @@ export function AssignPioreactors({ experiment, variant="text" }) {
   const [workers, setWorkers] = React.useState([]);
   const [assigned, setAssigned] = React.useState({});
   const [initialAssigned, setInitialAssigned] = React.useState({});
-  const [selectAll, setSelectAll] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [assignmentError, setAssignmentError] = React.useState(null);
   const [isSubmittingAssignments, setIsSubmittingAssignments] = React.useState(false);
@@ -257,11 +256,6 @@ export function AssignPioreactors({ experiment, variant="text" }) {
     return labelParts.join(", ");
   }
 
-  const workersSelectableByBulkAction = useMemo(
-    () => workers.filter((worker) => worker.experiment === null || worker.experiment === experiment),
-    [experiment, workers]
-  );
-
   const updateAssignments = async () => {
     const delta = compareObjects(assigned, initialAssigned);
     const requests = [];
@@ -324,23 +318,17 @@ export function AssignPioreactors({ experiment, variant="text" }) {
     const newAssigned = { ...assigned };
     setAssignmentError(null);
 
-    workersSelectableByBulkAction.forEach((worker) => {
+    workers.forEach((worker) => {
       newAssigned[worker.pioreactor_unit] = newValue;
     });
     setAssigned(newAssigned);
-    setSelectAll(newValue);
   };
 
-  useEffect(() => {
-    if (workersSelectableByBulkAction.length === 0) {
-      setSelectAll(false);
-      return;
-    }
-
-    const allSelected = workersSelectableByBulkAction.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
-    const noneSelected = workersSelectableByBulkAction.every((worker) => !Boolean(assigned[worker.pioreactor_unit]));
-    setSelectAll(allSelected ? true : (noneSelected ? false : null));
-  }, [assigned, workersSelectableByBulkAction]);
+  const allSelected = workers.length > 0 && workers.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
+  const someSelected = workers.some((worker) => Boolean(assigned[worker.pioreactor_unit]));
+  const hasReassignments = workers.some((worker) =>
+    assigned[worker.pioreactor_unit] && worker.experiment !== null && worker.experiment !== experiment
+  );
 
   const assignmentDelta = compareObjects(assigned, initialAssigned);
   const assignmentDeltaCount = Object.keys(assignmentDelta).length;
@@ -376,16 +364,16 @@ export function AssignPioreactors({ experiment, variant="text" }) {
           )}
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
-            {workersSelectableByBulkAction.length > 1 &&
+            {workers.length > 1 &&
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={selectAll || false}
-                  indeterminate={selectAll === null}
+                  checked={allSelected}
+                  indeterminate={someSelected && !allSelected}
                   onChange={handleSelectAllChange}
                 />
               }
-              label={<span><i>Select all available</i></span>}
+              label={<span><i>Select all</i></span>}
               sx={{mb: 1}}
             />
             }
@@ -464,6 +452,11 @@ export function AssignPioreactors({ experiment, variant="text" }) {
               })}
             </FormGroup>
           </FormControl>
+          {hasReassignments && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              Reassigning Pioreactors will stop their activities in the previous experiment.
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button

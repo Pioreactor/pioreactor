@@ -3497,7 +3497,7 @@ def create_experiment() -> ResponseReturnValue:
             )
 
         publish_to_experiment_log(
-            f"New experiment created: `{body.experiment}`",
+            f"New experiment `{body.experiment}`",
             proposed_experiment_name,
             "create_experiment",
             level="INFO",

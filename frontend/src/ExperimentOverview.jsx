@@ -4,7 +4,7 @@ import Grid from "@mui/material/Grid";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
+import EmptyState from "./components/EmptyState";
 import LogTable from "./components/LogTable";
 import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
@@ -72,9 +72,9 @@ function Charts(props) {
 
   if (charts.length === 0) {
     return (
-        <Typography variant="body2" color="text.secondary">
+      <EmptyState>
         No charts are selected for this page. Use the settings to add one.
-        </Typography>
+      </EmptyState>
     );
   }
 
@@ -194,7 +194,6 @@ function Overview(props) {
     }
   }, [experimentMetadata.experiment])
 
-  const activeUnits = units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)
   const assignedUnits = units.map(unit => unit.pioreactor_unit)
 
   const showAssignmentAlert = hasFetchedUnits && assignedUnits.length === 0
@@ -252,7 +251,7 @@ function Overview(props) {
 
           {( cardsConfig['dosings'] === "1") &&
             <Grid size={12}>
-              <MediaCard key={experimentMetadata.experiment} activeUnits={activeUnits} experiment={experimentMetadata.experiment} startedAt={experimentMetadata.started_at} relabelMap={relabelMap}/>
+              <MediaCard key={experimentMetadata.experiment} experiment={experimentMetadata.experiment} startedAt={experimentMetadata.started_at} relabelMap={relabelMap}/>
             </Grid>
           }
 

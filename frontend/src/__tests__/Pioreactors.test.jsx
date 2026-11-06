@@ -138,6 +138,71 @@ describe("AssignPioreactors", () => {
     jest.resetAllMocks();
   });
 
+  test("selects and reassigns all ten units from another experiment", async () => {
+    const workers = Array.from({ length: 10 }, (_, index) => ({
+      pioreactor_unit: `unit-${index + 1}`,
+      experiment: "exp2",
+    }));
+    global.fetch.mockImplementation((url) => {
+      if (url === "/api/workers/assignments") {
+        return jsonResponse(workers);
+      }
+      return jsonResponse({});
+    });
+    const warning = "Reassigning Pioreactors will stop their activities in the previous experiment.";
+
+    renderAssignPioreactors();
+    fireEvent.click(screen.getByRole("button", { name: /assign pioreactors/i }));
+    const selectAll = await screen.findByRole("checkbox", { name: "Select all" });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    fireEvent.click(selectAll);
+    expect(screen.getAllByRole("checkbox").every((checkbox) => checkbox.checked)).toBe(true);
+    expect(screen.getByText(warning)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /^unit-1 / }));
+    expect(selectAll).not.toBeChecked();
+    expect(selectAll).toHaveAttribute("data-indeterminate", "true");
+
+    fireEvent.click(selectAll);
+    fireEvent.click(selectAll);
+    expect(screen.getAllByRole("checkbox").every((checkbox) => !checkbox.checked)).toBe(true);
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /^unit-1 / }));
+    expect(screen.getByText(warning)).toBeInTheDocument();
+
+    fireEvent.click(selectAll);
+    fireEvent.click(screen.getByRole("button", { name: "Assign 10" }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(0));
+
+    const mutations = global.fetch.mock.calls.filter(([, options]) => options?.method);
+    expect(mutations).toHaveLength(10);
+    expect(mutations.map(([, options]) => JSON.parse(options.body).pioreactor_unit).sort())
+      .toEqual(workers.map((worker) => worker.pioreactor_unit).sort());
+    mutations.forEach(([url, options]) => {
+      expect(url).toBe("/api/experiments/exp1/workers");
+      expect(options.method).toBe("PUT");
+    });
+  });
+
+  test("select all preserves current assignments and only submits new assignments", async () => {
+    renderAssignPioreactors();
+    fireEvent.click(screen.getByRole("button", { name: /assign pioreactors/i }));
+    const selectAll = await screen.findByRole("checkbox", { name: "Select all" });
+    expect(selectAll).toHaveAttribute("data-indeterminate", "true");
+
+    fireEvent.click(selectAll);
+    expect(screen.getByRole("checkbox", { name: /unit-2/i })).toBeChecked();
+    expect(screen.queryByText(/Reassigning Pioreactors will stop/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Assign 1" }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(0));
+
+    const mutations = global.fetch.mock.calls.filter(([, options]) => options?.method);
+    expect(mutations).toHaveLength(1);
+    expect(JSON.parse(mutations[0][1].body)).toEqual({ pioreactor_unit: "unit-1" });
+  });
+
   test("closes and refreshes after successful assignment changes", async () => {
     renderAssignPioreactors();
 

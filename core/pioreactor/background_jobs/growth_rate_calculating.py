@@ -363,7 +363,7 @@ class GrowthRateCalculator(BackgroundJob):
                 raise KeyError("Cached normalization statistics are for different PD channels.")
             self.logger.debug("Loaded OD normalization metrics from cache.")
         except KeyError:
-            self.logger.info("Computing OD normalization metrics now.")
+            self.logger.debug("Computing OD normalization metrics now.")
             od_normalization_factors, od_variances = self._compute_od_statistics_from_warmup_events(
                 warmup_events
             )
