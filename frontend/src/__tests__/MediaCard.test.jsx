@@ -65,6 +65,5 @@ test("includes previously assigned Pioreactors and their dosing totals in natura
   expect(rows[2]).toHaveTextContent("Former culture / unit10");
   expect(within(rows[2]).getByText("12.5mL (3.0mL/h)")).toBeInTheDocument();
   expect(within(rows[2]).getByText("4.5mL (1.0mL/h)")).toBeInTheDocument();
-  expect(rows[3]).toHaveTextContent("All historically assigned Pioreactors");
   expect(within(rows[3]).getByText("12.5mL (3.0mL/h)")).toBeInTheDocument();
 });

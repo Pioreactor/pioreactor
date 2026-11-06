@@ -178,7 +178,7 @@ function MediaCard({experiment, startedAt, relabelMap}) {
               {historicalUnits.length > 1 &&
               <TableRow key="all">
                 <TableCell sx={{ padding: '6px 0px' }} component="th" scope="row">
-                  <Chip size="small" icon={<PioreactorsIcon/>} label="All historically assigned Pioreactors" sx={{backgroundColor: uiColors.surface}} />
+                  <Chip size="small" icon={<PioreactorsIcon/>} label="Total" sx={{backgroundColor: uiColors.surface}} />
                 </TableCell>
                 <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                   {totals.media.toFixed(1)}mL ({rates.all.mediaRate.toFixed(1)}mL/h)
