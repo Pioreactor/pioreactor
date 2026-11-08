@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
+from contextlib import ExitStack
 from datetime import datetime
 from datetime import UTC
 from math import sqrt
+from unittest.mock import patch
 
 import pytest
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.experiment_profiles.parser import check_syntax
@@ -15,6 +20,101 @@ from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
 exp = get_assigned_experiment_name(unit)
+
+
+def expression_sources(leaves: st.SearchStrategy[str]) -> st.SearchStrategy[str]:
+    return st.recursive(
+        leaves,
+        lambda children: st.one_of(
+            st.tuples(
+                children,
+                st.sampled_from(["+", "-", "*", "<", "<=", "==", ">=", ">", "and", "or"]),
+                children,
+            ).map(lambda parts: f"({parts[0]} {parts[1]} {parts[2]})"),
+            st.tuples(st.sampled_from(["+", "-", "not"]), children).map(
+                lambda parts: f"({parts[0]} ({parts[1]}))"
+            ),
+        ),
+        max_leaves=8,
+    )
+
+
+@settings(max_examples=100)
+@given(
+    source=expression_sources(
+        st.one_of(
+            st.integers(-10, 10).map(lambda value: f"{value}.0"),
+            st.sampled_from(["True", "False", "input_value"]),
+        )
+    ),
+    value=st.integers(-10, 10),
+)
+def test_property_expression_tree_matches_python(source: str, value: int) -> None:
+    env = {"input_value": float(value)}
+    # Only our bounded, generated grammar reaches eval; no user-supplied source is evaluated.
+    expected = eval(source, {"__builtins__": {}}, env)
+    assert check_syntax(source)
+    actual = parse_profile_expression(source, env=env)
+    assert actual == expected
+    assert type(actual) is type(expected)
+
+
+@settings(max_examples=100)
+@given(a=st.integers(-10, 10), b=st.integers(-10, 10), c=st.integers(1, 10), power=st.integers(2, 4))
+def test_property_expression_precedence_matches_python(a: int, b: int, c: int, power: int) -> None:
+    # Leave operators unparenthesized to exercise binding and associativity.
+    for source in (
+        f"{a} + {b} * {c} ** {power}",
+        f"-{c} ** {power} + {a} / {c} / {c}",
+        f"{a} - {b} - {c}",
+        f"{c} ** 2 ** 3",
+        f"not {a} + {b} * {c} >= {power} or False and True",
+    ):
+        expected = eval(source, {"__builtins__": {}})
+        assert parse_profile_expression(source) == expected
+
+
+@settings(max_examples=100)
+@given(
+    source=expression_sources(
+        st.sampled_from(
+            ["random()", "unit()", "missing()", "::job:setting", "unit():job:setting.nested", "(1 / 0)"]
+        )
+    )
+)
+def test_property_syntax_check_has_no_runtime_effects(source: str) -> None:
+    with ExitStack() as stack:
+        for name in (
+            "evaluate",
+            "lookup_mqtt",
+            "random",
+            "subscribe",
+            "is_active",
+            "get_assigned_experiment_name_from_leader",
+        ):
+            stack.enter_context(
+                patch(
+                    f"pioreactor.experiment_profiles.parser.{name}",
+                    side_effect=AssertionError("Syntax checking evaluated live state"),
+                )
+            )
+        assert check_syntax(source)
+
+
+@settings(max_examples=100)
+@given(
+    branch=st.sampled_from([("and", "False", False), ("or", "True", True)]),
+    source=expression_sources(st.sampled_from(["random()", "::job:setting", "unknown()", "(1 / 0)"])),
+)
+def test_property_boolean_short_circuit_skips_generated_branch(
+    branch: tuple[str, str, bool], source: str
+) -> None:
+    operator, left, expected = branch
+    with (
+        patch("pioreactor.experiment_profiles.parser.lookup_mqtt", side_effect=AssertionError("MQTT lookup")),
+        patch("pioreactor.experiment_profiles.parser.random", side_effect=AssertionError("Random function")),
+    ):
+        assert parse_profile_expression(f"{left} {operator} ({source})") is expected
 
 
 def test_identity() -> None:
