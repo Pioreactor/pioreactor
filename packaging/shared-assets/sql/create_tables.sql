@@ -132,6 +132,10 @@ CREATE TABLE IF NOT EXISTS led_change_events (
 CREATE INDEX IF NOT EXISTS dosing_events_ix
 ON dosing_events (experiment, pioreactor_unit);
 
+-- Limit media-rate calculations to the recent dosing window.
+CREATE INDEX IF NOT EXISTS dosing_events_exp_timestamp_ix
+ON dosing_events (experiment, timestamp);
+
 CREATE INDEX IF NOT EXISTS led_change_events_ix
 ON led_change_events (experiment, pioreactor_unit);
 
