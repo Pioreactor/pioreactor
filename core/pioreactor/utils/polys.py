@@ -14,7 +14,10 @@ def poly_fit(
     y: Sequence[float],
     degree: int | Literal["auto"] | None = "auto",
     weights: Sequence[float] | None = None,
+    *,
+    anchor: tuple[float, float] | None = None,
 ) -> structs.PolyFitCoefficients:
+    """Fit a polynomial, optionally constrained to pass through an exact anchor."""
     import numpy as np
 
     x_values = np.asarray(x, dtype=float)
@@ -34,15 +37,35 @@ def poly_fit(
         if np.any(weight_values < 0):
             raise ValueError("weights must be non-negative.")
 
-    selected_degree = _normalize_degree(degree, x_values, y_values, weight_values)
+    selected_degree = _normalize_degree(degree, x_values, y_values, weight_values, anchor)
 
     if selected_degree < 0:
         raise ValueError("degree must be >= 0.")
     if x_values.size < selected_degree + 1:
         raise ValueError("Not enough data points for requested degree.")
 
-    coefs = np.polyfit(x_values, y_values, deg=selected_degree, w=weight_values)
+    coefs = _fit_coefficients(x_values, y_values, selected_degree, weight_values, anchor)
     return structs.PolyFitCoefficients(coefficients=coefs.tolist())
+
+
+def _fit_coefficients(
+    x_values: Any,
+    y_values: Any,
+    degree: int,
+    weights: Any,
+    anchor: tuple[float, float] | None,
+) -> Any:
+    import numpy as np
+
+    if anchor is None:
+        return np.polyfit(x_values, y_values, deg=degree, w=weights)
+
+    anchor_x, anchor_y = anchor
+    # In shifted coordinates, the constant coefficient is fixed rather than estimated.
+    design = np.vander(x_values - anchor_x, N=degree + 1)[:, :-1]
+    coefficients, *_ = np.linalg.lstsq(design * weights[:, None], (y_values - anchor_y) * weights, rcond=None)
+    shifted_polynomial = np.poly1d(np.append(coefficients, anchor_y))
+    return shifted_polynomial(np.poly1d([1.0, -anchor_x])).c
 
 
 def poly_eval(poly_data: structs.PolyFitCoefficients, x: float) -> float:
@@ -93,9 +116,10 @@ def _normalize_degree(
     x_values: Any,
     y_values: Any,
     weight_values: Any,
+    anchor: tuple[float, float] | None,
 ) -> int:
     if degree is None or degree == "auto":
-        return _auto_select_degree(x_values, y_values, weight_values)
+        return _auto_select_degree(x_values, y_values, weight_values, anchor=anchor)
     if isinstance(degree, str):
         raise ValueError('degree must be an int or "auto".')
     return int(degree)
@@ -107,11 +131,14 @@ def _auto_select_degree(
     weight_values: Any,
     *,
     max_degree: int | None = None,
+    anchor: tuple[float, float] | None = None,
 ) -> int:
     import numpy as np
 
     n_obs = x_values.size
     unique_x = np.unique(x_values).size
+    # The anchor pins a recorded point exactly, so it removes an observation as well as a parameter.
+    pinned = int(anchor is not None)
 
     if max_degree is None:
         max_degree = min(5, n_obs - 1)
@@ -123,14 +150,14 @@ def _auto_select_degree(
 
     for degree in range(0, max_degree + 1):
         try:
-            coefs = np.polyfit(x_values, y_values, deg=degree, w=weight_values)
+            coefs = _fit_coefficients(x_values, y_values, degree, weight_values, anchor)
         except np.linalg.LinAlgError:
             continue
 
         y_pred = np.polyval(coefs, x_values)
         residual = y_values - y_pred
         weighted_sse = float(np.sum(weight_values * residual**2))
-        score = _aicc_score(weighted_sse, n_obs, degree + 1)
+        score = _aicc_score(weighted_sse, n_obs - pinned, degree + 1 - pinned)
         if score < best_score:
             best_score = score
             best_degree = degree

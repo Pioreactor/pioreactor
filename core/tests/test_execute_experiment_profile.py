@@ -722,6 +722,40 @@ def test_execute_experiment_log_actions(
     assert lookup_topics and set(lookup_topics) == {f"pioreactor/{unit}/{experiment}/{job_name}/target"}
 
 
+def test_log_action_evaluates_mqtt_message_once_for_request_and_debug_log() -> None:
+    logger = MagicMock()
+    parent_job = MagicMock(exit_event=Event(), job_key="experiment_profile/1")
+
+    with (
+        patch(
+            "pioreactor.experiment_profiles.parser.subscribe",
+            side_effect=[SimpleNamespace(payload=b"10.5"), SimpleNamespace(payload=b"20.5")],
+        ) as mock_subscribe,
+        patch("pioreactor.actions.leader.experiment_profile.post_into_leader") as mock_post,
+    ):
+        experiment_profile_module.log(
+            "unit1",
+            "_testing_experiment",
+            parent_job,
+            "stirring",
+            False,
+            True,
+            {},
+            logger,
+            experiment_profile_module.ActionMetrics(),
+            _LogOptions(message="target=${{unit1:stirring:target_rpm}}"),
+        )()
+
+    mock_subscribe.assert_called_once_with(
+        "pioreactor/unit1/_testing_experiment/stirring/target_rpm", timeout=2.0
+    )
+    mock_post.assert_called_once()
+    assert mock_post.call_args.args == ("/api/workers/unit1/experiments/_testing_experiment/logs",)
+    assert mock_post.call_args.kwargs["json"]["message"] == "target=10.5"
+    logger.debug.assert_called_once_with("1. Logging message `target=10.5`")
+    logger.error.assert_not_called()
+
+
 @pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_and_stop_automations(

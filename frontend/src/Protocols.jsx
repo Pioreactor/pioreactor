@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import { useNavigate, useParams } from "react-router";
@@ -218,9 +219,7 @@ function Protocols(props) {
     return deviceOptions[0];
   }, [device, deviceOptions]);
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   React.useEffect(() => {
     const fetchWorkers = async () => {

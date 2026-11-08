@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import useCameraResource from "./hooks/useCameraResource";
 import { uiColors } from "./theme/colors";
@@ -3218,10 +3219,11 @@ function Pioreactors({title}) {
     return EMPTY_STATE_ILLUSTRATIONS[randomIndex];
   }, []);
 
+  useDocumentTitle(title);
+
   useEffect(() => {
-    document.title = title;
     getConfig(setSharedConfig)
-  }, [title]);
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;

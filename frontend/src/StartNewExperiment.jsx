@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from 'dayjs';
@@ -361,9 +362,7 @@ function StartNewExperimentContainer() {
 function StartNewExperiment(props) {
 
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title])
+  useDocumentTitle(props.title);
   return (
     <Grid container spacing={2} >
       <Grid

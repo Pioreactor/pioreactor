@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -481,9 +482,7 @@ function EditConfigContainer(){
 
 
 function EditConfig(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title])
+    useDocumentTitle(props.title);
     return (
       <Grid container spacing={2} >
         <Grid

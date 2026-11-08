@@ -396,7 +396,7 @@ def test_fit_fusion_model_derives_low_conc_scales_for_noncanonical_angle_sets() 
     assert fit.low_conc_scales["45"] > fit.low_conc_scales["90"]
 
 
-@pytest.mark.parametrize("instrument", ["1", "2", "3", "5"])
+@pytest.mark.parametrize("instrument", ["1", "2", "3", "4", "5"])
 def test_fusion_preparsed_curves_match_uncached_evaluations(instrument: str) -> None:
     from pioreactor.utils import od_fusion
     from pioreactor.utils.akimas import akima_eval

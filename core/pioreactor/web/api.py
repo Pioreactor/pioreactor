@@ -3698,14 +3698,28 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
         abort_with(404, f"Experiment {experiment} not found")
 
 
-def load_experiment_chart_preferences(experiment: str) -> dict[str, list[str] | None]:
+HEX_COLOR_RE = re.compile(r"#[0-9A-Fa-f]{6}")
+
+
+def load_experiment_chart_preferences(experiment: str) -> dict[str, t.Any]:
     row = query_app_db(
         "SELECT overview_chart_keys, pioreactor_chart_keys FROM experiment_chart_preferences WHERE experiment = ?",
         (experiment,),
         one=True,
     )
+    color_rows = query_app_db(
+        "SELECT pioreactor_unit, color FROM experiment_unit_colors WHERE experiment = ?",
+        (experiment,),
+    )
+    assert isinstance(color_rows, list)
+    overview_unit_colors = {r["pioreactor_unit"]: r["color"] for r in color_rows}
+
     if row is None:
-        return {"overview_chart_keys": None, "pioreactor_chart_keys": None}
+        return {
+            "overview_chart_keys": None,
+            "pioreactor_chart_keys": None,
+            "overview_unit_colors": overview_unit_colors,
+        }
 
     assert isinstance(row, dict)
     return {
@@ -3719,6 +3733,7 @@ def load_experiment_chart_preferences(experiment: str) -> dict[str, list[str] | 
             if row["pioreactor_chart_keys"] is not None
             else None
         ),
+        "overview_unit_colors": overview_unit_colors,
     }
 
 
@@ -3734,13 +3749,28 @@ def get_experiment_chart_preferences(experiment: str) -> ResponseReturnValue:
 def update_experiment_chart_preferences(experiment: str) -> ResponseReturnValue:
     body = decode_request_body(structs.UpdateExperimentChartPreferencesRequest)
 
-    if body.overview_chart_keys is UNSET and body.pioreactor_chart_keys is UNSET:
+    if (
+        body.overview_chart_keys is UNSET
+        and body.pioreactor_chart_keys is UNSET
+        and body.overview_unit_colors is UNSET
+    ):
         abort_with(
             400,
             "Missing chart preferences",
             cause="No supported chart preference field was provided.",
-            remediation="Provide overview_chart_keys or pioreactor_chart_keys.",
+            remediation="Provide overview_chart_keys, pioreactor_chart_keys or overview_unit_colors.",
         )
+
+    if body.overview_unit_colors is not UNSET:
+        if invalid_colors := sorted(
+            color for color in body.overview_unit_colors.values() if not HEX_COLOR_RE.fullmatch(color)
+        ):
+            abort_with(
+                400,
+                "Line colors must be hex colors",
+                cause=f"Invalid colors: {', '.join(invalid_colors)}.",
+                remediation="Use colors like #0077BB.",
+            )
 
     if _get_experiment_metadata(experiment) is None:
         abort_with(404, f"Experiment {experiment} not found")
@@ -3798,6 +3828,14 @@ def update_experiment_chart_preferences(experiment: str) -> ResponseReturnValue:
                 ),
             ),
         )
+
+    if body.overview_unit_colors is not UNSET:
+        modify_app_db("DELETE FROM experiment_unit_colors WHERE experiment = ?", (experiment,))
+        for unit, color in body.overview_unit_colors.items():
+            modify_app_db(
+                "INSERT INTO experiment_unit_colors (experiment, pioreactor_unit, color) VALUES (?, ?, ?)",
+                (experiment, unit, color),
+            )
 
     return jsonify(load_experiment_chart_preferences(experiment))
 

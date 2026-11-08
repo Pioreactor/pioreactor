@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { useState, useEffect, useMemo, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
@@ -13,7 +14,7 @@ import MediaCard from "./components/MediaCard";
 import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
 import { getConfig, getRelabelMap } from "./utils/config";
-import { colors, ColorCycler } from "./utils/color";
+import { createUnitColorMap } from "./utils/color";
 import { byUnit, sortNatural } from "./utils/naturalSort";
 import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
@@ -88,7 +89,8 @@ function Charts(props) {
             <Grid size={12}>
               <Card sx={{ maxHeight: "100%"}}>
                 <Chart
-                  key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}`}
+                  // Charts keep the colors they resolve when history loads, so new choices remount them.
+                  key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}-${props.unitColorsKey}`}
                   chartKey={chart_key}
                   config={config}
                   dataSource={chart.data_source}
@@ -135,17 +137,13 @@ function Overview(props) {
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
+  // Every Pioreactor ever assigned to the experiment; their lines stay in the charts after unassignment.
+  const [historicalUnitNames, setHistoricalUnitNames] = useState([])
   const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
   // Set even when the workers request fails, so charts still render.
   const [unitsSettledFor, setUnitsSettledFor] = useState(null)
   const theme = useTheme();
   const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true })
-  // Seed colors in the server's sorted worker order so they don't depend on which chart's history loads first.
-  const unitsColorMap = useMemo(() => {
-    const colorMap = new ColorCycler(colors);
-    units.forEach((unit) => colorMap[unit.pioreactor_unit]); // reading a unit assigns its color
-    return colorMap;
-  }, [units])
   const cardsConfig = config['ui.overview.cards'] || {};
   const chartPreferences = useExperimentChartPreferences({
     chartPage: "overview",
@@ -153,12 +151,26 @@ function Overview(props) {
     configReady,
     experiment: experimentMetadata.experiment,
   });
+  const unitNames = useMemo(() => units.map((unit) => unit.pioreactor_unit), [units])
+  // Current units first, so unassigned ones don't shift their colors.
+  const colorUnitNames = useMemo(
+    () => [...unitNames, ...sortNatural(historicalUnitNames.filter((unit) => !unitNames.includes(unit)))],
+    [unitNames, historicalUnitNames],
+  )
+  const colorChoiceUnitNames = useMemo(() => sortNatural(colorUnitNames), [colorUnitNames])
+  // Seed colors in the server's sorted worker order so they don't depend on which chart's history loads first.
+  const unitsColorMap = useMemo(
+    () => createUnitColorMap(colorUnitNames, chartPreferences.unitColors),
+    [colorUnitNames, chartPreferences.unitColors],
+  )
+  const unitColorsKey = JSON.stringify(chartPreferences.unitColors)
 
+
+  useDocumentTitle(props.title);
 
   useEffect(() => {
-    document.title = props.title;
     getConfig(setConfig).finally(() => setConfigReady(true))
-  }, [props.title])
+  }, []);
 
   useEffect(() => {
     if (!experimentMetadata.experiment) {
@@ -170,6 +182,10 @@ function Overview(props) {
 
   useEffect(() => {
     async function fetchWorkers(experiment) {
+      const historyRequest = Promise.resolve()
+        .then(() => fetch(`/api/experiments/${experimentPathSegment(experiment)}/historical_worker_assignments`))
+        .then((response) => (response.ok ? response.json() : []))
+        .catch(() => []);
       try {
         const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`);
         if (response.ok) {
@@ -182,6 +198,8 @@ function Overview(props) {
       } catch (error) {
         console.error('Error fetching workers:', error);
       } finally {
+        const assignments = await historyRequest;
+        setHistoricalUnitNames(assignments.map(byUnit));
         setUnitsSettledFor(experiment);
       }
     };
@@ -190,13 +208,12 @@ function Overview(props) {
     if (experimentMetadata.experiment){
         setHasFetchedUnits(false)
         setUnits([])
+        setHistoricalUnitNames([])
         fetchWorkers(experimentMetadata.experiment)
     }
   }, [experimentMetadata.experiment])
 
-  const assignedUnits = units.map(unit => unit.pioreactor_unit)
-
-  const showAssignmentAlert = hasFetchedUnits && assignedUnits.length === 0
+  const showAssignmentAlert = hasFetchedUnits && unitNames.length === 0
 
   const chartControls = (
     <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
@@ -206,6 +223,8 @@ function Overview(props) {
         chartPageLabel="Overview"
         chartPreferences={chartPreferences}
         experiment={experimentMetadata.experiment}
+        relabelMap={relabelMap}
+        units={colorChoiceUnitNames}
       />
     </Stack>
   )
@@ -234,7 +253,7 @@ function Overview(props) {
           }}>
           {/* Charts keep the colors they resolve when history loads, so wait for the seeded map. */}
           {unitsSettledFor === experimentMetadata.experiment
-            ? <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+            ? <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} unitColorsKey={unitColorsKey} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
             : <CircularProgress aria-label="Loading charts" size={24} />}
         </Grid>
 
@@ -265,7 +284,7 @@ function Overview(props) {
 
         {( cardsConfig['event_logs'] === "1") &&
           <Grid size={12}>
-            <LogTable units={assignedUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.started_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+            <LogTable units={unitNames} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.started_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
           </Grid>
         }
         </Grid>

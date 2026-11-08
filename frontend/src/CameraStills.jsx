@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from "dayjs";
@@ -121,9 +122,7 @@ export default function CameraStills({ title }) {
     : CAMERA_STILLS_PAGE_SIZE;
   const [selectedStillImageId, setSelectedStillImageId] = React.useState(null);
 
-  React.useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   const orderedStills = sortCameraStillsNewestFirst(stills);
   const visibleStills = orderedStills.slice(0, visibleStillCount);

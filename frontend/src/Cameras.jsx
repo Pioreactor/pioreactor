@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 
@@ -49,9 +50,7 @@ export default function Cameras({ title }) {
     url: cameraUrl,
   });
 
-  React.useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   const updateCameraStatus = React.useCallback((unit, nextStatus) => {
     setCameraResults((currentResults = []) => currentResults.map((result) => (

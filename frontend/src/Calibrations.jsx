@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { NavigableTableRow } from "./components/TableRows";
 import { uiColors } from "./theme/colors";
@@ -825,9 +826,7 @@ function CalibrationsContainer() {
 }
 
 function Calibrations(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title]);
+    useDocumentTitle(props.title);
     return (
       <Grid container spacing={2} >
         <Grid

@@ -48,6 +48,46 @@ const colors = [
   "#311535",
 ];
 
+// Colors offered when choosing a unit's Overview line color: the distinct slots, not the near-duplicates.
+const unitColorChoices = colors.slice(0, 16);
+
+// Chosen colors win. Other units keep their usual slot (sorted unit N gets colors[N-1]) unless a chosen
+// color took it; those units, and units first seen later (e.g. only in chart history), take the first
+// unused color.
+function createUnitColorMap(units, chosenColors = {}) {
+  const resolved = { ...chosenColors };
+  const used = new Set(Object.values(chosenColors));
+  const nextUnusedColor = () => {
+    const color = colors.find((candidate) => !used.has(candidate)) ?? colors[used.size % colors.length];
+    used.add(color);
+    return color;
+  };
+  const displaced = [];
+  units.forEach((unit, index) => {
+    if (unit in resolved) {
+      return;
+    }
+    const usualColor = colors[index % colors.length];
+    if (used.has(usualColor)) {
+      displaced.push(unit);
+    } else {
+      resolved[unit] = usualColor;
+      used.add(usualColor);
+    }
+  });
+  displaced.forEach((unit) => {
+    resolved[unit] = nextUnusedColor();
+  });
+  return new Proxy(resolved, {
+    get: (target, property) => {
+      if (typeof property === "string" && !(property in target)) {
+        target[property] = nextUnusedColor();
+      }
+      return target[property];
+    },
+  });
+}
+
 const ERROR_COLOR = uiColors.logError;
 const WARNING_COLOR = uiColors.logWarning;
 const NOTICE_COLOR = uiColors.logNotice;
@@ -71,6 +111,8 @@ const stateDisplay = {
 export {
   ColorCycler,
   colors,
+  createUnitColorMap,
+  unitColorChoices,
   ERROR_COLOR,
   WARNING_COLOR,
   NOTICE_COLOR,

@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams,  useNavigate,  Link } from "react-router";
@@ -270,9 +271,7 @@ function SingleCalibrationPage(props) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   const fetchSingleCalibration = useCallback(async () => {
     setLoading(true);

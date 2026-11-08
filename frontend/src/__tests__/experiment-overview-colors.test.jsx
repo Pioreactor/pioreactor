@@ -35,7 +35,7 @@ const { useMQTT } = require("../providers/MQTTContext");
 const { getConfig } = require("../utils/config");
 const Overview = require("../ExperimentOverview").default;
 
-function mockFetch(workersResponse) {
+function mockFetch(workersResponse, overviewUnitColors = {}, historicalUnits = []) {
   global.fetch = jest.fn((url) => {
     if (url === "/api/charts/descriptors") {
       return Promise.resolve({
@@ -52,7 +52,14 @@ function mockFetch(workersResponse) {
         json: () => Promise.resolve({
           overview_chart_keys: ["temperature", "optical_density"],
           pioreactor_chart_keys: null,
+          overview_unit_colors: overviewUnitColors,
         }),
+      });
+    }
+    if (url === "/api/experiments/exp1/historical_worker_assignments") {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(historicalUnits.map((unit) => ({ pioreactor_unit: unit, experiment: "exp1" }))),
       });
     }
     if (url === "/api/experiments/exp1/workers") {
@@ -88,6 +95,37 @@ test("unit colors follow the sorted worker list, not which chart loads first", a
   expect(await screen.findByTestId("chart-temperature")).toHaveTextContent(`unit3=${colors[2]}`);
   expect(screen.getByTestId("chart-optical_density")).toHaveTextContent(
     `unit1=${colors[0]} unit2=${colors[1]} unit3=${colors[2]}`,
+  );
+});
+
+test("a chosen color moves only the unit that usually has it", async () => {
+  mockFetch(
+    {
+      ok: true,
+      json: () => Promise.resolve(["unit1", "unit2", "unit3"].map((unit) => ({ pioreactor_unit: unit, is_active: 1 }))),
+    },
+    { unit1: colors[2] },
+  );
+  render(<Overview title="Pioreactor ~ Overview" />);
+
+  expect(await screen.findByTestId("chart-optical_density")).toHaveTextContent(
+    `unit1=${colors[2]} unit2=${colors[1]} unit3=${colors[0]}`,
+  );
+});
+
+test("previously assigned units take colors after the current ones", async () => {
+  mockFetch(
+    {
+      ok: true,
+      json: () => Promise.resolve(["unit1", "unit3"].map((unit) => ({ pioreactor_unit: unit, is_active: 1 }))),
+    },
+    {},
+    ["unit1", "unit2", "unit3"],
+  );
+  render(<Overview title="Pioreactor ~ Overview" />);
+
+  expect(await screen.findByTestId("chart-optical_density")).toHaveTextContent(
+    `unit1=${colors[0]} unit2=${colors[2]} unit3=${colors[1]}`,
   );
 });
 

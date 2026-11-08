@@ -92,12 +92,20 @@ export default function useExperimentChartPreferences({ chartPage, config, confi
   const availableChartKeySet = new Set(descriptors.map((descriptor) => descriptor.chart_key));
   const selectedChartKeys = requestedChartKeys.filter((chartKey) => availableChartKeySet.has(chartKey));
 
-  const save = React.useCallback(async (chartKeys) => {
+  const storedUnitColors = preferences?.overview_unit_colors;
+  const unitColors = React.useMemo(() => storedUnitColors ?? {}, [storedUnitColors]);
+
+  // nextUnitColors, when given, replaces every chosen Overview line color for the experiment.
+  const save = React.useCallback(async (chartKeys, nextUnitColors) => {
+    const body = { [preferenceField]: chartKeys };
+    if (nextUnitColors !== undefined) {
+      body.overview_unit_colors = nextUnitColors;
+    }
     const response = await fetch(
       `/api/experiments/${encodeURIComponent(experiment)}/chart_preferences`,
       {
         method: "PATCH",
-        body: JSON.stringify({ [preferenceField]: chartKeys }),
+        body: JSON.stringify(body),
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -124,5 +132,6 @@ export default function useExperimentChartPreferences({ chartPage, config, confi
     refresh,
     save,
     selectedChartKeys,
+    unitColors,
   };
 }

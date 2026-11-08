@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useCallback} from "react";
@@ -1012,9 +1013,7 @@ function Inventory({title}) {
   const [isLoading, setIsLoading] = useState(true);
   const locallyChangedAssignments = React.useRef(new Set());
 
-  useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   useEffect(() => {
     let isActive = true;

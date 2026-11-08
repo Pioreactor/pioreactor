@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { uiColors } from "./theme/colors";
 import React from "react";
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -1073,9 +1074,7 @@ function PluginContainer() {
 }
 
 function Plugins(props) {
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
   return (
     <Grid container spacing={2}>
       <Grid

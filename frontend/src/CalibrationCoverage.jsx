@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import { Link, useNavigate } from "react-router";
@@ -104,9 +105,7 @@ function CalibrationCoverage(props) {
   const [matrix, setMatrix] = React.useState({ units: [], devices: [], cells: {} });
   const navigate = useNavigate();
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   React.useEffect(() => {
     const load = async () => {

@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Enhancements
+
+ - Added a **Line colors** tab to the Overview's chart settings (the gear icon). Pick a color from the chart palette for any Pioreactor that has been in the experiment, and its line uses that color on every Overview chart. Choices are saved with the experiment, so everyone viewing it sees the same colors. Pioreactors left on Automatic keep their usual color unless it was picked for another Pioreactor, in which case they move to the next unused color. The colors are also available from `/api/experiments/<experiment>/chart_preferences` as `overview_unit_colors`.
+
 #### Bug fixes
 
  - Fixed repeated shutdown signals interrupting job cleanup during software updates or Huey restarts, which could leave stopped activities showing as ready or lost in MQTT and leave old automation names and settings in the UI.

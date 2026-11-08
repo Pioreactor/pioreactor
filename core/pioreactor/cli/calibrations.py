@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from copy import deepcopy as copy
+from statistics import mean
 
 import click
 from msgspec import ValidationError
@@ -299,15 +300,18 @@ def analyze_calibration(device: str, calibration_name: str, fit: str) -> None:
 
     calibration = load_calibration(device, calibration_name)
 
+    anchor = None
     if isinstance(calibration, structs.ODCalibration):
-        n = len(calibration.recorded_data["x"])
-        weights = [1.0] * n
-        weights[0] = n / 2
-    else:
-        weights = None
+        # Older files do not identify the blank separately. Only zero-OD standards
+        # unambiguously identify the blank; their order in recorded_data is arbitrary.
+        blank_voltages = [
+            y for x, y in zip(calibration.recorded_data["x"], calibration.recorded_data["y"]) if x == 0.0
+        ]
+        if blank_voltages:
+            anchor = (0.0, mean(blank_voltages))
 
     new_calibration = crunch_data_and_confirm_with_user(
-        copy(calibration), initial_degree=3, weights=weights, fit=fit
+        copy(calibration), initial_degree=3, fit=fit, anchor=anchor
     )
 
     new_calibration.save_to_disk_for_device(device)

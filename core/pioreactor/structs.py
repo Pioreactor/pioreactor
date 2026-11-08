@@ -726,6 +726,8 @@ class UpdateExperimentRequest(Struct, forbid_unknown_fields=True):
 class UpdateExperimentChartPreferencesRequest(Struct, forbid_unknown_fields=True):
     overview_chart_keys: list[str] | None | UnsetType = UNSET
     pioreactor_chart_keys: list[str] | None | UnsetType = UNSET
+    # Replaces every chosen Overview line color for the experiment; units left out use automatic colors.
+    overview_unit_colors: dict[str, str] | UnsetType = UNSET
 
 
 class UpsertUnitLabelRequest(Struct, forbid_unknown_fields=True):

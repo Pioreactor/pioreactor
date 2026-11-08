@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { useState, useEffect, Fragment } from 'react';
 
 import Select from '@mui/material/Select';
@@ -32,9 +33,7 @@ function SystemLogs(props) {
   }, [logLevel]);
 
 
-  useEffect(() => {
-    document.title = props.title;
-  }, [props.title])
+  useDocumentTitle(props.title);
 
   useEffect(() => {
     async function fetchUnits() {

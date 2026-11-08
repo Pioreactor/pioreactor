@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
@@ -242,9 +243,7 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
   const createInitialFilename = location.state?.initialFilename ?? "";
   const editorKey = mode === "edit" ? `edit:${profileFilename}` : `create:${location.key}`;
 
-  React.useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   React.useEffect(() => {
     if (mode !== "edit") {

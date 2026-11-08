@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
@@ -1161,9 +1162,7 @@ function LeaderContainer({config}) {
 }
 
 function Leader({title, config}) {
-  React.useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   return (
     <Grid container spacing={2}>

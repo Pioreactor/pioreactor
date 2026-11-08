@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import useCameraResource from "./hooks/useCameraResource";
 import { uiColors } from "./theme/colors";
@@ -2204,9 +2205,7 @@ function Pioreactor({title}) {
   // Charts refetch their history when this identity changes, so keep it stable across MQTT-driven rerenders.
   const unitsColorMap = useMemo(() => ({[unit]: colors[0]}), [unit])
 
-  useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   useEffect(() => {
     fetch(`/api/config/units/${unit}`).then((response) => {

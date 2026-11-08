@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { ZebraTableRow } from "./components/TableRows";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
@@ -139,9 +140,7 @@ function ExperimentsContainer(props) {
   const [snackbarOpen, setSnackbarOpen] = React.useState(false);
   const [snackbarMessage, setSnackbarMessage] = React.useState("");
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   const refreshExperiments = React.useCallback(async () => {
     setLoading(true);

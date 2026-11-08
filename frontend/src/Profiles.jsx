@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from "dayjs";
@@ -483,9 +484,7 @@ function Profiles(props) {
   );
 
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   const uploadProfile = async (event) => {
     const file = event.target.files?.[0];

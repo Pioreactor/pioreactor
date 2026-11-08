@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from msgspec import convert
+from pioreactor import structs
 from pioreactor.calibrations.protocols import od_fusion_offset
 from pioreactor.calibrations.protocols import od_fusion_standards
 from pioreactor.calibrations.protocols import od_standards
@@ -18,6 +20,7 @@ from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.session_flow import StepRegistry
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
+from pioreactor.utils.splines import spline_eval
 from pioreactor.whoami import get_testing_experiment_name
 
 
@@ -101,6 +104,8 @@ def test_od_standards_review_lists_every_point_with_the_blank_last() -> None:
     assert all(row["include"] for row in _table(step))
     series = step.metadata["chart"]["series"][0]
     assert series["curve"]["type"] == "spline"
+    curve = convert(series["curve"], type=structs.SplineFitData)
+    assert spline_eval(curve, 0.0) == 0.001
 
 
 def test_od_standards_preview_applies_edits_without_saving() -> None:
@@ -129,9 +134,11 @@ def test_od_standards_preview_applies_edits_without_saving() -> None:
     assert [point["x"] for point in chart_points] == [0.5, 2.0, 0.0]
 
 
-def test_od_standards_save_fits_only_included_points_with_corrected_values() -> None:
+@pytest.mark.parametrize("blank_od600", [0.0, 0.05])
+def test_od_standards_save_fits_only_included_points_with_corrected_values(blank_od600: float) -> None:
     executor = FakeExecutor()
     session = _od_session()
+    session.data["od600_values"][-1] = blank_od600
     rows = _table(get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor))
     rows[2]["od600"] = 2.0
     rows[1]["include"] = False
@@ -141,7 +148,20 @@ def test_od_standards_save_fits_only_included_points_with_corrected_values() -> 
     assert session.status == "complete"
     (saved,) = executor.saved
     assert saved["device"] == "od90"
-    assert saved["calibration"]["recorded_data"] == {"x": [0.5, 2.0, 0.0], "y": [0.05, 0.9, 0.001]}
+    assert saved["calibration"]["recorded_data"] == {"x": [0.5, 2.0, blank_od600], "y": [0.05, 0.9, 0.001]}
+    calibration = convert(saved["calibration"], type=structs.OD600Calibration)
+    assert calibration.x_to_y(blank_od600) == pytest.approx(0.001)
+
+
+def test_od_standards_cannot_save_without_the_blank() -> None:
+    executor = FakeExecutor()
+    session = _od_session()
+    rows = _table(get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor))
+    rows[-1]["include"] = False
+
+    with pytest.raises(ValueError, match="Keep the blank included"):
+        advance_session(od_standards._OD_STANDARDS_STEPS, session, {REVIEW_TABLE_FIELD: rows}, executor)
+    assert executor.saved == []
 
 
 def test_review_requires_enough_included_rows() -> None:

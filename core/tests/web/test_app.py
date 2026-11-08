@@ -1653,6 +1653,7 @@ def test_experiment_chart_preferences_default_to_config(client) -> None:
     assert response.get_json() == {
         "overview_chart_keys": None,
         "pioreactor_chart_keys": None,
+        "overview_unit_colors": {},
     }
 
 
@@ -1691,6 +1692,7 @@ def test_update_experiment_chart_preferences(client, monkeypatch: MonkeyPatch) -
     assert response.get_json() == {
         "overview_chart_keys": ["optical_density", "temperature"],
         "pioreactor_chart_keys": [],
+        "overview_unit_colors": {},
     }
     assert client.get("/api/experiments/exp1/chart_preferences").get_json() == response.get_json()
 
@@ -1723,6 +1725,23 @@ def test_reset_experiment_chart_preferences_to_config(client, monkeypatch: Monke
     assert response.get_json()["overview_chart_keys"] is None
 
 
+def test_overview_unit_colors_replace_previous_choices(client) -> None:
+    response = client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={"overview_unit_colors": {"unit1": "#58502F", "unit2": "#CC3311"}},
+    )
+    assert response.status_code == 200
+    assert response.get_json()["overview_unit_colors"] == {"unit1": "#58502F", "unit2": "#CC3311"}
+
+    response = client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={"overview_unit_colors": {"unit2": "#0077BB"}},
+    )
+    assert response.get_json()["overview_unit_colors"] == {"unit2": "#0077BB"}
+    assert response.get_json()["overview_chart_keys"] is None
+    assert client.get("/api/experiments/exp1/chart_preferences").get_json() == response.get_json()
+
+
 @pytest.mark.parametrize(
     ("payload", "expected_error"),
     [
@@ -1735,6 +1754,7 @@ def test_reset_experiment_chart_preferences_to_config(client, monkeypatch: Monke
             {"overview_chart_keys": ["not-a-chart"]},
             "Chart selection contains unavailable charts",
         ),
+        ({"overview_unit_colors": {"unit1": "red"}}, "Line colors must be hex colors"),
     ],
 )
 def test_reject_invalid_experiment_chart_preferences(

@@ -676,9 +676,7 @@ def log(
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
-        getattr(logger, "debug")(
-            f"{action_count}. Logging message `{evaluate_log_message(options.message, env)}`"
-        )
+        logger.debug(f"{action_count}. Logging message `{body['message']}`")
 
     return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 

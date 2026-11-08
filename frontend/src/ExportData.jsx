@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
@@ -706,9 +707,7 @@ function ExportDataContainer() {
 
 
 function ExportData(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title]);
+    useDocumentTitle(props.title);
     return (
       <Grid container spacing={2} >
         <Grid

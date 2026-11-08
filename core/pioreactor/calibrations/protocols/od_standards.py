@@ -187,10 +187,12 @@ def _devices_for_angles(channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> li
 def _calculate_curve_data(
     od600_values: list[float],
     voltages: list[float],
+    *,
+    blank: tuple[float, float],
 ) -> structs.CalibrationCurveData:
     from pioreactor.utils.splines import spline_fit
 
-    return spline_fit(od600_values, voltages)
+    return spline_fit(od600_values, voltages, anchor=blank)
 
 
 def _build_standards_chart_metadata(
@@ -597,6 +599,8 @@ class MeasureBlank(SessionStep):
 
 
 class ReviewStandards(ReviewDataStep):
+    body = f"{ReviewDataStep.body} Keep the blank included; it anchors the calibration curve."
+
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
         voltage_columns = [
             column(f"voltage_{channel}", f"Voltage, {channel} ({angle}°)")
@@ -636,9 +640,19 @@ class ReviewStandards(ReviewDataStep):
         chart = _build_standards_chart_metadata(od600_values, voltages_by_channel, channel_angle_map)
         if chart is None:
             return None
+        blank_index = len(ctx.data["od600_values"]) - 1
         for series in cast(list[dict[str, Any]], chart["series"]):
+            if blank_index not in included:
+                continue
             try:
-                curve = _calculate_curve_data(od600_values, voltages_by_channel[series["id"]])
+                curve = _calculate_curve_data(
+                    od600_values,
+                    voltages_by_channel[series["id"]],
+                    blank=(
+                        ctx.data["od600_values"][blank_index],
+                        ctx.data["voltages_by_channel"][series["id"]][blank_index],
+                    ),
+                )
             except ValueError:
                 continue
             series["curve"] = to_builtins(curve)
@@ -646,11 +660,21 @@ class ReviewStandards(ReviewDataStep):
         return chart
 
     def save(self, ctx: SessionContext, included: list[int]) -> None:
+        blank_index = len(ctx.data["od600_values"]) - 1
+        if blank_index not in included:
+            raise ValueError("Keep the blank included; it anchors the calibration curve.")
         od600_values = select_rows(ctx.data["od600_values"], included)
         calibration_links: list[dict[str, str | None]] = []
         for pd_channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0])):
             voltages_list = select_rows(ctx.data["voltages_by_channel"][pd_channel], included)
-            curve_data_ = _calculate_curve_data(od600_values, voltages_list)
+            curve_data_ = _calculate_curve_data(
+                od600_values,
+                voltages_list,
+                blank=(
+                    ctx.data["od600_values"][blank_index],
+                    ctx.data["voltages_by_channel"][pd_channel][blank_index],
+                ),
+            )
             cal = to_struct(
                 curve_data_,
                 voltages_list,

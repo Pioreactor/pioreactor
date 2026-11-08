@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { NavigableTableRow } from "./components/TableRows";
 import dayjs from 'dayjs';
@@ -377,9 +378,7 @@ function EstimatorsContainer() {
 
 
 function Estimators(props) {
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
   return (
     <Grid container spacing={2}>
       <Grid
