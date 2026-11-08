@@ -5,6 +5,9 @@ from typing import Literal
 
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 from pioreactor import structs
 from pioreactor.utils.polys import poly_eval
 from pioreactor.utils.polys import poly_fit
@@ -15,6 +18,34 @@ def test_poly_eval_matches_numpy() -> None:
     coef = [2.0, -3.0, 1.0]
     x = 1.5
     assert poly_eval(structs.PolyFitCoefficients(coefficients=coef), x) == pytest.approx(np.polyval(coef, x))
+
+
+@settings(max_examples=100)
+@given(
+    coefficients=st.lists(
+        st.floats(-100, 100, allow_nan=False, allow_infinity=False), min_size=1, max_size=6
+    ),
+    x=st.floats(-10, 10, allow_nan=False, allow_infinity=False),
+)
+def test_property_poly_eval_matches_numpy(coefficients: list[float], x: float) -> None:
+    curve = structs.PolyFitCoefficients(coefficients=coefficients)
+    assert poly_eval(curve, x) == pytest.approx(float(np.polyval(coefficients, x)), rel=1e-12, abs=1e-12)
+
+
+@settings(max_examples=100)
+@given(
+    values=st.lists(st.floats(-10, 10, allow_nan=False, allow_infinity=False), min_size=6, max_size=12),
+    degree=st.sampled_from([0, 1, 2, 3, "auto"]),
+    anchor_x=st.floats(-1, 1, allow_nan=False, allow_infinity=False),
+    anchor_y=st.floats(-10, 10, allow_nan=False, allow_infinity=False),
+)
+def test_property_poly_fit_preserves_anchor(
+    values: list[float], degree: int | Literal["auto"], anchor_x: float, anchor_y: float
+) -> None:
+    # Evenly spaced inputs keep the fit well-conditioned while varying the anchor and data.
+    x = np.linspace(-1.0, 1.0, len(values)) + anchor_x
+    curve = poly_fit(x, values, degree=degree, anchor=(anchor_x, anchor_y))
+    assert poly_eval(curve, anchor_x) == pytest.approx(anchor_y, rel=1e-10, abs=1e-10)
 
 
 def test_poly_fit_matches_numpy() -> None:

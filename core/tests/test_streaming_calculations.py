@@ -1,10 +1,115 @@
 # -*- coding: utf-8 -*-
 # test_streaming_calculations.py
+from math import isfinite
 from unittest.mock import Mock
 
 import pytest
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import PID
+
+
+@settings(max_examples=100)
+@given(
+    alpha=st.floats(0, 1, allow_nan=False, allow_infinity=False),
+    values=st.lists(st.floats(-100, 100, allow_nan=False, allow_infinity=False), min_size=1, max_size=30),
+)
+def test_property_ema_stays_within_observed_range(alpha: float, values: list[float]) -> None:
+    ema = ExponentialMovingAverage(alpha)
+    lower = upper = values[0]
+    for value in values:
+        lower, upper = min(lower, value), max(upper, value)
+        result = ema.update(value)
+        assert isfinite(result)
+        # Convex combinations can round just outside the observed range.
+        assert lower - 1e-10 <= result <= upper + 1e-10
+        assert ema.get_latest() == result
+
+
+@settings(max_examples=100)
+@given(
+    alpha=st.sampled_from([0.0, 1.0]),
+    values=st.lists(st.floats(-100, 100, allow_nan=False, allow_infinity=False), min_size=1, max_size=30),
+)
+def test_property_ema_endpoints_select_latest_or_first(alpha: float, values: list[float]) -> None:
+    ema = ExponentialMovingAverage(alpha)
+    for value in values:
+        assert ema.update(value) == (value if alpha == 0.0 else values[0])
+
+
+@settings(max_examples=100)
+@given(
+    gains=st.tuples(*(st.floats(-10, 10, allow_nan=False, allow_infinity=False) for _ in range(3))),
+    setpoint=st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+    lower=st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+    width=st.floats(0, 100, allow_nan=False, allow_infinity=False),
+    smoothing=st.floats(0, 1, allow_nan=False, allow_infinity=False),
+    updates=st.lists(
+        st.tuples(
+            st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+            st.floats(0.01, 10, allow_nan=False, allow_infinity=False),
+        ),
+        min_size=1,
+        max_size=30,
+    ),
+)
+def test_property_pid_respects_output_limits(
+    gains: tuple[float, float, float],
+    setpoint: float,
+    lower: float,
+    width: float,
+    smoothing: float,
+    updates: list[tuple[float, float]],
+) -> None:
+    upper = lower + width
+    pid = PID(
+        Kp=gains[0],
+        Ki=gains[1],
+        Kd=gains[2],
+        setpoint=setpoint,
+        output_limits=(lower, upper),
+        derivative_smoothing=smoothing,
+        pub_client=Mock(),
+    )
+    for value, dt in updates:
+        output = pid.update(value, dt=dt)
+        assert isfinite(output)
+        assert lower <= output <= upper
+
+
+@settings(max_examples=100)
+@given(
+    updates=st.lists(
+        st.tuples(
+            st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+            st.floats(0.01, 10, allow_nan=False, allow_infinity=False),
+        ),
+        min_size=1,
+        max_size=30,
+    ),
+    bad_dt=st.one_of(
+        st.sampled_from([0.0, float("nan"), float("inf"), -float("inf")]),
+        st.floats(-1000, 0, allow_nan=False, allow_infinity=False),
+    ),
+    value=st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+)
+def test_property_pid_invalid_dt_preserves_state_and_publications(
+    updates: list[tuple[float, float]], bad_dt: float, value: float
+) -> None:
+    client = Mock()
+    pid = PID(Kp=1.0, Ki=1.0, Kd=1.0, setpoint=10.0, pub_client=client)
+    for input_, dt in updates:
+        pid.update(input_, dt=dt)
+    state = (pid.error_prev, pid.error_sum, pid.derivative_prev, pid._last_input, pid._last_output)
+    publications = client.publish.call_args_list.copy()
+
+    with pytest.raises(ValueError, match="dt must be finite and positive"):
+        pid.update(value, dt=bad_dt)
+
+    assert (pid.error_prev, pid.error_sum, pid.derivative_prev, pid._last_input, pid._last_output) == state
+    assert client.publish.call_args_list == publications
 
 
 def test_ema_get_latest_and_clear() -> None:
