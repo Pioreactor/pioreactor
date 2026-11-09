@@ -544,11 +544,13 @@ def _process_delayed_json_response(
 ) -> tuple[str, Any]:
     """
     Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
-    Poll once immediately, then wait between subsequent pending polls.
+    Poll once immediately, then wait between subsequent pending polls. The wait starts at 50 ms and
+    doubles up to retry_sleep_s, since most unit tasks finish within ~100 ms of being accepted.
     Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
     remaining_attempts = max_attempts
+    pending_sleep_s = min(0.05, retry_sleep_s)
     task_metadata: dict[str, Any] = {}
 
     while response.status_code == 202 and "result_url_path" in data:
@@ -605,7 +607,8 @@ def _process_delayed_json_response(
             )
 
         if response.status_code == 202 and "result_url_path" in data:
-            sleep(retry_sleep_s)
+            sleep(pending_sleep_s)
+            pending_sleep_s = min(2 * pending_sleep_s, retry_sleep_s)
 
     return _process_json_response(unit, response, data)
 
@@ -2206,7 +2209,9 @@ def _multicast_get_uncached(
         # Give the aggregate Huey result a small amount of headroom beyond the per-unit
         # request timeout so offline workers can resolve to `None` instead of turning
         # the whole fanout into a ResultTimeout.
-        unsorted_responses = result.get(blocking=True, timeout=timeout + 1.0)
+        # A request is waiting on this, so recheck every 20 ms: Huey's default first sleeps 50 ms
+        # and then backs off, which adds up to ~50 ms to a fanout that takes ~30 ms.
+        unsorted_responses = result.get(blocking=True, timeout=timeout + 1.0, max_delay=0.02)
     except ResultTimeout:
         ordered_results: list[Any] = []
         for child_result in result.results:

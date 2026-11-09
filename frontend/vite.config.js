@@ -86,6 +86,13 @@ export default defineConfig(({ command }) => ({
         main: "index.html",
         kiosk: "kiosk.html",
       },
+      output: {
+        // Shared modules otherwise become dozens of sub-kilobyte chunks (single icons, small MUI
+        // components), each its own HTTP/1.1 request on a route's first load.
+        manualChunks(id) {
+          if (id.includes("/node_modules/@mui/")) return "mui";
+        },
+      },
       onwarn(warning, defaultHandler) {
         const source = warning.id?.replaceAll("\\", "/");
         const isKnownLegacyChartEval =

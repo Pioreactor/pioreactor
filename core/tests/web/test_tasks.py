@@ -559,6 +559,23 @@ def test_delete_experiment_through_huey(
     assert tasks.huey.dequeue() is None
 
 
+def test_delayed_result_polling_backs_off_from_short_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    pending = _response(202, {"result_url_path": "/unit_api/task_results/abc"})
+    responses = [pending] * 5 + [
+        _response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}})
+    ]
+    sleeps: list[float] = []
+
+    monkeypatch.setattr(pubsub, "get_from", lambda *args, **kwargs: responses.pop(0))
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
+    monkeypatch.setattr(tasks, "sleep", sleeps.append)
+
+    _, result = tasks._request_unit("GET", "unit1", "/unit_api/do")
+
+    assert result["ok"] is True
+    assert sleeps == [0.05, 0.1, 0.2, 0.25]
+
+
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate two pending responses followed by a completed task.
     responses = [
@@ -1080,7 +1097,7 @@ def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
     captured: dict[str, Any] = {}
 
     class DummyResult:
-        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+        def get(self, blocking: bool, timeout: float, max_delay: float) -> dict[str, Any]:
             captured["blocking"] = blocking
             captured["timeout"] = timeout
             return {
@@ -1130,7 +1147,7 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
                 PendingChildResult(),
             ]
 
-        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+        def get(self, blocking: bool, timeout: float, max_delay: float) -> dict[str, Any]:
             raise tasks.ResultTimeout("timed out waiting for result.")
 
     monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
