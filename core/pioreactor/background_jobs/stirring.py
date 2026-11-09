@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from json import dumps
 from threading import RLock
+from time import monotonic
 from time import sleep
 from time import time
 from typing import cast
@@ -126,10 +128,17 @@ class RpmFromFrequency(RpmCalculator):
     """
 
     _running_sum = 0.0
-    _running_min = 100
-    _running_max = -100
+    _running_min = 100.0
+    _running_max = -100.0
     _running_count = 0
-    _start_time = None
+    _start_time: float | None = None
+    intervals_s: list[float]
+    first_edge_timestamp_ns: int | None
+    last_edge_timestamp_ns: int | None
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.clear_aggregates()
 
     def callback(self, _chip: int, _gpio: int, _level: int, timestamp_ns: int) -> None:
         _start_time = self._start_time
@@ -139,19 +148,28 @@ class RpmFromFrequency(RpmCalculator):
 
         if _start_time is not None:
             delta = obs_time - _start_time
+            # Bound diagnostic storage even if electrical noise produces many edges.
+            if len(self.intervals_s) < 128:
+                self.intervals_s.append(delta)
             self._running_sum += delta
             self._running_count += 1
             self._running_min = min(self._running_min, delta)
             self._running_max = max(self._running_max, delta)
 
+        if self.first_edge_timestamp_ns is None:
+            self.first_edge_timestamp_ns = timestamp_ns
+        self.last_edge_timestamp_ns = timestamp_ns
         self._start_time = obs_time
 
     def clear_aggregates(self) -> None:
+        self.intervals_s = []
+        self.first_edge_timestamp_ns = None
+        self.last_edge_timestamp_ns = None
         self._running_sum = 0.0
         self._running_count = 0
         self._start_time = None
-        self._running_min = 100
-        self._running_max = -100
+        self._running_min = 100.0
+        self._running_max = -100.0
 
     def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
@@ -211,6 +229,8 @@ class Stirrer(BackgroundJobWithDodging):
     _estimate_duty_cycle: float
     duty_cycle: float = 0
     _measured_rpm: float | None = None
+    _previous_rpm_observation: tuple[float, float] | None = None
+    _last_rpm_anomaly_at: float = float("-inf")
     calibration: structs.SimpleStirringCalibration | None = None
     target_rpm_during_od_reading: float | None = None
     # True from action_to_do_before_od_reading until the fan is restored after the reading.
@@ -463,6 +483,7 @@ class Stirrer(BackgroundJobWithDodging):
 
     def spin_up(self, duty_cycle: float, kick_seconds: float) -> None:
         """Briefly apply 100% to get the stir bar moving, then settle at `duty_cycle`."""
+        self._previous_rpm_observation = None
         self.set_duty_cycle(100)
         if not is_testing_env():
             sleep(kick_seconds)
@@ -481,6 +502,7 @@ class Stirrer(BackgroundJobWithDodging):
             self.rpm_check_repeated_timer.unpause()
 
     def stop_stirring(self) -> None:
+        self._previous_rpm_observation = None
         self.set_duty_cycle(0)
         if self.rpm_check_repeated_timer is not None:
             self.rpm_check_repeated_timer.pause()
@@ -523,12 +545,15 @@ class Stirrer(BackgroundJobWithDodging):
         if self.rpm_calculator is None:
             return None
 
+        duty_cycle_before = self.duty_cycle
         recent_rpm = self.rpm_calculator.estimate(poll_for_seconds)
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(
             timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
         )
+
+        self._log_rpm_anomaly(recent_rpm, poll_for_seconds, duty_cycle_before)
 
         target_rpm = self.target_rpm or 0
         if recent_rpm == 0 and self.state is st.READY and target_rpm > 0:  # and not is_testing_env():
@@ -547,6 +572,79 @@ class Stirrer(BackgroundJobWithDodging):
                 self.kick_stirring_but_avoid_od_reading()
 
         return self._measured_rpm
+
+    def _log_rpm_anomaly(self, rpm: float, window_s: float, duty_cycle_before: float) -> None:
+        """Diagnose steady continuous stirring without rejecting samples or changing control.
+
+        Thresholds are diagnostic heuristics, not proof of a sensor or motor fault.
+        Keep GPIO callbacks cheap: format and publish only here, after collection.
+        """
+        previous = self._previous_rpm_observation
+        if (
+            self.state is not st.READY
+            or self.currently_dodging_od
+            or self.duty_cycle <= 0
+            or self.duty_cycle != duty_cycle_before
+        ):
+            self._previous_rpm_observation = None
+            return
+
+        if previous is None:
+            # A commanded speed change may take several polls to settle. Do not
+            # arm diagnostics until we have reached the new target's vicinity.
+            if self.target_rpm is not None and abs(rpm - self.target_rpm) > max(20, 0.15 * self.target_rpm):
+                return
+            self._previous_rpm_observation = (rpm, self.duty_cycle)
+            return
+        self._previous_rpm_observation = (rpm, self.duty_cycle)
+        previous_rpm, previous_duty = previous
+        # Target changes already reset the baseline in update_target_rpm().
+        if abs(previous_duty - self.duty_cycle) > 0.5:
+            return
+
+        reasons = []
+        # Zero RPM already has its own warning and recovery path in poll().
+        if rpm > 0 and previous_rpm > 0 and abs(rpm - previous_rpm) > max(75, 0.30 * previous_rpm):
+            reasons.append("abrupt_rpm_change")
+
+        calculator = self.rpm_calculator
+        if isinstance(calculator, RpmFromFrequency) and calculator._running_count >= 4:
+            if calculator._running_min <= 0 or calculator._running_max > 2 * calculator._running_min:
+                reasons.append("irregular_hall_intervals")
+
+        now = monotonic()
+        if not reasons or now - self._last_rpm_anomaly_at < 60:
+            return
+        self._last_rpm_anomaly_at = now
+
+        pulse_details = {}
+        if isinstance(calculator, RpmFromFrequency):
+            pulse_details = {
+                "interval_count": calculator._running_count,
+                "first_edge_timestamp_ns": calculator.first_edge_timestamp_ns,
+                "last_edge_timestamp_ns": calculator.last_edge_timestamp_ns,
+                "min_interval_s": calculator._running_min if calculator._running_count else None,
+                "max_interval_s": calculator._running_max if calculator._running_count else None,
+                "intervals_s": [round(delta, 6) for delta in calculator.intervals_s],
+                "intervals_truncated": calculator._running_count > len(calculator.intervals_s),
+            }
+        self.logger.warning(
+            "Stirring anomaly (diagnostic only; reading unchanged): "
+            + dumps(
+                {
+                    "reasons": reasons,
+                    "timestamp": self.measured_rpm.timestamp.isoformat(),
+                    "rpm": rpm,
+                    "previous_rpm": previous_rpm,
+                    "target_rpm": self.target_rpm,
+                    "duty_cycle": self.duty_cycle,
+                    "previous_duty_cycle": previous_duty,
+                    "window_s": window_s,
+                    **pulse_details,
+                },
+                separators=(",", ":"),
+            )
+        )
 
     def update_dc_with_measured_rpm(self, measured_rpm: float | None) -> None:
         if measured_rpm is None or self.state is not st.READY:
@@ -620,6 +718,7 @@ class Stirrer(BackgroundJobWithDodging):
 
     def update_target_rpm(self, value: float) -> None:
         """Change target_rpm, the PID setpoint, and the duty cycle estimate, without touching the fan."""
+        self._previous_rpm_observation = None
         self.target_rpm = clamp(0.0, float(value), MAX_TARGET_RPM)
         self.pid.set_setpoint(self.target_rpm)
 
