@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Removed the deprecated constants in `pioreactor.hardware`. Plugins must call the corresponding getter functions: `SDA` / `SCL` → `get_sda_pin()` / `get_scl_pin()`, `TEMP` / `TEMP_ADDRESS` → `get_temp_address()`, `PWM_TO_PIN` → `get_pwm_to_pin_map()`, and `HEATER_PWM_TO_PIN` → `get_heater_pwm_channel()`. Also removed `GPIOCHIP`, `PWM_CONTROLLER`, `PCB_LED_PIN`, `PCB_BUTTON_PIN`, `HALL_SENSOR_PIN`, `ADCs`, `DAC`, and `DAC_ADDRESS`; see the [hardware migration reference](https://docs.pioreactor.com/developer-guide/custom-hardware#migrating-plugins-from-hardware-constants) for their replacements. Update affected OLED, PiOLED, relay, and temperature-expansion plugins before upgrading core.
+
 #### Enhancements
 
  - Sped up media-rate summaries for experiments with long dosing histories.

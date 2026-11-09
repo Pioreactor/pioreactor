@@ -7,6 +7,43 @@ from pioreactor import hardware
 from pioreactor.models import PIOREACTOR_40ml__v1_5
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "GPIOCHIP",
+        "PWM_CONTROLLER",
+        "HEATER_PWM_TO_PIN",
+        "PWM_TO_PIN",
+        "SDA",
+        "SCL",
+        "PCB_LED_PIN",
+        "PCB_BUTTON_PIN",
+        "HALL_SENSOR_PIN",
+        "TEMP_ADDRESS",
+        "TEMP",
+        "ADCs",
+        "DAC_ADDRESS",
+        "DAC",
+    ],
+)
+def test_legacy_hardware_constants_are_removed(name: str) -> None:
+    with pytest.raises(AttributeError):
+        getattr(hardware, name)
+
+
+def test_hardware_getter_imports_remain_available() -> None:
+    from pioreactor.hardware import get_heater_pwm_channel
+    from pioreactor.hardware import get_pwm_to_pin_map
+    from pioreactor.hardware import get_scl_pin
+    from pioreactor.hardware import get_sda_pin
+    from pioreactor.hardware import get_temp_address
+
+    assert isinstance(get_temp_address(), int)
+    assert isinstance(get_scl_pin(), int)
+    assert isinstance(get_sda_pin(), int)
+    assert isinstance(get_pwm_to_pin_map()[get_heater_pwm_channel()], int)
+
+
 @pytest.mark.parametrize("loader", ["assigned", "explicit"])
 @pytest.mark.parametrize("hat_extension", ["yaml", "yml"])
 @pytest.mark.parametrize("model_extension", ["yaml", "yml"])

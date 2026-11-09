@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import sys
-import warnings
 from functools import cache
 from os import environ
 from pathlib import Path
 from typing import Any
-from typing import Callable
 from typing import cast
 from typing import TYPE_CHECKING
 
@@ -364,41 +361,6 @@ __all__ = [
     "round_to_precision",
     "voltage_in_aux",
 ]
-
-
-_DEPRECATED_EXPORTS: dict[str, Callable[[], Any]] = {
-    "GPIOCHIP": determine_gpiochip,
-    "PWM_CONTROLLER": get_pwm_controller,
-    "HEATER_PWM_TO_PIN": get_heater_pwm_channel,
-    "PWM_TO_PIN": get_pwm_to_pin_map,
-    "SDA": get_sda_pin,
-    "SCL": get_scl_pin,
-    "PCB_LED_PIN": get_pcb_led_pin,
-    "PCB_BUTTON_PIN": get_pcb_button_pin,
-    "HALL_SENSOR_PIN": get_hall_sensor_pin,
-    "TEMP_ADDRESS": get_temp_address,
-    "TEMP": get_temp_address,
-    "ADCs": get_adc_curriers,
-    "DAC_ADDRESS": get_dac_address,
-    "DAC": get_dac_address,
-}
-
-
-def __getattr__(name: str) -> Any:
-    try:
-        factory = _DEPRECATED_EXPORTS[name]
-    except KeyError as exc:
-        raise AttributeError(f"module 'pioreactor.hardware' has no attribute {name!r}") from exc
-
-    replacement = factory.__name__
-    warnings.warn(
-        f"`hardware.{name}` is deprecated; call `hardware.{replacement}()` instead. `hardware.{name}` will be removed in a future version.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    value = factory()
-    setattr(sys.modules[__name__], name, value)
-    return value
 
 
 def scan_i2c_bus() -> list[int]:
