@@ -327,9 +327,6 @@ export function AssignPioreactors({ experiment, variant="text" }) {
 
   const allSelected = workers.length > 0 && workers.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
   const someSelected = workers.some((worker) => Boolean(assigned[worker.pioreactor_unit]));
-  const hasReassignments = workers.some((worker) =>
-    assigned[worker.pioreactor_unit] && worker.experiment !== null && worker.experiment !== experiment
-  );
 
   const assignmentDelta = compareObjects(assigned, initialAssigned);
   const assignmentDeltaCount = Object.keys(assignmentDelta).length;
@@ -350,21 +347,17 @@ export function AssignPioreactors({ experiment, variant="text" }) {
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle>
-          Assign Pioreactors
+          Assign Pioreactors to experiment
           <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
-          <Typography component="div" gutterBottom>
-            Assign and unassign Pioreactors to experiment{" "}
-            <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
-          </Typography>
           {assignmentError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {assignmentError}
             </Alert>
           )}
-          <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
-            <FormLabel component="legend">Pioreactors</FormLabel>
+          <FormControl sx={{ m: "auto", mt: 1}} component="fieldset" variant="standard">
+            <FormLabel component="legend" sx={{mb: 1 }}>Pioreactors</FormLabel>
             {workers.length > 1 &&
             <FormControlLabel
               control={
@@ -453,11 +446,6 @@ export function AssignPioreactors({ experiment, variant="text" }) {
               })}
             </FormGroup>
           </FormControl>
-          {hasReassignments && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              Reassigning Pioreactors will stop their activities in the previous experiment.
-            </Typography>
-          )}
         </DialogContent>
         <DialogActions>
           <Button
