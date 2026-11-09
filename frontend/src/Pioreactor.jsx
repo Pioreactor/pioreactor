@@ -44,7 +44,6 @@ import FlareIcon from '@mui/icons-material/Flare';
 import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import ControlIcon from './components/ControlIcon';
 import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -95,7 +94,7 @@ import {
   readyGreen,
   disabledColor,
 } from "./utils/color";
-import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import ChartControlsRow from "./components/ChartControlsRow";
 import useExperimentChartPreferences from "./hooks/useExperimentChartPreferences";
 import {
   canQuickEditCardSetting,
@@ -2182,15 +2181,19 @@ function Pioreactor({title}) {
   const theme = useTheme();
   const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true });
   const chartControls = (
-    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-      <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-      <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-      <ChartPreferencesControl
-        chartPageLabel="Pioreactor"
-        chartPreferences={chartPreferences}
-        experiment={experimentMetadata.experiment}
-      />
-    </Stack>
+    <ChartControlsRow
+      timeWindow={timeWindow}
+      setTimeWindow={setTimeWindow}
+      timeScale={timeScale}
+      setTimeScale={setTimeScale}
+      settingsControl={
+        <ChartPreferencesControl
+          chartPageLabel="Pioreactor"
+          chartPreferences={chartPreferences}
+          experiment={experimentMetadata.experiment}
+        />
+      }
+    />
   );
 
   const {pioreactorUnit} = useParams();

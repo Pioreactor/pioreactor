@@ -37,9 +37,9 @@ describe("TimeControls", () => {
 
     expect(setTimeWindow).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "All time" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Past hour" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "1h" })).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "Past hour" }));
+    fireEvent.click(screen.getByRole("button", { name: "1h" }));
 
     expect(setTimeWindow).toHaveBeenCalledWith(1);
     expect(window.localStorage.getItem("timeWindow")).toBe("1");
@@ -47,6 +47,6 @@ describe("TimeControls", () => {
     rerender(<TimeWindowSwitch timeWindow={1} setTimeWindow={setTimeWindow} />);
 
     expect(screen.getByRole("button", { name: "All time" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Past hour" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "1h" })).toHaveAttribute("aria-pressed", "true");
   });
 });

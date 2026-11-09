@@ -17,12 +17,11 @@ import { getConfig, getRelabelMap } from "./utils/config";
 import { createUnitColorMap } from "./utils/color";
 import { byUnit, sortNatural } from "./utils/naturalSort";
 import Card from "@mui/material/Card";
-import Stack from "@mui/material/Stack";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
-import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import ChartControlsRow from "./components/ChartControlsRow";
 import useExperimentChartPreferences from "./hooks/useExperimentChartPreferences";
 import { experimentPathSegment } from "./utils/url";
 
@@ -216,17 +215,21 @@ function Overview(props) {
   const showAssignmentAlert = hasFetchedUnits && unitNames.length === 0
 
   const chartControls = (
-    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-      <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-      <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-      <ChartPreferencesControl
-        chartPageLabel="Overview"
-        chartPreferences={chartPreferences}
-        experiment={experimentMetadata.experiment}
-        relabelMap={relabelMap}
-        units={colorChoiceUnitNames}
-      />
-    </Stack>
+    <ChartControlsRow
+      timeWindow={timeWindow}
+      setTimeWindow={setTimeWindow}
+      timeScale={timeScale}
+      setTimeScale={setTimeScale}
+      settingsControl={
+        <ChartPreferencesControl
+          chartPageLabel="Overview"
+          chartPreferences={chartPreferences}
+          experiment={experimentMetadata.experiment}
+          relabelMap={relabelMap}
+          units={colorChoiceUnitNames}
+        />
+      }
+    />
   )
 
   return (
