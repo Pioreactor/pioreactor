@@ -562,6 +562,34 @@ def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict[str, Any]:
     return get_from_leader(f"/api/config/units/{quote(pioreactor_unit, safe="")}")
 
 
+def _config_file_endpoint(config_file: str, pioreactor_unit: str | None) -> str:
+    if config_file == "config.ini" and pioreactor_unit is None:
+        return "/api/config/shared"
+    if config_file == "unit_config.ini" and pioreactor_unit and pioreactor_unit != "$broadcast":
+        return f"/api/config/units/{quote(pioreactor_unit, safe='')}/specific"
+    raise ValueError("Use config.ini without a unit, or unit_config.ini with a specific unit.")
+
+
+def get_pioreactor_config_file(config_file: str, pioreactor_unit: str | None = None) -> str:
+    """Read raw config.ini, or a unit's raw unit_config.ini, before editing it."""
+    endpoint = _config_file_endpoint(config_file, pioreactor_unit)
+    response = _get_from_leader(endpoint)
+    response.raise_for_status()
+    return response.content.decode("utf-8")
+
+
+@mcp.tool()
+def edit_pioreactor_config_file(
+    config_file: str, code: str, pioreactor_unit: str | None = None
+) -> dict[str, Any]:
+    """Replace an INI file after reading it. Use config.ini for the shared cluster config,
+    or unit_config.ini with a concrete pioreactor_unit for one unit's overrides.
+    The API validates the merged config and records the existing config history.
+    """
+    endpoint = _config_file_endpoint(config_file, pioreactor_unit)
+    return put_into_leader(endpoint, json={"code": code})
+
+
 # The library's decorator exposes only name; register discovery metadata through its public API.
 for read_tool in (
     get_experiments,
@@ -575,6 +603,7 @@ for read_tool in (
     db_get_table_schema,
     db_query_db,
     get_pioreactor_unit_configuration,
+    get_pioreactor_config_file,
 ):
     tool_info = ToolInfo.from_callable(read_tool, name=read_tool.__name__)
     tool_info.annotations = ToolAnnotations(readOnlyHint=True)

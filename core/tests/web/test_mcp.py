@@ -12,8 +12,10 @@ from pioreactor.mureq import Response
 from pioreactor.web.mcp import assign_worker_to_experiment
 from pioreactor.web.mcp import create_experiment
 from pioreactor.web.mcp import db_query_db
+from pioreactor.web.mcp import edit_pioreactor_config_file
 from pioreactor.web.mcp import export_experiment_data
 from pioreactor.web.mcp import get_experiments
+from pioreactor.web.mcp import get_pioreactor_config_file
 from pioreactor.web.mcp import get_pioreactor_unit_capabilities
 from pioreactor.web.mcp import get_recent_experiment_logs
 from pioreactor.web.mcp import mcp
@@ -197,6 +199,48 @@ def test_unassign_worker_from_experiment_deletes_assignment() -> None:
     assert req.path == "/api/experiments/exp1/workers/worker1"
     assert req.json is None
     assert result == {"mocked": "response"}
+
+
+@pytest.mark.parametrize(
+    ("config_file", "pioreactor_unit", "endpoint"),
+    [
+        ("config.ini", None, "/api/config/shared"),
+        ("unit_config.ini", "worker 1", "/api/config/units/worker%201/specific"),
+    ],
+)
+def test_config_file_tools_use_existing_api(
+    config_file: str, pioreactor_unit: str | None, endpoint: str
+) -> None:
+    with capture_requests() as requests:
+        content = get_pioreactor_config_file(config_file, pioreactor_unit)
+        result = edit_pioreactor_config_file(config_file, "[section]\nkey = value\n", pioreactor_unit)
+
+    assert [(request.method, request.path) for request in requests] == [
+        ("GET", endpoint),
+        ("PUT", endpoint),
+    ]
+    assert requests[1].json == {"code": "[section]\nkey = value\n"}
+    assert content == '{"mocked": "response"}'
+    assert result == {"mocked": "response"}
+
+
+@pytest.mark.parametrize(
+    ("config_file", "pioreactor_unit"),
+    [
+        ("config.ini", "worker1"),
+        ("unit_config.ini", None),
+        ("unit_config.ini", "$broadcast"),
+        ("other.ini", None),
+    ],
+)
+def test_config_file_tools_reject_invalid_targets(config_file: str, pioreactor_unit: str | None) -> None:
+    with capture_requests() as requests:
+        with pytest.raises(ValueError):
+            get_pioreactor_config_file(config_file, pioreactor_unit)
+        with pytest.raises(ValueError):
+            edit_pioreactor_config_file(config_file, "[section]\n", pioreactor_unit)
+
+    assert not requests
 
 
 def test_get_from_leader_raises_on_failed_task_payload(monkeypatch) -> None:
@@ -481,6 +525,8 @@ def test_mcp_tool_discovery_contract() -> None:
     assert "get_pioreactor_unit_capabilties" not in tools
     assert "pioreactor_unit" in tools["stop_job_on_pioreactor_unit"]["inputSchema"]["required"]
     assert tools["db_query_db"]["inputSchema"]["properties"]["limit"]["maximum"] == 1000
+    assert tools["get_pioreactor_config_file"]["annotations"]["readOnlyHint"] is True
+    assert "edit_pioreactor_config_file" in tools
 
 
 @pytest.mark.parametrize(

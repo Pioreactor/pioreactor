@@ -394,7 +394,7 @@ def export_experiment_data(
 
     logger = create_logger("export_experiment_data", experiment="$experiment")
     logger.info(
-        f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)} to {output}."
+        f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)} to `{output}`."
     )
 
     time = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -627,7 +627,7 @@ def export_experiment_data(
             )
 
         tmp_output_path.replace(output_path)
-        logger.info(f"Finished export to {output}.")
+        logger.info(f"Finished export to `{output}`.")
     except Exception as exc:
         tmp_output_path.unlink(missing_ok=True)
         if resource_limit_error is not None:

@@ -847,8 +847,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.clean_up()
             raise e
 
-        self.logger.debug("Starting.")
-
     def ready(self) -> None:
         starting = self.state != JobState.SLEEPING
         self.state = JobState.READY

@@ -5077,7 +5077,7 @@ def remove_workers_from_experiment(experiment: str) -> DelayedResponseReturnValu
 
     task = fanout.broadcast_across_workers("POST", "/unit_api/jobs/stop", json={"experiment": experiment})
     publish_to_experiment_log(
-        f"Removed all workers from `{experiment}`.",
+        f"Removed all workers from experiment `{experiment}`.",
         experiment=experiment,
         level="INFO",
         task="assignment",

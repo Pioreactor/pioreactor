@@ -363,13 +363,11 @@ class GrowthRateCalculator(BackgroundJob):
                 raise KeyError("Cached normalization statistics are for different PD channels.")
             self.logger.debug("Loaded OD normalization metrics from cache.")
         except KeyError:
-            self.logger.debug("Computing OD normalization metrics now.")
             od_normalization_factors, od_variances = self._compute_od_statistics_from_warmup_events(
                 warmup_events
             )
             with local_persistent_storage("od_normalization_mean") as cache:
                 cache[self.experiment] = dumps(od_normalization_factors)
-            self.logger.debug("Cached OD normalization metrics computed from warmup observations.")
             if any(v == 0.0 for v in od_variances.values()):
                 self.logger.error(
                     "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
@@ -471,7 +469,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
 
         try:
-            self.logger.debug("Replaying warmup OD observations into the live stream.")
             warmup_observations = [self.scale_raw_observations(event) for event in warmup_events]
             self.logger.debug(f"Warmup OD observations: {warmup_observations}")
         except ValueError as error:
