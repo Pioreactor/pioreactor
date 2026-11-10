@@ -47,6 +47,13 @@ def __getattr__(attr: str) -> Any:
         raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
 
 
+def normalize_ini_text(code: str) -> str:
+    # https://github.com/Pioreactor/pioreactor/issues/539
+    code = code.replace(chr(8211), chr(45))
+    code = code.replace(chr(8212), chr(45))
+    return code
+
+
 class ConfigParserMod(configparser.ConfigParser):
     # https://stackoverflow.com/a/19359720/1895939
     optionxform = str  # type: ignore

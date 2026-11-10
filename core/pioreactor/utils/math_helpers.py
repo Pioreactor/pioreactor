@@ -132,3 +132,13 @@ def closest_point_to_domain(P: list[Number], D: tuple[Number, Number]) -> float:
 
     assert closest_point is not None
     return closest_point
+
+
+def aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
+    import numpy as np
+
+    if n_obs <= n_params + 1:
+        return float("inf")
+    sse = max(weighted_sse, np.finfo(float).tiny)
+    correction = (2 * n_params * (n_params + 1)) / (n_obs - n_params - 1)
+    return n_obs * np.log(sse / n_obs) + 2 * n_params + correction

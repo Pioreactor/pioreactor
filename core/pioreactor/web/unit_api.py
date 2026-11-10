@@ -58,6 +58,7 @@ from pioreactor.cluster_membership import check_can_leave
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import normalize_ini_text
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
@@ -724,13 +725,6 @@ def _get_unit_specific_config_path() -> Path:
     return get_dot_pioreactor_path() / "unit_config.ini"
 
 
-def _normalize_ini_text(code: str) -> str:
-    # https://github.com/Pioreactor/pioreactor/issues/539
-    code = code.replace(chr(8211), chr(45))
-    code = code.replace(chr(8212), chr(45))
-    return code
-
-
 def _read_config_text(path: Path) -> str:
     if not path.exists():
         return ""
@@ -738,7 +732,7 @@ def _read_config_text(path: Path) -> str:
 
 
 def _validate_ini_text(code: str) -> str:
-    normalized = _normalize_ini_text(code)
+    normalized = normalize_ini_text(code)
     parser = ConfigParserMod()
     parser.read_string(normalized)
     return normalized

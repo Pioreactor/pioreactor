@@ -8,7 +8,6 @@ mureq is copyright 2021 by its contributors and is released under the
 """
 # typed module with type hints
 import contextlib
-import io
 import os.path
 import re
 import ssl
@@ -273,18 +272,6 @@ class Response:
     def json(self) -> Any:
         """Attempts to deserialize the response body as UTF-8 encoded JSON."""
         return loads(self.body)
-
-    def _debugstr(self) -> str:
-        buf = io.StringIO()
-        print("HTTP", self.status_code, file=buf)
-        for k, v in self.headers.items():
-            print(f"{k}: {v}", file=buf)
-        print(file=buf)
-        try:
-            print(self.body.decode("utf-8"), file=buf)
-        except UnicodeDecodeError:
-            print(f"<{len(self.body)} bytes binary data>", file=buf)
-        return buf.getvalue()
 
 
 class TooManyRedirects(HTTPException):

@@ -6,6 +6,7 @@ from typing import Literal
 from typing import Sequence
 
 from pioreactor import structs
+from pioreactor.utils.math_helpers import aicc_score
 from pioreactor.utils.piecewise_cubics import interval_index
 from pioreactor.utils.piecewise_cubics import parse_piecewise_cubic_data
 from pioreactor.utils.piecewise_cubics import solve_piecewise_cubic
@@ -195,16 +196,6 @@ def _fit_knot_values(
     return knot_values, design_matrix
 
 
-def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
-    import numpy as np
-
-    if n_obs <= n_params + 1:
-        return float("inf")
-    sse = max(weighted_sse, np.finfo(float).tiny)
-    correction = (2 * n_params * (n_params + 1)) / (n_obs - n_params - 1)
-    return n_obs * np.log(sse / n_obs) + 2 * n_params + correction
-
-
 def _auto_select_knots(
     x_values: Any,
     y_values: Any,
@@ -240,7 +231,7 @@ def _auto_select_knots(
             y_pred = design_matrix @ knot_values
             residual = y_values - y_pred
             weighted_sse = float(np.sum(weight_values * residual**2))
-            score = _aicc_score(weighted_sse, n_obs - pinned, knot_positions.size - pinned)
+            score = aicc_score(weighted_sse, n_obs - pinned, knot_positions.size - pinned)
             if score < best_score:
                 best_score = score
                 best_knots = knot_positions

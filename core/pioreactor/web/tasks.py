@@ -1873,16 +1873,13 @@ def write_config_and_sync(
             f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units) + flags)}`, {env=}'
         )
 
-        result = run(
+        run(
             (PIOS_EXECUTABLE, "sync-configs", "--units", units) + flags,
             capture_output=True,
             text=True,
             env=env,
             check=True,
         )
-        if result.returncode != 0:
-            raise Exception(result.stderr.strip())
-
         return (True, "")
 
     except Exception as e:
@@ -1943,12 +1940,7 @@ def _reduce_multicast_results(
             continue
 
         if isinstance(result, tuple) and len(result) == 2:
-            _, response = result
-            if fanout_result_succeeded(response) or fanout_result_failed(response):
-                results_by_unit[unit] = response
-            else:
-                results_by_unit[unit] = fanout_success(unit, response)
-            continue
+            _, result = result
 
         if fanout_result_succeeded(result) or fanout_result_failed(result):
             results_by_unit[unit] = result
@@ -2211,7 +2203,7 @@ def _multicast_get_uncached(
         # the whole fanout into a ResultTimeout.
         # A request is waiting on this, so recheck every 20 ms: Huey's default first sleeps 50 ms
         # and then backs off, which adds up to ~50 ms to a fanout that takes ~30 ms.
-        unsorted_responses = result.get(blocking=True, timeout=timeout + 1.0, max_delay=0.02)
+        return result.get(blocking=True, timeout=timeout + 1.0, max_delay=0.02)
     except ResultTimeout:
         ordered_results: list[Any] = []
         for child_result in result.results:
@@ -2221,8 +2213,6 @@ def _multicast_get_uncached(
                 ordered_results.append(exc)
 
         return _reduce_multicast_results(units, True, ordered_results)
-
-    return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
 
 def finished_task_result(value: Any) -> "huey_api.Result[Any]":

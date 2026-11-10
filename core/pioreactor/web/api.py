@@ -36,6 +36,7 @@ from pioreactor import structs
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import normalize_ini_text
 from pioreactor.config import remove_config_values_in_file
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.validate import validate_profile
@@ -524,13 +525,6 @@ def _get_leader_unit_specific_config_path() -> Path:
     return get_dot_pioreactor_path() / "unit_config.ini"
 
 
-def _normalize_ini_text(code: str) -> str:
-    # https://github.com/Pioreactor/pioreactor/issues/539
-    code = code.replace(chr(8211), chr(45))
-    code = code.replace(chr(8212), chr(45))
-    return code
-
-
 def _read_text(path: Path, *, allow_missing: bool = False) -> str:
     if not path.exists():
         if allow_missing:
@@ -563,7 +557,7 @@ def _render_leader_merged_config() -> dict[str, dict[str, str]]:
 
 
 def _validate_shared_config(code: str) -> str:
-    normalized = _normalize_ini_text(code)
+    normalized = normalize_ini_text(code)
     config = ConfigParserMod()
     config.read_string(normalized)
 
@@ -4097,7 +4091,7 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
         )
 
     body = decode_request_body(structs.CodePatch)
-    code = _normalize_ini_text(body.code)
+    code = normalize_ini_text(body.code)
 
     response: MureqResponse | None = None
     try:
