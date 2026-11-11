@@ -86,16 +86,60 @@ test("disables text, choice, boolean, checkbox, and table inputs together", () =
   expect(screen.getByRole("checkbox", { name: "Include Run 1" })).toBeEnabled();
 });
 
+test.each([false, true])("failed Abort preserves a pending measurement, which finishes first=%s", async (measurementFinishesFirst) => {
+  const step = {
+    step_id: "measure_standard", step_type: "form", title: "Record standard 2 of 3",
+    fields: [{ name: "od600_value", label: "OD600 value", field_type: "float", default: 0.5 }],
+    metadata: { primary_action_label: "Measure standard" },
+  };
+  let finishMeasurement;
+  let finishAbort;
+  const measurement = new Promise((resolve) => { finishMeasurement = resolve; });
+  const abort = new Promise((resolve) => { finishAbort = resolve; });
+  global.fetch = jest.fn((url) => {
+    if (url.endsWith("/abort")) return abort;
+    if (url.endsWith("/inputs")) return Promise.resolve({ ok: true, json: async () => ({ task_id: "recording" }) });
+    if (url.includes("/task_results/")) return measurement;
+    return Promise.resolve({ ok: true, json: async () => ({ step }) });
+  });
+  render(<MemoryRouter><CalibrationSessionDialog open unit="unit-1" sessionId="session-1" /></MemoryRouter>);
+  const input = await screen.findByRole("textbox", { name: "OD600 value" });
+  fireEvent.click(screen.getByRole("button", { name: "Measure standard" }));
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+    "/api/workers/unit-1/task_results/recording",
+  ));
+  fireEvent.click(screen.getByRole("button", { name: "Abort" }));
+  const completed = {
+    ok: true, status: 200,
+    json: async () => ({ status: "succeeded", result: { step: { ...step, title: "Record standard 3 of 3" } } }),
+  };
+  if (measurementFinishesFirst) {
+    finishMeasurement(completed);
+    await screen.findByText("Record standard 3 of 3");
+    expect(screen.getByRole("textbox", { name: "OD600 value" })).toBeDisabled();
+  }
+  finishAbort({ ok: false, status: 500, json: async () => ({ error: "Cleanup failed" }) });
+  await screen.findByText("Cleanup failed");
+  if (!measurementFinishesFirst) {
+    expect(input).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Measure standard" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Abort" })).toBeEnabled();
+    finishMeasurement(completed);
+  }
+  await screen.findByText("Record standard 3 of 3");
+  expect(screen.getByRole("textbox", { name: "OD600 value" })).toBeEnabled();
+});
+
 test("submits a fractional sample count for validation without silently truncating it", async () => {
   const step = {
     step_id: "setup", step_type: "form", title: "Calibration setup",
-    fields: [{ name: "sample_count", label: "Number of samples (including blank)", field_type: "int" }],
+    fields: [{ name: "sample_count", label: "Number of samples", field_type: "int" }],
   };
   global.fetch = jest.fn((url) => Promise.resolve(url.endsWith("/inputs")
     ? { ok: false, json: () => Promise.resolve({ error: "Enter a whole number of samples." }) }
     : { ok: true, json: () => Promise.resolve({ step }) }));
   render(<MemoryRouter><CalibrationSessionDialog open unit="unit-1" sessionId="session-1" /></MemoryRouter>);
-  const count = await screen.findByRole("textbox", { name: "Number of samples (including blank)" });
+  const count = await screen.findByRole("textbox", { name: "Number of samples" });
   fireEvent.change(count, { target: { value: "2.5" } });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByText("Enter a whole number of samples.");

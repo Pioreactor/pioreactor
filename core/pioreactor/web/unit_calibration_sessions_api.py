@@ -16,6 +16,7 @@ from flask import jsonify
 from flask import request
 from flask.typing import ResponseReturnValue
 from msgspec import to_builtins
+from pioreactor import structs
 from pioreactor.calibrations.registry import get_protocol
 from pioreactor.calibrations.registry import get_protocol_for_session
 from pioreactor.calibrations.session_flow import get_session_step
@@ -26,6 +27,7 @@ from pioreactor.logging import create_logger
 from pioreactor.web import tasks
 from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import create_task_response
+from pioreactor.web.utils import decode_request_body
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -155,18 +157,10 @@ def advance_calibration_session(session_id: str) -> DelayedResponseReturnValue:
     if session is None:
         abort_with(404, "Calibration session not found.")
 
-    body = request.get_json()
-    if body is None:
-        abort_with(400, description="Missing JSON payload.")
-
-    inputs = body.get("inputs", {})
-    if not isinstance(inputs, dict):
-        abort_with(400, description="Invalid inputs payload.")
-
-    expected_step_id = body.get("expected_step_id")
-    if expected_step_id is not None and not isinstance(expected_step_id, str):
-        abort_with(400, description="Invalid expected_step_id.")
-    return create_task_response(tasks.advance_calibration_session_task(session_id, inputs, expected_step_id))
+    body = decode_request_body(structs.AdvanceCalibrationSessionRequest)
+    return create_task_response(
+        tasks.advance_calibration_session_task(session_id, body.inputs, body.expected_step_id)
+    )
 
 
 def register_calibration_session_routes(unit_api_bp: Blueprint) -> None:

@@ -337,7 +337,6 @@ export default function CalibrationSessionDialog({
       if (shouldAbort && effectiveSessionId && unit) {
         abortRequestedRef.current = true;
         setAborting(true);
-        requestGenerationRef.current += 1;
         try {
           const response = await fetch(sessionAbortEndpoint(unit, effectiveSessionId), {
             method: "POST",
@@ -362,7 +361,7 @@ export default function CalibrationSessionDialog({
         } catch (err) {
           const message = err.message || "Failed to abort calibration session.";
           setAborting(false);
-          setSessionLoading(false);
+          setSessionLoading(advanceInFlightRef.current);
           setSessionError(message);
           if (onAbortFailure) {
             onAbortFailure(message);

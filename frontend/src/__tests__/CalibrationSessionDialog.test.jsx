@@ -423,7 +423,7 @@ describe("CalibrationSessionDialog", () => {
         columns: [
           { key: "standard", label: "Standard" },
           { key: "od600", label: "OD600", editable: true, minimum: 0 },
-          { key: "voltage_2", label: "Voltage (V), 2 (90°)", precision: 3 },
+          { key: "voltage_2", label: "Voltage (V), 2 (90°)" },
         ],
         default: recordedRows,
       }],

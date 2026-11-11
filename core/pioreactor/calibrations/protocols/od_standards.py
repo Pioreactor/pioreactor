@@ -256,10 +256,9 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
             "channel_angle_map": to_builtins(channel_angle_map),
             "channel_summary": channel_summary,
             "devices_for_name_check": devices_for_name_check,
+            # Row 0 is the blank; later rows keep their collection order through review.
             "od600_values": [],
             "voltages_by_channel": {channel: [] for channel in channel_angle_map},
-            "blank_index": None,
-            "standard_index": 1,
             "rpm": config.getfloat("stirring.config", "initial_target_rpm"),
         },
         created_at=now,
@@ -272,22 +271,6 @@ def _get_channel_angle_map(ctx: SessionContext) -> dict[pt.PdChannel, pt.PdAngle
         cast(pt.PdChannel, channel): cast(pt.PdAngle, angle)
         for channel, angle in ctx.data["channel_angle_map"].items()
     }
-
-
-def _standard_label(index: int, blank_index: int | None) -> str:
-    if index == blank_index:
-        return "Blank"
-    standard_number = index + 1
-    if blank_index is not None and index > blank_index:
-        standard_number -= 1
-    return str(standard_number)
-
-
-def _review_blank_index(ctx: SessionContext) -> int:
-    blank_index = ctx.data["blank_index"]
-    if blank_index is None:
-        raise ValueError("Measure the blank before reviewing the calibration.")
-    return cast(int, blank_index)
 
 
 class Intro(SessionStep):
@@ -398,12 +381,11 @@ class Setup(SessionStep):
         default_rpm = ctx.data["rpm"]
         return steps.form(
             "Calibration setup",
-            "How many samples do you have to test (including your blank)?\n\n"
-            "The blank is measured first. Enter 0 RPM to measure without stirring.",
+            "How many samples do you have to test (including your blank)?",
             [
                 fields.int(
                     "sample_count",
-                    label="Number of samples (including blank)",
+                    label="Number of samples",
                     minimum=2,
                     min_error_msg="Include at least the blank and one non-blank sample.",
                 ),
@@ -412,9 +394,10 @@ class Setup(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
+        sample_count = ctx.inputs.int("sample_count")
         rpm = ctx.inputs.float("rpm")
         ctx.data["rpm"] = rpm
-        ctx.data["sample_count"] = ctx.inputs.int("sample_count")
+        ctx.data["sample_count"] = sample_count
         return PlaceBlank()
 
 
@@ -422,7 +405,7 @@ class PlaceStandard(SessionStep):
     step_id = "place_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        standard_index = ctx.data["standard_index"]
+        standard_index = len(ctx.data["od600_values"])
         step = steps.info(
             f"Place standard {standard_index} of {ctx.data['sample_count'] - 1}",
             f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
@@ -447,7 +430,9 @@ class MeasureStandard(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         n_frames = 12 if ctx.data["rpm"] > 0 else 0
-        standard_index = ctx.data["standard_index"]
+        standard_index = len(ctx.data["od600_values"])
+        channel_angle_map = _get_channel_angle_map(ctx)
+        channels = sorted(channel_angle_map, key=int)
         step = steps.form(
             f"Record standard {standard_index} of {ctx.data['sample_count'] - 1}",
             f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Measure standard "
@@ -465,21 +450,22 @@ class MeasureStandard(SessionStep):
                 for i in range(1, n_frames + 1, 2)
             ],
         }
-        od600_values = ctx.data.get("od600_values", [])
-        if isinstance(od600_values, list) and od600_values:
-            rows = []
-            for index, value in enumerate(od600_values):
-                if isinstance(value, (int, float)):
-                    rows.append([_standard_label(index, ctx.data.get("blank_index")), value])
-            if rows:
-                step.metadata = {
-                    "table": {
-                        "title": "Standards recorded so far",
-                        "columns": ["Standard", "OD600"],
-                        "rows": rows,
-                    },
-                    **step.metadata,
-                }
+        step.metadata["table"] = {
+            "title": "Standards recorded so far",
+            "columns": [
+                "Standard",
+                "OD600",
+                *[f"Voltage (V), {channel} ({channel_angle_map[channel]}°)" for channel in channels],
+            ],
+            "rows": [
+                [
+                    "Blank" if index == 0 else str(index),
+                    value,
+                    *[ctx.data["voltages_by_channel"][channel][index] for channel in channels],
+                ]
+                for index, value in enumerate(ctx.data["od600_values"])
+            ],
+        }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -491,7 +477,6 @@ class MeasureStandard(SessionStep):
             ctx.data["voltages_by_channel"][channel].append(voltage)
         if len(ctx.data["od600_values"]) == ctx.data["sample_count"]:
             return ReviewStandards()
-        ctx.data["standard_index"] += 1
         return PlaceStandard()
 
 
@@ -546,9 +531,6 @@ class MeasureBlank(SessionStep):
         channel_angle_map = _get_channel_angle_map(ctx)
         od600_blank = ctx.inputs.float("od600_blank")
         voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
-        # Keep the blank's identity independent of measurement order and review exclusions.
-        blank_index = len(ctx.data["od600_values"])
-        ctx.data["blank_index"] = blank_index
         ctx.data["od600_values"].append(od600_blank)
         for channel, voltage in voltages.items():
             ctx.data["voltages_by_channel"][channel].append(voltage)
@@ -560,7 +542,7 @@ class ReviewStandards(ReviewDataStep):
 
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
         voltage_columns = [
-            column(f"voltage_{channel}", f"Voltage (V), {channel} ({angle}°)", precision=3)
+            column(f"voltage_{channel}", f"Voltage (V), {channel} ({angle}°)")
             for channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0]))
         ]
         return [
@@ -572,11 +554,10 @@ class ReviewStandards(ReviewDataStep):
     def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
         od600_values = ctx.data["od600_values"]
         voltages_by_channel = ctx.data["voltages_by_channel"]
-        blank_index = _review_blank_index(ctx)
         rows = []
         for index, od600 in enumerate(od600_values):
             row: dict[str, Any] = {
-                "standard": _standard_label(index, blank_index),
+                "standard": "Blank" if index == 0 else str(index),
                 "od600": od600,
             }
             for channel in _get_channel_angle_map(ctx):
@@ -597,17 +578,16 @@ class ReviewStandards(ReviewDataStep):
         chart = _build_standards_chart_metadata(od600_values, voltages_by_channel, channel_angle_map)
         if chart is None:
             return None
-        blank_index = _review_blank_index(ctx)
         for series in cast(list[dict[str, Any]], chart["series"]):
-            if blank_index not in included:
+            if 0 not in included:
                 continue
             try:
                 curve = _calculate_curve_data(
                     od600_values,
                     voltages_by_channel[series["id"]],
                     blank=(
-                        ctx.data["od600_values"][blank_index],
-                        ctx.data["voltages_by_channel"][series["id"]][blank_index],
+                        ctx.data["od600_values"][0],
+                        ctx.data["voltages_by_channel"][series["id"]][0],
                     ),
                 )
             except ValueError:
@@ -617,8 +597,7 @@ class ReviewStandards(ReviewDataStep):
         return chart
 
     def save(self, ctx: SessionContext, included: list[int]) -> None:
-        blank_index = _review_blank_index(ctx)
-        if blank_index not in included:
+        if 0 not in included:
             raise ValueError("Keep the blank included; it anchors the calibration curve.")
         od600_values = select_rows(ctx.data["od600_values"], included)
         calibration_links: list[dict[str, str | None]] = []
@@ -628,8 +607,8 @@ class ReviewStandards(ReviewDataStep):
                 od600_values,
                 voltages_list,
                 blank=(
-                    ctx.data["od600_values"][blank_index],
-                    ctx.data["voltages_by_channel"][pd_channel][blank_index],
+                    ctx.data["od600_values"][0],
+                    ctx.data["voltages_by_channel"][pd_channel][0],
                 ),
             )
             cal = to_struct(

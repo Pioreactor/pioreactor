@@ -143,7 +143,6 @@ def test_measurement_steps_show_stirring_only_for_positive_rpm(rpm: float) -> No
             "voltages_by_channel": {"1": []},
             "rpm": rpm,
             "sample_count": 2,
-            "standard_index": 1,
         }
     )
     ctx = SessionContext(
@@ -153,8 +152,10 @@ def test_measurement_steps_show_stirring_only_for_positive_rpm(rpm: float) -> No
         collected_calibrations=[],
     )
 
-    standard_step = od_standards.MeasureStandard().render(ctx)
     blank_step = od_standards.MeasureBlank().render(ctx)
+    session.data["od600_values"].append(0.0)
+    session.data["voltages_by_channel"]["1"].append(0.001)
+    standard_step = od_standards.MeasureStandard().render(ctx)
     assert standard_step.metadata["primary_action_label"] == "Measure standard"
     assert blank_step.metadata["primary_action_label"] == "Measure blank"
     assert bool(standard_step.metadata["loading_images"]) == (rpm > 0)
@@ -380,7 +381,6 @@ def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
 
     with _temporary_config_section("od_config.photodiode_channel", {"1": "REF", "2": "90", "3": "135"}):
         session = od_standards.start_standards_session(target_device)
-    assert session.data["blank_index"] is None
     session = advance_session(registry, session, {}, execute)
     session = advance_session(registry, session, {"calibration_name": "blank-first"}, execute)
     if target_device == "od":
@@ -393,7 +393,6 @@ def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
     assert session.step_id == "measure_blank"
     session = advance_session(registry, session, {"od600_blank": blank_od600}, execute)
     assert session.step_id == "place_standard"
-    assert session.data["blank_index"] == 0
     for index in range(1, sample_count):
         assert session.step_id == "place_standard"
         step = get_session_step(registry, session, execute)
@@ -402,8 +401,20 @@ def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
         session = advance_session(registry, session, {}, execute)
         step = get_session_step(registry, session, execute)
         assert step.title == f"Record standard {index} of {sample_count - 1}"
-        if index == 1:
-            assert step.metadata["table"]["rows"] == [["Blank", blank_od600]]
+        channels = [("2", "90"), ("3", "135")] if target_device == "od" else [("2", "90")]
+        table = step.metadata["table"]
+        assert table["columns"] == [
+            "Standard",
+            "OD600",
+            *[f"Voltage (V), {channel} ({angle}°)" for channel, angle in channels],
+        ]
+        assert table["rows"][0] == ["Blank", blank_od600, *[int(ch) * 0.001 for ch, _ in channels]]
+        for standard in range(1, index):
+            assert table["rows"][standard] == [
+                str(standard),
+                0.5 * standard,
+                *[int(ch) * (0.1 * standard) for ch, _ in channels],
+            ]
         session = advance_session(registry, session, {"od600_value": 0.5 * index}, execute)
     assert session.step_id == "review_data"
     # Simulate resuming a persisted UI session before saving.
@@ -432,7 +443,8 @@ def test_setup_requires_a_whole_sample_count_including_blank(sample_count: objec
         advance_session(
             od_standards._OD_STANDARDS_STEPS,
             session,
-            {"sample_count": sample_count, "rpm": 500},
+            {"sample_count": sample_count, "rpm": 0},
         )
     assert session.step_id == "setup"
     assert "sample_count" not in session.data
+    assert session.data["rpm"] == 500

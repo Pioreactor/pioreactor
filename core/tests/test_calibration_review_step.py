@@ -64,7 +64,6 @@ def _od_session() -> CalibrationSession:
             "experiment": get_testing_experiment_name(),
             "calibration_name": "od-review-test",
             "channel_angle_map": {"2": "90"},
-            "blank_index": 0,
             "od600_values": [0.0, 0.5, 1.0, 1.5],
             "voltages_by_channel": {"2": [0.001, 0.05, 0.1, 0.9]},
         },
@@ -104,7 +103,6 @@ def test_od_standards_review_lists_every_point_with_the_blank_first() -> None:
     assert [row["standard"] for row in _table(step)] == ["Blank", "1", "2", "3"]
     assert all(row["include"] for row in _table(step))
     voltage_column = next(col for col in step.fields[0].columns if col["key"] == "voltage_2")
-    assert voltage_column["precision"] == 3
     assert "(V)" in voltage_column["label"]
     series = step.metadata["chart"]["series"][0]
     assert series["curve"]["type"] == "spline"
@@ -166,30 +164,6 @@ def test_od_standards_cannot_save_without_the_blank() -> None:
     with pytest.raises(ValueError, match="Keep the blank included"):
         advance_session(od_standards._OD_STANDARDS_STEPS, session, {REVIEW_TABLE_FIELD: rows}, executor)
     assert executor.saved == []
-
-
-@pytest.mark.parametrize("blank_index", [1, 3])
-def test_review_uses_explicit_blank_identity(blank_index: int) -> None:
-    session = _od_session()
-    target_index = blank_index
-    values = session.data["od600_values"]
-    values.insert(target_index, values.pop(0))
-    voltages = session.data["voltages_by_channel"]["2"]
-    voltages.insert(target_index, voltages.pop(0))
-    session.data["blank_index"] = blank_index
-    executor = FakeExecutor()
-    step = get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor)
-    rows = _table(step)
-    assert rows[target_index]["standard"] == "Blank"
-    assert [row["standard"] for row in rows if row["standard"] != "Blank"] == ["1", "2", "3"]
-    curve = convert(step.metadata["chart"]["series"][0]["curve"], type=structs.SplineFitData)
-    assert spline_eval(curve, 0.0) == pytest.approx(0.001)
-
-    session = advance_session(od_standards._OD_STANDARDS_STEPS, session, {REVIEW_TABLE_FIELD: rows}, executor)
-
-    assert session.status == "complete"
-    calibration = convert(executor.saved[0]["calibration"], type=structs.OD600Calibration)
-    assert calibration.x_to_y(0.0) == pytest.approx(0.001)
 
 
 def test_review_requires_enough_included_rows() -> None:

@@ -220,7 +220,17 @@ def test_abort_calibration_session_reports_cleanup_error(client, monkeypatch) ->
     assert stored["session"]["status"] == "aborted"
 
 
-def test_advance_calibration_session_validates_inputs(client, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"inputs": ["bad"]},
+        {"inputs": {}, "expected_step_id": 123},
+        {"inputs": {}, "unexpected_field": True},
+    ],
+)
+def test_advance_calibration_session_validates_inputs(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, body: dict[str, object]
+) -> None:
     _patch_protocols(monkeypatch)
 
     session = DummyProtocol.start_session("device")
@@ -228,7 +238,7 @@ def test_advance_calibration_session_validates_inputs(client, monkeypatch) -> No
 
     response = client.post(
         f"/unit_api/calibrations/sessions/{session.session_id}/inputs",
-        json={"inputs": ["bad"]},
+        json=body,
     )
     assert response.status_code == 400
 
