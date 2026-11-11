@@ -114,14 +114,21 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
 
     session.status = "aborted"
     session.error = "Calibration aborted by user."
+    session.updated_at = utc_iso_timestamp()
+    # Publish cancellation before cleanup, which can overlap a running step.
+    save_calibration_session(session)
+    cleanup_failed = False
     try:
         protocol = get_protocol_for_session(session)
         protocol.on_session_abort(session, executor=tasks.execute_calibration_action)
     except Exception as exc:
+        cleanup_failed = True
         logger.exception("Calibration abort cleanup failed for session %s", session_id)
         session.error = f"Calibration aborted by user. Cleanup failed: {exc}"
     session.updated_at = utc_iso_timestamp()
     save_calibration_session(session)
+    if cleanup_failed:
+        abort_with(500, description=session.error)
     step = _get_calibration_step(session)
     step_payload = to_builtins(step) if step is not None else None
     response = jsonify({"session": to_builtins(session), "step": step_payload})
@@ -156,7 +163,10 @@ def advance_calibration_session(session_id: str) -> DelayedResponseReturnValue:
     if not isinstance(inputs, dict):
         abort_with(400, description="Invalid inputs payload.")
 
-    return create_task_response(tasks.advance_calibration_session_task(session_id, inputs))
+    expected_step_id = body.get("expected_step_id")
+    if expected_step_id is not None and not isinstance(expected_step_id, str):
+        abort_with(400, description="Invalid expected_step_id.")
+    return create_task_response(tasks.advance_calibration_session_task(session_id, inputs, expected_step_id))
 
 
 def register_calibration_session_routes(unit_api_bp: Blueprint) -> None:

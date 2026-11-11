@@ -253,17 +253,14 @@ class RunCalibration(SessionStep):
 class ReviewReadings(ReviewDataStep):
     body = (
         "Check the readings before saving. Uncheck any reading that looks wrong, such as a "
-        "stalled stir bar, to leave it out of the fit."
+        "stalled stir bar, to leave it out when calculating the curve."
     )
 
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
-        return [column("dc", "Duty cycle (%)"), column("rpm", "RPM")]
+        return [column("dc", "Duty cycle (%)", precision=2), column("rpm", "RPM", precision=1)]
 
     def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
-        return [
-            {"dc": round(float(dc), 2), "rpm": round(float(rpm), 1)}
-            for dc, rpm in zip(ctx.data["dcs"], ctx.data["rpms"])
-        ]
+        return [{"dc": float(dc), "rpm": float(rpm)} for dc, rpm in zip(ctx.data["dcs"], ctx.data["rpms"])]
 
     def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
         dcs = select_rows(ctx.data["dcs"], included)

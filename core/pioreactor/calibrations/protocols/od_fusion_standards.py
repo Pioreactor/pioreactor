@@ -505,7 +505,7 @@ class ReviewFusionStandards(ReviewDataStep):
             row: dict[str, Any] = {"standard": standard["index"], "od600": standard["od_value"]}
             for angle in FUSION_ANGLES:
                 readings = [float(reading) for ang, reading in standard["readings"] if ang == angle]
-                row[f"mean_{angle}"] = round(fmean(readings), 5) if readings else None
+                row[f"mean_{angle}"] = fmean(readings) if readings else None
             rows.append(row)
         return rows
 

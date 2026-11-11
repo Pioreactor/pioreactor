@@ -213,10 +213,11 @@ def test_abort_calibration_session_reports_cleanup_error(client, monkeypatch) ->
     save_calibration_session(session)
 
     response = client.post(f"/unit_api/calibrations/sessions/{session.session_id}/abort")
-    assert response.status_code == 200
+    assert response.status_code == 500
     payload = response.get_json()
-    assert payload["session"]["status"] == "aborted"
-    assert "Cleanup failed: cleanup exploded" in payload["session"]["error"]
+    assert "Cleanup failed: cleanup exploded" in payload["error"]
+    stored = client.get(f"/unit_api/calibrations/sessions/{session.session_id}").get_json()
+    assert stored["session"]["status"] == "aborted"
 
 
 def test_advance_calibration_session_validates_inputs(client, monkeypatch) -> None:
@@ -286,3 +287,70 @@ def test_abort_while_a_step_runs_is_kept(client, monkeypatch) -> None:
 
     assert task["status"] == "succeeded"
     assert task["result"]["session"]["status"] == "aborted"
+
+
+def test_abort_is_persisted_before_cleanup(client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.calibrations.structured_session import load_calibration_session
+
+    _patch_protocols(monkeypatch)
+    save_calibration_session(DummyProtocol.start_session("device"))
+
+    def cleanup(session: CalibrationSession, executor: object = None) -> None:
+        persisted = load_calibration_session(session.session_id)
+        assert persisted is not None
+        assert persisted.status == "aborted"
+
+    monkeypatch.setattr(DummyProtocol, "on_session_abort", cleanup)
+    response = client.post("/unit_api/calibrations/sessions/session-1/abort")
+    assert response.status_code == 200
+
+
+def test_abort_during_advance_cleans_up_newly_started_resources(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor.calibrations.structured_session import load_calibration_session
+
+    cleaned: list[str] = []
+
+    class StartStep(SessionStep):
+        step_id = "start"
+
+        def render(self, ctx: SessionContext):
+            return steps.info("Start", "Starting hardware")
+
+        def advance(self, ctx: SessionContext) -> None:
+            aborted = load_calibration_session(ctx.session.session_id)
+            assert aborted is not None
+            aborted.status = "aborted"
+            save_calibration_session(aborted)
+            ctx.data["job_source"] = "started-during-abort"
+
+    class Protocol(DummyProtocol):
+        step_registry = {"start": StartStep}
+
+        @classmethod
+        def on_session_abort(cls, session: CalibrationSession, executor: object = None) -> None:
+            cleaned.append(session.data["job_source"])
+
+    _use_protocol(monkeypatch, Protocol)
+    session = Protocol.start_session("device")
+    session.step_id = "start"
+    save_calibration_session(session)
+    _advance(client, session.session_id, {})
+    assert cleaned == ["started-during-abort"]
+    assert load_calibration_session(session.session_id).status == "aborted"
+
+
+def test_stale_wait_poll_returns_current_step_without_advancing(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_protocols(monkeypatch)
+    session = DummyProtocol.start_session("device")
+    save_calibration_session(session)
+    response = client.post(
+        f"/unit_api/calibrations/sessions/{session.session_id}/inputs",
+        json={"inputs": {}, "expected_step_id": "old-wait-step"},
+    )
+    result = client.get(response.get_json()["result_url_path"]).get_json()
+    assert result["status"] == "succeeded"
+    assert result["result"]["step"]["step_id"] == "intro"

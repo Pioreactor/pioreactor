@@ -12,6 +12,8 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import CalibrationSessionChart from "./CalibrationSessionChart";
 import DialogCloseButton from "./DialogCloseButton";
+import { isDataReviewStep } from "../utils/calibrationSessions";
+import { formatCalibrationNumber } from "../utils/formatCalibrationNumber";
 
 
 export default function CalibrationSessionStepContent({
@@ -187,7 +189,7 @@ export default function CalibrationSessionStepContent({
           </Box>
         </Box>
       )}
-      {chart && !hideDataWhileLoading && <CalibrationSessionChart chart={chart} />}
+      {chart && !hideDataWhileLoading && <CalibrationSessionChart chart={chart} review={isDataReviewStep(step)} />}
       {table && !hideDataWhileLoading && (
         <Box sx={{ width: "70%", mx: "auto", mt: 2, mb: 4 }}>
           {tableTitle && (
@@ -221,7 +223,7 @@ export default function CalibrationSessionStepContent({
                           key={`cell-${rowIndex}-${cellIndex}`}
                           align={cellIndex === 0 ? "left" : "right"}
                         >
-                          {cell}
+                          {typeof cell === "number" ? formatCalibrationNumber(cell) : cell ?? "—"}
                         </TableCell>
                       ))}
                     </TableRow>

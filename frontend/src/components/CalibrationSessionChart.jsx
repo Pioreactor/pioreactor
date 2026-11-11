@@ -5,6 +5,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import {
   VictoryChart,
+  VictoryContainer,
   VictoryScatter,
   VictoryLine,
   VictoryAxis,
@@ -44,26 +45,44 @@ function generateCurvePoints(points, curveData, stepCount = 50) {
   return curve;
 }
 
-export default function CalibrationSessionChart({ chart }) {
+export default function CalibrationSessionChart({ chart, review = false }) {
   const chartTheme = useChartTheme();
-  if (!chart || !Array.isArray(chart.series) || chart.series.length === 0) {
+  const containerRef = React.useRef(null);
+  const [width, setWidth] = React.useState(520);
+  const hasSeries = Array.isArray(chart?.series) && chart.series.length > 0;
+
+  React.useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const updateWidth = () => setWidth(container.clientWidth || 520);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [hasSeries]);
+
+  if (!hasSeries) {
     return null;
   }
 
-  const width = 520;
-  const height = 240;
+  // Match chart coordinates to the container so labels stay readable on narrow screens.
+  const height = review ? 360 : 240;
+  const padding = { left: 65, right: 25, bottom: 50, top: 40 };
   const title = chart.title || "Calibration progress";
   const xLabel = chart.x_label || "X";
   const yLabel = chart.y_label || "Y";
 
   return (
-    <Box sx={{ width: "100%", overflow: "hidden", mb: 0.5 }}>
+    <Box ref={containerRef} sx={{ width: "100%", minWidth: 0, flexShrink: 0, mb: 0.5 }}>
       <VictoryChart
         domainPadding={10}
         height={height}
         width={width}
+        containerComponent={<VictoryContainer responsive={false} title={title} style={{ touchAction: "pan-y" }} />}
         theme={chartTheme.theme}
-        padding={{ left: 50, right: 25, bottom: 45, top: 40 }}
+        padding={padding}
       >
         <VictoryLabel
           text={title}
@@ -71,7 +90,7 @@ export default function CalibrationSessionChart({ chart }) {
           y={15}
           textAnchor="middle"
           style={{
-            fontSize: 12,
+            fontSize: 14,
             fontFamily: "inherit",
             fill: chartTheme.text,
           }}
@@ -79,20 +98,21 @@ export default function CalibrationSessionChart({ chart }) {
         <VictoryAxis
           style={{
             tickLabels: {
-              fontSize: 11,
+              fontSize: 12,
               padding: 4,
               fontFamily: "inherit",
               fill: chartTheme.text,
             },
           }}
           tickFormat={(value) => Number(value).toFixed(2)}
-          offsetY={45}
+          tickCount={width < 400 ? 4 : 6}
+          offsetY={padding.bottom}
           label={xLabel}
           axisLabelComponent={
             <VictoryLabel
               dy={18}
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 fontFamily: "inherit",
                 fill: chartTheme.text,
               }}
@@ -104,11 +124,12 @@ export default function CalibrationSessionChart({ chart }) {
           dependentAxis
           label={yLabel}
           tickFormat={(value) => Number(value).toFixed(2)}
+          tickCount={5}
           axisLabelComponent={
             <VictoryLabel
-              dy={-34}
+              dy={-44}
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 padding: 8,
                 fontFamily: "inherit",
                 fill: chartTheme.text,
@@ -117,7 +138,7 @@ export default function CalibrationSessionChart({ chart }) {
           }
           style={{
             tickLabels: {
-              fontSize: 11,
+              fontSize: 12,
               padding: 4,
               fontFamily: "inherit",
               fill: chartTheme.text,
@@ -157,7 +178,7 @@ export default function CalibrationSessionChart({ chart }) {
         })}
       </VictoryChart>
       {chart.series.length > 1 && (
-        <Stack direction="row" spacing={2} sx={{ mt: 0.5, flexWrap: "wrap" }}>
+        <Stack direction="row" spacing={2} useFlexGap sx={{ mt: 0.5, flexWrap: "wrap" }}>
           {chart.series.map((series, index) => (
             <Stack
               direction="row"

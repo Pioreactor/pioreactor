@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import math
+import time
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -564,6 +566,18 @@ class StepBuilder:
     def action(self, title: Str, body: Str) -> CalibrationStep:
         return CalibrationStep(step_id="", step_type="action", title=title, body=body)
 
+    def wait(self, title: Str, body: Str, poll_interval_s: float = 5.0) -> CalibrationStep:
+        """Poll advance() until it selects another step, without a user prompt.
+
+        Each advance must be a short, bounded check. Keep accumulated observations
+        in ctx.data so waiting can resume after a browser reload.
+        """
+        if not math.isfinite(poll_interval_s) or poll_interval_s <= 0:
+            raise ValueError("Wait polling interval must be positive and finite.")
+        return CalibrationStep(
+            step_id="", step_type="wait", title=title, body=body, poll_interval_s=poll_interval_s
+        )
+
     def result(self, result: dict[Str, Any]) -> CalibrationStep:
         return CalibrationStep(
             step_id="complete",
@@ -682,6 +696,11 @@ def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession)
             engine.advance({field.name: field.default for field in step.fields})
             continue
         render_step_for_cli(step)
+
+        if step.step_type == "wait":
+            time.sleep(step.poll_interval_s)
+            engine.advance({})
+            continue
 
         inputs: dict[Str, object] = {}
         if step.fields:

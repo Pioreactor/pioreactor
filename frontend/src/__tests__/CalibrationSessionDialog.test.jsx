@@ -302,7 +302,7 @@ describe("CalibrationSessionDialog", () => {
       "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ inputs: { action: "retake" } }),
+        body: JSON.stringify({ inputs: { action: "retake" }, expected_step_id: "focus_camera" }),
       }),
     );
   });
@@ -332,7 +332,7 @@ describe("CalibrationSessionDialog", () => {
       ],
       metadata: {
         primary_action_label: "Save calibration",
-        actions: [{ label: "Update chart", inputs: { action: "preview" }, include_values: true }],
+        actions: [{ label: "Recalculate curve", inputs: { action: "preview" }, include_values: true }],
       },
     };
 
@@ -370,12 +370,12 @@ describe("CalibrationSessionDialog", () => {
     fireEvent.change(volumeInput, { target: { value: "" } });
     expect(screen.getByText("Required")).toBeInTheDocument();
     expect(saveButton).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Update chart" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recalculate curve" })).toBeDisabled();
 
     fireEvent.change(volumeInput, { target: { value: "1.0" } });
     expect(saveButton).toBeEnabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Use Run 3 in fit" }));
-    fireEvent.click(screen.getByRole("button", { name: "Update chart" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Include Run 3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recalculate curve" }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -391,9 +391,70 @@ describe("CalibrationSessionDialog", () => {
               ],
               action: "preview",
             },
+            expected_step_id: "review_data",
           }),
         }),
       );
     });
+  });
+
+  test("formats read-only voltages without rounding the measurements submitted for review", async () => {
+    const recordedRows = [
+      { standard: "1", od600: 0.5, voltage_2: 0.123456789, include: true },
+      { standard: "2", od600: 1, voltage_2: 0.00000123456789, include: true },
+      { standard: "3", od600: 2, voltage_2: 0, include: true },
+      { standard: "Blank", od600: 0, voltage_2: null, include: true },
+    ];
+    const reviewStep = {
+      step_id: "review_data",
+      step_type: "form",
+      title: "Review data",
+      fields: [{
+        name: "recorded_data",
+        label: "Recorded data",
+        field_type: "data_table",
+        columns: [
+          { key: "standard", label: "Standard" },
+          { key: "od600", label: "OD600", editable: true, minimum: 0 },
+          { key: "voltage_2", label: "Voltage (V), 2 (90°)", precision: 3 },
+        ],
+        default: recordedRows,
+      }],
+      metadata: {
+        primary_action_label: "Save calibration",
+        actions: [{ label: "Recalculate curve", inputs: { action: "preview" }, include_values: true }],
+      },
+    };
+    global.fetch = jest.fn((url) => {
+      if (url.endsWith("/inputs")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ task_id: "task-1" }) });
+      }
+      if (url.includes("/task_results/")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ status: "succeeded", result: { step: reviewStep } }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ step: reviewStep }) });
+    });
+
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog open unit="unit-1" sessionId="session-1" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("0.123")).toBeVisible();
+    expect(screen.getByText("1.23e-6")).toBeVisible();
+    expect(screen.getByText("0.000")).toBeVisible();
+    expect(screen.getByText("—")).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Include measurement" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Recalculate curve" }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
+      expect.objectContaining({ body: JSON.stringify({ inputs: { recorded_data: recordedRows, action: "preview" }, expected_step_id: "review_data" }) }),
+    ));
   });
 });

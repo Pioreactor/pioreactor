@@ -34,3 +34,12 @@ describe("advanceCalibrationSession", () => {
     await expect(advanceCalibrationSession("pio01", "s1", {})).rejects.toThrow("Stirring must be off before starting.");
   });
 });
+
+it("includes the expected step so a retried poll cannot submit to the next form", async () => {
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce(jsonResponse(202, { task_id: "t1" }))
+    .mockResolvedValueOnce(jsonResponse(200, { status: "succeeded", result: { step: { step_id: "probe" } } }));
+  await advanceCalibrationSession("pio01", "s1", {}, undefined, "stabilize");
+  expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ inputs: {}, expected_step_id: "stabilize" });
+  delete global.fetch;
+});

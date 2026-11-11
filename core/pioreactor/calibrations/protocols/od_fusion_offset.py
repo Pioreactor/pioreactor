@@ -504,7 +504,7 @@ class ReviewOffsetStandards(ReviewDataStep):
             {
                 "standard": index,
                 "standard_od": standard["standard_od"],
-                "estimated_od": round(float(standard["estimated_od"]), 5),
+                "estimated_od": float(standard["estimated_od"]),
             }
             for index, standard in enumerate(ctx.data["standards"], start=1)
         ]

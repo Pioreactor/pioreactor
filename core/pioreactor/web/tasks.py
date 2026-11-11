@@ -1157,7 +1157,9 @@ def execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str
 
 
 @huey.task()
-def advance_calibration_session_task(session_id: str, inputs: dict[str, Any]) -> dict[str, Any]:
+def advance_calibration_session_task(
+    session_id: str, inputs: dict[str, Any], expected_step_id: str | None = None
+) -> dict[str, Any]:
     """
     Advance a calibration session by one step and return {"session", "step"}.
 
@@ -1173,15 +1175,27 @@ def advance_calibration_session_task(session_id: str, inputs: dict[str, Any]) ->
     session = load_calibration_session(session_id)
     if session is None:
         raise ValueError("Calibration session not found.")
-    step_registry = getattr(get_protocol_for_session(session), "step_registry", None)
+    protocol = get_protocol_for_session(session)
+    step_registry = getattr(protocol, "step_registry", None)
     if step_registry is None:
         raise ValueError("Protocol does not define a step registry.")
+
+    # A retried wait check must not submit inputs to the form that follows it.
+    if expected_step_id is not None and session.step_id != expected_step_id:
+        step = get_session_step(step_registry, session)
+        return {"session": to_builtins(session), "step": to_builtins(step)}
 
     session = advance_session(step_registry, session, inputs, executor=execute_calibration_action)
 
     current = load_calibration_session(session_id)
     if current is not None and current.status == "aborted":
-        # Aborted while this step ran: keep the abort.
+        # A step may have launched resources after abort's cleanup snapshot.
+        # Clean those up too, using the data returned by the in-flight step.
+        try:
+            protocol.on_session_abort(session, executor=execute_calibration_action)
+        except Exception as exc:
+            current.error = f"Calibration aborted by user. Cleanup failed: {exc}"
+            save_calibration_session(current)
         session = current
     else:
         save_calibration_session(session)

@@ -26,8 +26,17 @@ def select_rows(values: list[Any], included: list[int]) -> list[Any]:
     return [values[index] for index in included]
 
 
-def column(key: str, label: str, editable: bool = False, minimum: float | None = None) -> dict[str, Any]:
-    return {"key": key, "label": label, "editable": editable, "minimum": minimum}
+def column(
+    key: str,
+    label: str,
+    editable: bool = False,
+    minimum: float | None = None,
+    precision: int | None = None,
+) -> dict[str, Any]:
+    result = {"key": key, "label": label, "editable": editable, "minimum": minimum}
+    if precision is not None:
+        result["precision"] = precision
+    return result
 
 
 class ReviewDataStep(SessionStep):
@@ -40,11 +49,11 @@ class ReviewDataStep(SessionStep):
     title = "Review data"
     body = (
         "Check the recorded data before saving. Correct any value you typed in, or uncheck a row "
-        "to leave it out of the fit."
+        "to leave it out when calculating the curve."
     )
     save_label = "Save calibration"
     # Label of the button that re-renders the step with the edits applied, or None to hide it.
-    preview_label: str | None = "Update chart"
+    preview_label: str | None = "Recalculate curve"
     # Set False when every row is required, e.g. a protocol with a fixed number of standards.
     allow_exclude = True
     minimum_included_rows = 2
@@ -121,6 +130,6 @@ class ReviewDataStep(SessionStep):
 
         included = self.included_rows(ctx)
         if len(included) < self.minimum_included_rows:
-            raise ValueError(f"Keep at least {self.minimum_included_rows} rows to fit a calibration.")
+            raise ValueError(f"Keep at least {self.minimum_included_rows} rows to calculate the curve.")
         self.save(ctx, included)
         return CalibrationComplete()

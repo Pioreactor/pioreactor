@@ -460,6 +460,14 @@ Rules:
   term needs explanation.
 - Align prose and identifiers left. Align numeric values right. Keep one
   alignment convention per column.
+- Calibration protocol tables and recorded-data tables use up to three decimal
+  places by default (including voltage, OD, duration, and volume), one for RPM,
+  and two for duty-cycle percentages. Omit trailing zeroes so counts stay whole
+  numbers. Show nonzero values smaller than the displayed decimal resolution
+  in scientific notation with three significant digits.
+  Editable cells show full precision while focused and compact values otherwise.
+  Format only the display; retain full precision in input state, submitted and
+  saved measurements, calculations, and downloads.
 - Compact data rows normally use about `6px` vertical cell padding. Rows with
   descriptions may use about `10px`.
 - Empty, loading, and error states occupy the table region; they must not cause

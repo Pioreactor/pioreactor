@@ -5,14 +5,14 @@ import { checkTaskCallback } from "./tasks";
 const POLL_DELAY_MS = 250;
 const POLL_MAX_RETRIES = 1400; // a bit over the 300 s action timeout
 
-export async function advanceCalibrationSession(unit, sessionId, inputs, fallbackMessage = "Failed to advance session.") {
+export async function advanceCalibrationSession(unit, sessionId, inputs, fallbackMessage = "Failed to advance session.", expectedStepId) {
   const response = await fetch(`/api/workers/${unit}/calibrations/sessions/${sessionId}/inputs`, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ inputs }),
+    body: JSON.stringify({ inputs, expected_step_id: expectedStepId }),
   });
 
   let payload = null;

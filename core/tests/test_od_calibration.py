@@ -96,13 +96,16 @@ def test_analyze_anchors_reported_calibration_to_blank(fit: str) -> None:
 
 
 @pytest.mark.slow
-def test_run_od_standards() -> None:
+@pytest.mark.parametrize("rpm", [0, 500])
+def test_run_od_standards(rpm: float) -> None:
     calibration_name = f"od-cal-{uuid4().hex}"
     input_ = "\n".join(
         [
             "",
             calibration_name,
-            "500",
+            str(rpm),
+            "",
+            "0.0",
             "",
             "1",
             "",
@@ -111,9 +114,7 @@ def test_run_od_standards() -> None:
             "",
             "",
             "0.1",
-            "continue to blank (media only)",
-            "",
-            "0.0",
+            "review calibration",
             "y",
         ]
     )
@@ -125,7 +126,7 @@ def test_run_od_standards() -> None:
         assert cal.curve_data_.type == "spline"
         assert cal.x == "OD600"
         assert cal.y == "Voltage"
-        assert len(cal.recorded_data["x"]) == 4
+        assert cal.recorded_data["x"] == [0.0, 1.0, 0.5, 0.1]
 
     active_cal = load_active_calibration("od90")
     assert active_cal is not None

@@ -2,11 +2,21 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from typing import Any
 from typing import cast
 from typing import Iterator
 
 import pytest
+from msgspec import convert
+from msgspec.json import decode
+from msgspec.json import encode
+from pioreactor import structs
+from pioreactor import types as pt
+from pioreactor.background_jobs import od_reading
+from pioreactor.background_jobs import stirring
 from pioreactor.calibrations.protocols import od_standards
+from pioreactor.calibrations.session_flow import advance_session
+from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
@@ -14,6 +24,7 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 
 
@@ -122,13 +133,15 @@ def _dummy_session() -> CalibrationSession:
     )
 
 
-def test_measurement_steps_have_specific_primary_action_labels() -> None:
+@pytest.mark.parametrize("rpm", [0, 500])
+def test_measurement_steps_show_stirring_only_for_positive_rpm(rpm: float) -> None:
     session = _dummy_session()
     session.data.update(
         {
             "channel_angle_map": {"1": "90"},
             "od600_values": [],
             "voltages_by_channel": {"1": []},
+            "rpm": rpm,
         }
     )
     ctx = SessionContext(
@@ -138,8 +151,12 @@ def test_measurement_steps_have_specific_primary_action_labels() -> None:
         collected_calibrations=[],
     )
 
-    assert od_standards.MeasureStandard().render(ctx).metadata["primary_action_label"] == "Measure standard"
-    assert od_standards.MeasureBlank().render(ctx).metadata["primary_action_label"] == "Measure blank"
+    standard_step = od_standards.MeasureStandard().render(ctx)
+    blank_step = od_standards.MeasureBlank().render(ctx)
+    assert standard_step.metadata["primary_action_label"] == "Measure standard"
+    assert blank_step.metadata["primary_action_label"] == "Measure blank"
+    assert bool(standard_step.metadata["loading_images"]) == (rpm > 0)
+    assert bool(blank_step.metadata["loading_images"]) == (rpm > 0)
 
 
 def test_on_session_abort_requests_od_job_cleanup(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -213,3 +230,263 @@ def test_session_measurement_uses_captured_experiment(monkeypatch: pytest.Monkey
     )
     assert od_standards._measure_standard_for_session(ctx, 500, {"2": "90"}) == {"2": 0.2}
     assert calls[0]["experiment"] == "_testing_original"
+
+
+@pytest.mark.parametrize("fail_on_read", [None, 5])
+def test_snapshot_keeps_warmup_waits_and_averages_three_consecutive_readings(
+    monkeypatch: pytest.MonkeyPatch, fail_on_read: int | None
+) -> None:
+    events: list[str | float] = []
+    sample_values = iter([9.0, 8.0, 7.0, 0.1, 0.2, 0.6])
+    timestamp = current_utc_datetime()
+
+    class FakeODReader:
+        def __init__(self) -> None:
+            self.read_count = 0
+
+        def record_from_adc(self) -> structs.ODReadings:
+            self.read_count += 1
+            events.append(f"read {self.read_count}")
+            if self.read_count == fail_on_read:
+                raise RuntimeError("ADC failed")
+            value = next(sample_values)
+            return structs.ODReadings(
+                timestamp=timestamp,
+                ods={
+                    "2": structs.RawODReading(
+                        timestamp=timestamp, od=value, angle="90", channel="2", ir_led_intensity=80
+                    ),
+                    "3": structs.RawODReading(
+                        timestamp=timestamp, od=value * 2, angle="135", channel="3", ir_led_intensity=80
+                    ),
+                },
+            )
+
+    @contextmanager
+    def start_od_reading(channels: Any, **kwargs: Any) -> Iterator[FakeODReader]:
+        assert kwargs["interval"] is None
+        assert kwargs["experiment"] == "_testing_snapshot"
+        assert kwargs["calibration"] is False
+        assert kwargs["estimator"] is False
+        events.append("open")
+        try:
+            yield FakeODReader()
+        finally:
+            events.append("close")
+
+    monkeypatch.setattr(od_reading, "start_od_reading", start_od_reading)
+    monkeypatch.setattr(od_standards, "is_testing_env", lambda: False)
+    monkeypatch.setattr(od_standards, "sleep", events.append)
+
+    if fail_on_read is None:
+        result = od_standards._read_voltages_from_adc({"2": "90", "3": "135"}, "_testing_snapshot")
+        assert result == pytest.approx({"2": 0.3, "3": 0.6})
+    else:
+        with pytest.raises(RuntimeError, match="ADC failed"):
+            od_standards._read_voltages_from_adc({"2": "90", "3": "135"}, "_testing_snapshot")
+    expected_reads = [f"read {i}" for i in range(4, (fail_on_read or 6) + 1)]
+    assert events == ["open", "read 1", 1.0, "read 2", 1.0, "read 3", 1.0, *expected_reads, "close"]
+
+
+def test_zero_rpm_measures_without_starting_stirring_or_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
+    readings = {"2": 0.123456789}
+    calls: list[tuple[dict, str]] = []
+
+    def no_stirring(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("0 RPM must not start stirring")
+
+    def no_settling(delay: float) -> None:
+        raise AssertionError("0 RPM must not wait for stirring to settle")
+
+    def read_voltages(channel_angle_map: dict, experiment: str) -> dict:
+        calls.append((channel_angle_map, experiment))
+        return readings
+
+    monkeypatch.setattr(stirring, "start_stirring", no_stirring)
+    monkeypatch.setattr(od_standards, "sleep", no_settling)
+    monkeypatch.setattr(od_standards, "_read_voltages_from_adc", read_voltages)
+    monkeypatch.setattr(od_standards, "is_testing_env", lambda: False)
+
+    assert od_standards._measure_standard(0, {"2": "90"}, "_testing_original") == readings
+    assert calls == [({"2": "90"}, "_testing_original")]
+
+
+@pytest.mark.parametrize("measurement_fails", [False, True])
+def test_positive_rpm_settles_and_cleans_up_stirring(
+    monkeypatch: pytest.MonkeyPatch, measurement_fails: bool
+) -> None:
+    events: list[str] = []
+
+    class FakeStirrer:
+        def block_until_rpm_is_close_to_target(self, abs_tolerance: float) -> bool:
+            assert abs_tolerance == 120
+            events.append("converge")
+            return True
+
+    @contextmanager
+    def start_stirring(target_rpm: float, unit: str, experiment: str) -> Iterator[FakeStirrer]:
+        assert target_rpm == 500
+        assert unit == od_standards.get_unit_name()
+        assert experiment == "_testing_original"
+        events.append("start")
+        try:
+            yield FakeStirrer()
+        finally:
+            events.append("stop")
+
+    def settle(delay: float) -> None:
+        assert delay == 1.0
+        events.append("settle")
+
+    def read_voltages(channel_angle_map: dict, experiment: str) -> dict:
+        assert channel_angle_map == {"2": "90"}
+        assert experiment == "_testing_original"
+        events.append("measure")
+        if measurement_fails:
+            raise RuntimeError("ADC failed")
+        return {"2": 0.1}
+
+    monkeypatch.setattr(stirring, "start_stirring", start_stirring)
+    monkeypatch.setattr(od_standards, "sleep", settle)
+    monkeypatch.setattr(od_standards, "_read_voltages_from_adc", read_voltages)
+    monkeypatch.setattr(od_standards, "is_testing_env", lambda: False)
+
+    if measurement_fails:
+        with pytest.raises(RuntimeError, match="ADC failed"):
+            od_standards._measure_standard(500, {"2": "90"}, "_testing_original")
+    else:
+        assert od_standards._measure_standard(500, {"2": "90"}, "_testing_original") == {"2": 0.1}
+    assert events == ["start", "converge", "settle", "measure", "stop"]
+
+
+@pytest.mark.parametrize("target_device", ["od90", "od"])
+@pytest.mark.parametrize("blank_od600", [0.0, 0.05])
+@pytest.mark.parametrize("rpm", [0, 500])
+def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
+    monkeypatch: pytest.MonkeyPatch, target_device: pt.ODCalibrationDevices, blank_od600: float, rpm: float
+) -> None:
+    monkeypatch.setattr(od_standards, "is_pio_job_running", lambda _jobs: [False, False])
+    monkeypatch.setattr(od_standards, "list_of_calibrations_by_device", lambda _device: [])
+    registry = od_standards._OD_STANDARDS_STEPS
+    saved: list[dict[str, Any]] = []
+    measured: list[str] = []
+
+    def execute(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if action == "od_standards_measure":
+            assert payload["rpm"] == rpm
+            measured.append(session.step_id)
+            scale = 0.001 if len(measured) == 1 else 0.1
+            return {
+                "voltages": {channel: int(channel) * scale for channel in session.data["channel_angle_map"]}
+            }
+        assert action == "save_calibration"
+        saved.append(payload)
+        return {"path": f"/tmp/{payload['device']}.yaml"}
+
+    with _temporary_config_section("od_config.photodiode_channel", {"1": "REF", "2": "90", "3": "135"}):
+        session = od_standards.start_standards_session(target_device)
+    assert session.data["blank_index"] is None
+    session = advance_session(registry, session, {}, execute)
+    session = advance_session(registry, session, {"calibration_name": "blank-first"}, execute)
+    if target_device == "od":
+        assert session.step_id == "channel_confirm"
+        session = advance_session(registry, session, {}, execute)
+    assert session.step_id == "rpm_input"
+    session = advance_session(registry, session, {"rpm": rpm}, execute)
+    assert session.step_id == "place_blank"
+    session = advance_session(registry, session, {}, execute)
+    assert session.step_id == "measure_blank"
+    session = advance_session(registry, session, {"od600_blank": blank_od600}, execute)
+    assert session.step_id == "place_standard"
+    assert session.data["blank_index"] == 0
+    session = advance_session(registry, session, {}, execute)
+    table = get_session_step(registry, session, execute).metadata["table"]
+    assert table["rows"] == [["Blank", blank_od600]]
+    session = advance_session(registry, session, {"od600_value": 0.5}, execute)
+    assert session.step_id == "another_standard"
+    next_step = get_session_step(registry, session, execute)
+    assert next_step.fields == []
+    assert next_step.metadata["primary_action_label"] == "Review calibration"
+    session = advance_session(registry, session, {}, execute)
+    assert session.step_id == "review_data"
+    # Simulate resuming a persisted UI session before saving.
+    session = decode(encode(session), type=CalibrationSession)
+    review = get_session_step(registry, session, execute)
+    assert [row["standard"] for row in review.fields[0].default] == ["Blank", "1"]
+    session = advance_session(registry, session, {"recorded_data": review.fields[0].default}, execute)
+    assert session.status == "complete"
+    assert measured == ["measure_blank", "measure_standard"]
+    assert {cal["device"] for cal in saved} == ({"od90", "od135"} if target_device == "od" else {"od90"})
+    for payload in saved:
+        calibration = convert(payload["calibration"], type=structs.OD600Calibration)
+        assert calibration.recorded_data["x"] == [blank_od600, 0.5]
+        assert calibration.x_to_y(blank_od600) == pytest.approx(calibration.recorded_data["y"][0])
+
+
+def test_add_and_redo_standard_preserve_blank_and_standard_numbering() -> None:
+    session = _dummy_session()
+    session.step_id = "another_standard"
+    session.data.update(
+        {
+            "blank_index": 0,
+            "rpm": 500,
+            "standard_index": 1,
+            "channel_angle_map": {"2": "90"},
+            "od600_values": [0.05, 0.5],
+            "voltages_by_channel": {"2": [0.001, 0.1]},
+        }
+    )
+    registry = od_standards._OD_STANDARDS_STEPS
+
+    def execute(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+        assert action == "od_standards_measure"
+        return {"voltages": {"2": 0.2}}
+
+    step = get_session_step(registry, session, execute)
+    session = advance_session(registry, session, step.metadata["actions"][0]["inputs"], execute)
+    assert session.step_id == "place_standard"
+    assert session.data["standard_index"] == 2
+    session = advance_session(registry, session, {}, execute)
+    session = advance_session(registry, session, {"od600_value": 10.0}, execute)
+    session = advance_session(registry, session, {"action": "redo_last"}, execute)
+    assert session.step_id == "place_standard"
+    assert session.data["standard_index"] == 2
+    assert session.data["blank_index"] == 0
+    assert session.data["od600_values"] == [0.05, 0.5]
+    assert session.data["voltages_by_channel"]["2"] == [0.001, 0.1]
+    session = advance_session(registry, session, {}, execute)
+    table = get_session_step(registry, session, execute).metadata["table"]
+    assert table["rows"] == [["Blank", 0.05], ["1", 0.5]]
+    session = advance_session(registry, session, {"od600_value": 1.0}, execute)
+    session = advance_session(registry, session, {}, execute)
+    review = get_session_step(registry, session, execute)
+    assert [row["standard"] for row in review.fields[0].default] == ["Blank", "1", "2"]
+    assert session.data["od600_values"] == [0.05, 0.5, 1.0]
+
+
+def test_legacy_session_collects_its_missing_blank_before_review() -> None:
+    session = _dummy_session()
+    session.step_id = "another_standard"
+    session.data.update(
+        {
+            "rpm": 500,
+            "standard_index": 1,
+            "channel_angle_map": {"2": "90"},
+            "od600_values": [0.5],
+            "voltages_by_channel": {"2": [0.1]},
+        }
+    )
+    registry = od_standards._OD_STANDARDS_STEPS
+
+    def execute(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+        assert action == "od_standards_measure"
+        return {"voltages": {"2": 0.001}}
+
+    session = advance_session(registry, session, {}, execute)
+    assert session.step_id == "place_blank"
+    session = advance_session(registry, session, {}, execute)
+    session = advance_session(registry, session, {"od600_blank": 0.05}, execute)
+    assert session.step_id == "review_data"
+    assert session.data["blank_index"] == 1
+    review = get_session_step(registry, session, execute)
+    assert [row["standard"] for row in review.fields[0].default] == ["1", "Blank"]

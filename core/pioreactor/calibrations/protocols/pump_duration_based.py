@@ -544,7 +544,7 @@ class TestVolume(SessionStep):
 
 class ReviewVolumes(ReviewDataStep):
     # No chart here: the table of runs already fills the dialog, so the fit is shown as text.
-    preview_label = "Recalculate fit"
+    preview_label = "Recalculate curve"
 
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
         return [
@@ -555,7 +555,7 @@ class ReviewVolumes(ReviewDataStep):
 
     def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
         return [
-            {"run": index + 1, "duration": round(float(duration), 3), "volume": volume}
+            {"run": index + 1, "duration": float(duration), "volume": volume}
             for index, (duration, volume) in enumerate(
                 zip(ctx.data["durations_to_test"], ctx.data["results"])
             )
@@ -579,12 +579,12 @@ class ReviewVolumes(ReviewDataStep):
         if fit is None:
             return None
         (slope, std_slope), _ = fit
-        return f"Current fit: {slope:.3f} ± {std_slope:.3f} mL per second of pumping."
+        return f"Calculated flow rate: {slope:.3f} ± {std_slope:.3f} mL per second of pumping."
 
     def save(self, ctx: SessionContext, included: list[int]) -> None:
         fit = self._fit(ctx, included)
         if fit is None:
-            raise ValueError("Keep runs from at least two different durations to fit a calibration.")
+            raise ValueError("Keep runs from at least two different durations to calculate the curve.")
         (slope, std_slope), (bias, std_bias) = fit
         durations = select_rows(ctx.data["durations_to_test"], included)
         results = select_rows(ctx.data["results"], included)

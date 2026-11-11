@@ -39,6 +39,7 @@ import DisplaySourceCode from "./components/DisplaySourceCode";
 import DownloadIcon from '@mui/icons-material/Download';
 import DialogCloseButton from "./components/DialogCloseButton";
 import { textIcon } from "./theme";
+import { calibrationAxisPrecision, formatCalibrationNumber } from "./utils/formatCalibrationNumber";
 
 
 function formatPolynomial(coefficients) {
@@ -480,6 +481,8 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
     recorded_data,
     is_active,
   } = calibration;
+  const xIsVoltage = x.toLowerCase() === "voltage";
+  const yIsVoltage = y.toLowerCase() === "voltage";
 
   return (
     <Grid container spacing={0}>
@@ -553,7 +556,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                         <TableCell>{calibration_type}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell><strong>Fit curve</strong></TableCell>
+                        <TableCell><strong>Calibration curve</strong></TableCell>
                         <TableCell>
                           {formatCurve(curve_data_)}
                         </TableCell>
@@ -573,15 +576,17 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>{x}</TableCell>
-                        <TableCell>{y}</TableCell>
+                        <TableCell>{xIsVoltage ? "Voltage (V)" : x}</TableCell>
+                        <TableCell>{yIsVoltage ? "Voltage (V)" : y}</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {recorded_data.x.map((xVal, idx) => (
                         <TableRow key={idx}>
-                          <TableCell>{xVal}</TableCell>
-                          <TableCell>{recorded_data.y[idx]}</TableCell>
+                          <TableCell>{formatCalibrationNumber(xVal, calibrationAxisPrecision(x))}</TableCell>
+                          <TableCell>
+                            {formatCalibrationNumber(recorded_data.y[idx], calibrationAxisPrecision(y))}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

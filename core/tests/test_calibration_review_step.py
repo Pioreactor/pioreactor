@@ -64,8 +64,9 @@ def _od_session() -> CalibrationSession:
             "experiment": get_testing_experiment_name(),
             "calibration_name": "od-review-test",
             "channel_angle_map": {"2": "90"},
-            "od600_values": [0.5, 1.0, 1.5, 0.0],
-            "voltages_by_channel": {"2": [0.05, 0.1, 0.9, 0.001]},
+            "blank_index": 0,
+            "od600_values": [0.0, 0.5, 1.0, 1.5],
+            "voltages_by_channel": {"2": [0.001, 0.05, 0.1, 0.9]},
         },
     )
 
@@ -96,12 +97,15 @@ def test_data_table_inputs_reject_invalid_cells(row: dict[str, Any], message: st
         SessionInputs({"table": [row]}).data_table("table", columns)
 
 
-def test_od_standards_review_lists_every_point_with_the_blank_last() -> None:
+def test_od_standards_review_lists_every_point_with_the_blank_first() -> None:
     step = get_session_step(od_standards._OD_STANDARDS_STEPS, _od_session(), FakeExecutor())
 
     assert step.metadata["primary_action_label"] == "Save calibration"
-    assert [row["standard"] for row in _table(step)] == ["1", "2", "3", "Blank"]
+    assert [row["standard"] for row in _table(step)] == ["Blank", "1", "2", "3"]
     assert all(row["include"] for row in _table(step))
+    voltage_column = next(col for col in step.fields[0].columns if col["key"] == "voltage_2")
+    assert voltage_column["precision"] == 3
+    assert "(V)" in voltage_column["label"]
     series = step.metadata["chart"]["series"][0]
     assert series["curve"]["type"] == "spline"
     curve = convert(series["curve"], type=structs.SplineFitData)
@@ -112,8 +116,8 @@ def test_od_standards_preview_applies_edits_without_saving() -> None:
     executor = FakeExecutor()
     session = _od_session()
     rows = _table(get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor))
-    rows[2]["od600"] = 2.0
-    rows[1]["include"] = False
+    rows[3]["od600"] = 2.0
+    rows[2]["include"] = False
 
     session = advance_session(
         od_standards._OD_STANDARDS_STEPS,
@@ -126,29 +130,29 @@ def test_od_standards_preview_applies_edits_without_saving() -> None:
     assert session.step_id == "review_data"
     assert executor.saved == []
     rerendered = _table(get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor))
-    assert rerendered[2]["od600"] == 2.0
-    assert rerendered[1]["include"] is False
+    assert rerendered[3]["od600"] == 2.0
+    assert rerendered[2]["include"] is False
     chart_points = get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor).metadata["chart"][
         "series"
     ][0]["points"]
-    assert [point["x"] for point in chart_points] == [0.5, 2.0, 0.0]
+    assert [point["x"] for point in chart_points] == [0.0, 0.5, 2.0]
 
 
 @pytest.mark.parametrize("blank_od600", [0.0, 0.05])
 def test_od_standards_save_fits_only_included_points_with_corrected_values(blank_od600: float) -> None:
     executor = FakeExecutor()
     session = _od_session()
-    session.data["od600_values"][-1] = blank_od600
+    session.data["od600_values"][0] = blank_od600
     rows = _table(get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor))
-    rows[2]["od600"] = 2.0
-    rows[1]["include"] = False
+    rows[3]["od600"] = 2.0
+    rows[2]["include"] = False
 
     session = advance_session(od_standards._OD_STANDARDS_STEPS, session, {REVIEW_TABLE_FIELD: rows}, executor)
 
     assert session.status == "complete"
     (saved,) = executor.saved
     assert saved["device"] == "od90"
-    assert saved["calibration"]["recorded_data"] == {"x": [0.5, 2.0, blank_od600], "y": [0.05, 0.9, 0.001]}
+    assert saved["calibration"]["recorded_data"] == {"x": [blank_od600, 0.5, 2.0], "y": [0.001, 0.05, 0.9]}
     calibration = convert(saved["calibration"], type=structs.OD600Calibration)
     assert calibration.x_to_y(blank_od600) == pytest.approx(0.001)
 
@@ -157,11 +161,38 @@ def test_od_standards_cannot_save_without_the_blank() -> None:
     executor = FakeExecutor()
     session = _od_session()
     rows = _table(get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor))
-    rows[-1]["include"] = False
+    rows[0]["include"] = False
 
     with pytest.raises(ValueError, match="Keep the blank included"):
         advance_session(od_standards._OD_STANDARDS_STEPS, session, {REVIEW_TABLE_FIELD: rows}, executor)
     assert executor.saved == []
+
+
+@pytest.mark.parametrize("blank_index", [1, 3, None])
+def test_review_uses_blank_identity_and_supports_legacy_blank_last_sessions(blank_index: int | None) -> None:
+    session = _od_session()
+    target_index = 3 if blank_index is None else blank_index
+    values = session.data["od600_values"]
+    values.insert(target_index, values.pop(0))
+    voltages = session.data["voltages_by_channel"]["2"]
+    voltages.insert(target_index, voltages.pop(0))
+    if blank_index is None:
+        del session.data["blank_index"]
+    else:
+        session.data["blank_index"] = blank_index
+    executor = FakeExecutor()
+    step = get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor)
+    rows = _table(step)
+    assert rows[target_index]["standard"] == "Blank"
+    assert [row["standard"] for row in rows if row["standard"] != "Blank"] == ["1", "2", "3"]
+    curve = convert(step.metadata["chart"]["series"][0]["curve"], type=structs.SplineFitData)
+    assert spline_eval(curve, 0.0) == pytest.approx(0.001)
+
+    session = advance_session(od_standards._OD_STANDARDS_STEPS, session, {REVIEW_TABLE_FIELD: rows}, executor)
+
+    assert session.status == "complete"
+    calibration = convert(executor.saved[0]["calibration"], type=structs.OD600Calibration)
+    assert calibration.x_to_y(0.0) == pytest.approx(0.001)
 
 
 def test_review_requires_enough_included_rows() -> None:
@@ -208,8 +239,8 @@ def test_pump_review_corrects_a_mistyped_volume_before_saving() -> None:
     rows = _table(step)
     assert [row["duration"] for row in rows] == [1.0, 1.0, 2.0, 3.0, 3.0]
     assert "chart" not in step.metadata
-    assert step.metadata["actions"][0]["label"] == "Recalculate fit"
-    assert step.metadata["summary"].startswith("Current fit")
+    assert step.metadata["actions"][0]["label"] == "Recalculate curve"
+    assert step.metadata["summary"].startswith("Calculated flow rate")
     rows[3]["volume"] = 1.5
 
     session = advance_session(

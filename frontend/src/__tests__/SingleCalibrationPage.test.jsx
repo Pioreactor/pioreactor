@@ -101,7 +101,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
     const user = userEvent.setup();
     renderSingleCalibrationPage();
 
-    await screen.findByText("Calibration: calibration-a");
+    await screen.findByRole("heading", { name: "Calibration: calibration-a" });
     await user.click(screen.getByRole("button", { name: /set active/i }));
 
     await waitFor(() =>
@@ -127,7 +127,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
 
     renderSingleCalibrationPage();
 
-    await screen.findByText("Calibration: calibration-a");
+    await screen.findByRole("heading", { name: "Calibration: calibration-a" });
     await user.click(screen.getByRole("button", { name: /set active/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Worker rejected this request.");
@@ -164,13 +164,13 @@ describe("SingleCalibrationPage task-backed mutations", () => {
     mockConfirm.mockResolvedValue({ confirmed: false, reason });
     fetchTaskResult.mockResolvedValueOnce(calibrationPayload(false));
     renderSingleCalibrationPage();
-    await screen.findByText("Calibration: calibration-a");
+    await screen.findByRole("heading", { name: "Calibration: calibration-a" });
     fetchTaskResult.mockClear();
 
     await user.click(screen.getByRole("button", { name: /delete/i }));
 
     expect(fetchTaskResult).not.toHaveBeenCalled();
-    expect(screen.getByText("Calibration: calibration-a")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Calibration: calibration-a" })).toBeInTheDocument();
   });
 
   test("waits for the delete task before navigating away", async () => {
@@ -180,7 +180,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
 
     renderSingleCalibrationPage();
 
-    await screen.findByText("Calibration: calibration-a");
+    await screen.findByRole("heading", { name: "Calibration: calibration-a" });
     await user.click(screen.getByRole("button", { name: /delete/i }));
 
     await waitFor(() =>
@@ -208,7 +208,34 @@ describe("SingleCalibrationPage calibration names", () => {
 
     renderSingleCalibrationPage(`/calibrations/unit-1/od/${encodeURIComponent("OD600 #2?%")}`);
 
-    expect(await screen.findByText("Calibration: OD600 #2?%")).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Calibration: OD600 #2?%" })).toBeVisible();
     expect(screen.queryByText("Unable to find calibration data.")).not.toBeInTheDocument();
+  });
+});
+
+describe("SingleCalibrationPage voltage display", () => {
+  afterEach(() => jest.resetAllMocks());
+
+  test.each(["x", "y"])("formats the %s voltage column while preserving raw calibration data", async (voltageAxis) => {
+    const payload = calibrationPayload();
+    const calibration = payload.result["unit-1"].value;
+    calibration.x = voltageAxis === "x" ? "Voltage" : "OD600";
+    calibration.y = voltageAxis === "y" ? "Voltage" : "OD600";
+    const voltages = [0.123456789, 0.00000123456789, 0, null];
+    calibration.recorded_data = {
+      x: voltageAxis === "x" ? voltages : [0, 1, 2, 3],
+      y: voltageAxis === "y" ? voltages : [0, 1, 2, 3],
+    };
+    fetchTaskResult.mockResolvedValue(payload);
+
+    renderSingleCalibrationPage();
+
+    expect(await screen.findByRole("columnheader", { name: "Voltage (V)" })).toBeVisible();
+    expect(screen.getByText("0.123")).toBeVisible();
+    expect(screen.getByText("1.23e-6")).toBeVisible();
+    expect(screen.getByText("0.000")).toBeVisible();
+    expect(screen.getByText("—")).toBeVisible();
+    expect(screen.getByText("Calibration curve")).toBeVisible();
+    expect(calibration.recorded_data[voltageAxis]).toEqual(voltages);
   });
 });

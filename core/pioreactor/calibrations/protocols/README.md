@@ -27,3 +27,19 @@ The `od_fusion_standards` protocol uses the calibration session UI, but saves an
 - estimator inputs: normalized readings from 45°, 90°, and 135°
 - saved estimator: `ODFusionEstimator` YAML artifact
 - estimation: the fused OD value produced when the artifact is applied
+
+
+## Waiting for a condition
+
+Return `steps.wait(title, body, poll_interval_s=5.0)` from a step's `render()`
+to wait without asking the user to click Continue. Its `advance()` should perform
+one short, bounded check and return `None` while waiting or the next step once
+ready. Persist observations in `ctx.data`; keep `render()` free of side effects.
+The browser polls sequentially, displays progress, and permits only Abort while
+waiting. Reloading resumes from the saved observations. The CLI performs the same
+checks without prompting (Ctrl-C interrupts it).
+
+Wait steps use the existing asynchronous inputs endpoint. They do not hold a Huey
+worker for the entire waiting period. Protocols own their readiness conditions,
+sensor freshness checks, timeouts, and resource cleanup. Browser-driven polling
+stops while the browser is closed; hardware jobs have their own lifecycle.

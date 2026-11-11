@@ -10,6 +10,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import { ZebraTableRow } from "./TableRows";
+import { formatCalibrationNumber } from "../utils/formatCalibrationNumber";
 
 
 export function dataTableCellError(column, rawValue) {
@@ -48,6 +49,7 @@ function rowLabel(columns, row, rowIndex) {
 
 // Rows carry an `include` flag when the step lets the user leave rows out of the fit.
 export default function CalibrationSessionDataTable({ field, rows, onChange }) {
+  const [focusedCell, setFocusedCell] = React.useState(null);
   const columns = Array.isArray(field.columns) ? field.columns : [];
   const tableRows = Array.isArray(rows) ? rows : [];
   const showInclude = tableRows.some((row) => Object.prototype.hasOwnProperty.call(row, "include"));
@@ -65,7 +67,7 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
         <Table size="small" aria-labelledby={`${field.name}-label`} sx={{ "& th, & td": { px: 1.5 } }}>
           <TableHead>
             <TableRow>
-              {showInclude && <TableCell sx={{ whiteSpace: "nowrap" }}>Use in fit</TableCell>}
+              {showInclude && <TableCell>Include measurement</TableCell>}
               {columns.map((column, columnIndex) => (
                 <TableCell key={column.key} align={columnIndex === 0 ? "left" : "right"}>
                   {column.label}
@@ -85,7 +87,7 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
                         size="small"
                         checked={row.include !== false}
                         onChange={(event) => updateRow(rowIndex, { include: event.target.checked })}
-                        slotProps={{ input: { "aria-label": `Use ${label} in fit` } }}
+                        slotProps={{ input: { "aria-label": `Include ${label}` } }}
                       />
                     </TableCell>
                   )}
@@ -98,17 +100,25 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
                           align={columnIndex === 0 ? "left" : "right"}
                           sx={{ color: excluded ? "text.disabled" : undefined }}
                         >
-                          {value ?? "—"}
+                          {typeof value === "number"
+                            ? formatCalibrationNumber(value, column.precision)
+                            : value ?? "—"}
                         </TableCell>
                       );
                     }
                     const error = dataTableCellError(column, value);
+                    const cellId = `${rowIndex}-${column.key}`;
+                    const displayedValue = focusedCell === cellId || error
+                      ? value ?? ""
+                      : formatCalibrationNumber(Number(value), column.precision);
                     return (
                       <TableCell key={column.key} align="right" sx={{ py: 0.5 }}>
                         <TextField
                           size="small"
                           variant="standard"
-                          value={value ?? ""}
+                          value={displayedValue}
+                          onFocus={() => setFocusedCell(cellId)}
+                          onBlur={() => setFocusedCell(null)}
                           error={Boolean(error)}
                           helperText={error || undefined}
                           onChange={(event) => updateRow(rowIndex, { [column.key]: event.target.value })}
