@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextDecoder, TextEncoder } from "util";
 
@@ -233,9 +233,30 @@ describe("SingleCalibrationPage voltage display", () => {
     expect(await screen.findByRole("columnheader", { name: "Voltage (V)" })).toBeVisible();
     expect(screen.getByText("0.123")).toBeVisible();
     expect(screen.getByText("1.23e-6")).toBeVisible();
-    expect(screen.getByText("0.000")).toBeVisible();
+    const table = screen.getByRole("columnheader", { name: "Voltage (V)" }).closest("table");
+    expect(within(table).getAllByText("0").length).toBeGreaterThan(0);
     expect(screen.getByText("—")).toBeVisible();
     expect(screen.getByText("Calibration curve")).toBeVisible();
     expect(calibration.recorded_data[voltageAxis]).toEqual(voltages);
+  });
+
+  test.each([
+    ["Duration", "Volume", 1.23456789, 0.123456789, "1.235", "0.123"],
+    ["DC %", "RPM", 32.123456789, 502.123456789, "32.12", "502.1"],
+    ["Reference pH", "Measured pH", 2, 2.0123456789, "2", "2.012"],
+  ])("formats %s and %s recorded measurements", async (x, y, xValue, yValue, xDisplay, yDisplay) => {
+    const payload = calibrationPayload();
+    const calibration = payload.result["unit-1"].value;
+    calibration.x = x;
+    calibration.y = y;
+    calibration.recorded_data = { x: [xValue], y: [yValue] };
+    fetchTaskResult.mockResolvedValue(payload);
+
+    renderSingleCalibrationPage();
+
+    const table = (await screen.findByRole("columnheader", { name: x })).closest("table");
+    expect(within(table).getByText(xDisplay)).toBeVisible();
+    expect(within(table).getByText(yDisplay)).toBeVisible();
+    expect(calibration.recorded_data).toEqual({ x: [xValue], y: [yValue] });
   });
 });

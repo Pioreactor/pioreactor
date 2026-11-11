@@ -254,6 +254,13 @@ def test_pump_review_corrects_a_mistyped_volume_before_saving() -> None:
     assert session.result["stats"]["slope"] == pytest.approx(0.5)
 
 
+def test_pump_review_keeps_duration_precision() -> None:
+    session = _pump_session()
+    session.data["durations_to_test"][0] = 1.23456789
+    step = get_session_step(pump_duration_based._PUMP_DURATION_STEPS, session, FakeExecutor())
+    assert _table(step)[0]["duration"] == 1.23456789
+
+
 def test_pump_review_needs_two_distinct_durations() -> None:
     executor = FakeExecutor()
     session = _pump_session()
@@ -272,9 +279,11 @@ def test_stirring_review_drops_excluded_readings() -> None:
     session = _session(
         stirring_dc_based.DCBasedStirringProtocol.protocol_name,
         "stirring",
-        {"dcs": [20.0, 30.0, 40.0, 50.0], "rpms": [0.5, 300.0, 500.0, 700.0], "voltage": 5.0},
+        {"dcs": [20.0, 30.123456789, 40.0, 50.0], "rpms": [0.5, 300.123456789, 500.0, 700.0], "voltage": 5.0},
     )
     rows = _table(get_session_step(stirring_dc_based._DC_BASED_STEPS, session, executor))
+    assert rows[1]["dc"] == 30.123456789
+    assert rows[1]["rpm"] == 300.123456789
     rows[0]["include"] = False
 
     session = advance_session(
@@ -283,13 +292,16 @@ def test_stirring_review_drops_excluded_readings() -> None:
 
     assert session.status == "complete"
     (saved,) = executor.saved
-    assert saved["calibration"]["recorded_data"] == {"x": [30.0, 40.0, 50.0], "y": [300.0, 500.0, 700.0]}
+    assert saved["calibration"]["recorded_data"] == {
+        "x": [30.123456789, 40.0, 50.0],
+        "y": [300.123456789, 500.0, 700.0],
+    }
 
 
 def test_fusion_standards_review_rebuilds_records_from_corrected_ods() -> None:
     standards = [
         {"index": 1, "od_value": 0.1, "readings": [["45", 0.01], ["90", 0.02], ["135", 0.03]]},
-        {"index": 2, "od_value": 0.5, "readings": [["45", 0.05], ["90", 0.1], ["135", 0.15]]},
+        {"index": 2, "od_value": 0.5, "readings": [["45", 0.05], ["90", 0.123456789], ["135", 0.15]]},
     ]
     session = _session(
         od_fusion_standards.FusionStandardsODProtocol.protocol_name,
@@ -298,7 +310,7 @@ def test_fusion_standards_review_rebuilds_records_from_corrected_ods() -> None:
     )
     step = get_session_step(od_fusion_standards._FUSION_STEPS, session, FakeExecutor())
     rows = _table(step)
-    assert rows[1]["mean_90"] == pytest.approx(0.1)
+    assert rows[1]["mean_90"] == 0.123456789
 
     rows[1]["od600"] = 1.0
     session = advance_session(
@@ -319,12 +331,13 @@ def test_fusion_offset_review_edits_standards_without_exclusion() -> None:
         {
             "standards": [
                 {"standard_od": 0.2, "estimated_od": 0.25},
-                {"standard_od": 1.0, "estimated_od": 1.1},
+                {"standard_od": 1.0, "estimated_od": 1.123456789},
             ]
         },
     )
     step = get_session_step(od_fusion_offset._FUSION_OFFSET_STEPS, session, FakeExecutor())
     rows = _table(step)
+    assert rows[1]["estimated_od"] == 1.123456789
     assert "include" not in rows[0]
     assert "actions" not in step.metadata
     assert step.metadata["primary_action_label"] == "Save estimator"

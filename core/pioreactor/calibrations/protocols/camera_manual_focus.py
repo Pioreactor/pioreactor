@@ -35,7 +35,7 @@ def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str
     if len(valid_focus_scores) == 1:
         return (
             "initial",
-            "Adjust the focus slightly using the focus tool, then take another snapshot. Tip: you can leave the manual focus on.",
+            "Adjust the focus slightly using the focus tool, then take another snapshot.",
         )
 
     initial_focus_score = valid_focus_scores[0]

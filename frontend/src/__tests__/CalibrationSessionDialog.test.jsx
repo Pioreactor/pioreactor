@@ -325,7 +325,7 @@ describe("CalibrationSessionDialog", () => {
           ],
           default: [
             { run: 1, duration: 1.0, volume: 0.5, include: true },
-            { run: 2, duration: 2.0, volume: 10.0, include: true },
+            { run: 2, duration: 2.23456789, volume: 10.123456789, include: true },
             { run: 3, duration: 3.0, volume: 1.5, include: true },
           ],
         },
@@ -367,12 +367,19 @@ describe("CalibrationSessionDialog", () => {
     const volumeInput = await screen.findByRole("textbox", { name: "Volume (mL) for Run 2" });
     const saveButton = screen.getByRole("button", { name: "Save calibration" });
 
+    expect(screen.getByText("2.235")).toBeVisible();
+    expect(volumeInput).toHaveValue("10.123");
+    fireEvent.focus(volumeInput);
+    expect(volumeInput).toHaveValue("10.123456789");
     fireEvent.change(volumeInput, { target: { value: "" } });
     expect(screen.getByText("Required")).toBeInTheDocument();
     expect(saveButton).toBeDisabled();
     expect(screen.getByRole("button", { name: "Recalculate curve" })).toBeDisabled();
 
-    fireEvent.change(volumeInput, { target: { value: "1.0" } });
+    fireEvent.change(volumeInput, { target: { value: "1.123456789" } });
+    expect(volumeInput).toHaveValue("1.123456789");
+    fireEvent.blur(volumeInput);
+    expect(volumeInput).toHaveValue("1.123");
     expect(saveButton).toBeEnabled();
     fireEvent.click(screen.getByRole("checkbox", { name: "Include Run 3" }));
     fireEvent.click(screen.getByRole("button", { name: "Recalculate curve" }));
@@ -386,7 +393,7 @@ describe("CalibrationSessionDialog", () => {
             inputs: {
               recorded_data: [
                 { run: 1, duration: 1.0, volume: 0.5, include: true },
-                { run: 2, duration: 2.0, volume: 1.0, include: true },
+                { run: 2, duration: 2.23456789, volume: 1.123456789, include: true },
                 { run: 3, duration: 3.0, volume: 1.5, include: false },
               ],
               action: "preview",
@@ -447,7 +454,7 @@ describe("CalibrationSessionDialog", () => {
 
     expect(await screen.findByText("0.123")).toBeVisible();
     expect(screen.getByText("1.23e-6")).toBeVisible();
-    expect(screen.getByText("0.000")).toBeVisible();
+    expect(screen.getByText("0")).toBeVisible();
     expect(screen.getByText("—")).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "Include measurement" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Recalculate curve" }));

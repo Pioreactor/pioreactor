@@ -7,6 +7,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
@@ -191,46 +192,48 @@ export default function CalibrationSessionStepContent({
       )}
       {chart && !hideDataWhileLoading && <CalibrationSessionChart chart={chart} review={isDataReviewStep(step)} />}
       {table && !hideDataWhileLoading && (
-        <Box sx={{ width: "70%", mx: "auto", mt: 2, mb: 4 }}>
+        <Box sx={{ width: { xs: "100%", sm: "70%" }, mx: "auto", mt: 2, mb: 4 }}>
           {tableTitle && (
             <Typography variant="subtitle2" color="text.secondary">
               {tableTitle}
             </Typography>
           )}
           {tableRows.length > 0 ? (
-            <Table size="small" sx={{ "& th, & td": { px: 1 } }}>
-              {tableColumns.length > 0 && (
-                <TableHead>
-                  <TableRow>
-                    {tableColumns.map((column, index) => (
-                      <TableCell
-                        key={`${column}-${index}`}
-                        align={index === 0 ? "left" : "right"}
-                      >
-                        {column}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-              )}
-              <TableBody>
-                {tableRows.map((row, rowIndex) => {
-                  const cells = Array.isArray(row) ? row : Object.values(row || {});
-                  return (
-                    <TableRow key={`row-${rowIndex}`}>
-                      {cells.map((cell, cellIndex) => (
+            <TableContainer sx={{ overflowX: "auto" }}>
+              <Table size="small" sx={{ "& th, & td": { px: 1 } }}>
+                {tableColumns.length > 0 && (
+                  <TableHead>
+                    <TableRow>
+                      {tableColumns.map((column, index) => (
                         <TableCell
-                          key={`cell-${rowIndex}-${cellIndex}`}
-                          align={cellIndex === 0 ? "left" : "right"}
+                          key={`${column}-${index}`}
+                          align={index === 0 ? "left" : "right"}
                         >
-                          {typeof cell === "number" ? formatCalibrationNumber(cell) : cell ?? "—"}
+                          {column}
                         </TableCell>
                       ))}
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  </TableHead>
+                )}
+                <TableBody>
+                  {tableRows.map((row, rowIndex) => {
+                    const cells = Array.isArray(row) ? row : Object.values(row || {});
+                    return (
+                      <TableRow key={`row-${rowIndex}`}>
+                        {cells.map((cell, cellIndex) => (
+                          <TableCell
+                            key={`cell-${rowIndex}-${cellIndex}`}
+                            align={cellIndex === 0 ? "left" : "right"}
+                          >
+                            {typeof cell === "number" ? formatCalibrationNumber(cell) : cell ?? "—"}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
           ) : (
             <Typography variant="caption" color="text.secondary">
               {tableEmptyMessage}
