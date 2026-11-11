@@ -621,6 +621,9 @@ Rules:
   must include `{ color: "secondary" }`.
 - Long-running work must show immediate progress and prevent duplicate
   submission.
+- Protocol dialogs disable all form fields, selectors, editable table cells,
+  and inclusion checkboxes as soon as an operation starts. Keep Abort available;
+  restore the entered values and controls if the operation fails.
 
 ## Feedback and state
 

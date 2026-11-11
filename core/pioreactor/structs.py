@@ -804,6 +804,7 @@ class StartCalibrationSessionRequest(Struct, forbid_unknown_fields=True):
 
 class AdvanceCalibrationSessionRequest(Struct, forbid_unknown_fields=True):
     inputs: dict[str, t.Any] = {}
+    expected_step_id: str | None = None
 
 
 class UpdateJobSettingsRequest(Struct, forbid_unknown_fields=True):

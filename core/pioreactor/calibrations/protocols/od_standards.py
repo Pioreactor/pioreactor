@@ -259,6 +259,7 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
             "od600_values": [],
             "voltages_by_channel": {channel: [] for channel in channel_angle_map},
             "blank_index": None,
+            "standard_index": 1,
             "rpm": config.getfloat("stirring.config", "initial_target_rpm"),
         },
         created_at=now,
@@ -283,9 +284,6 @@ def _standard_label(index: int, blank_index: int | None) -> str:
 
 
 def _review_blank_index(ctx: SessionContext) -> int:
-    # Sessions created before the blank-first flow reached review with the blank last.
-    if "blank_index" not in ctx.data:
-        return len(ctx.data["od600_values"]) - 1
     blank_index = ctx.data["blank_index"]
     if blank_index is None:
         raise ValueError("Measure the blank before reviewing the calibration.")
@@ -343,7 +341,7 @@ class NameInput(SessionStep):
         ctx.data["calibration_name"] = name
 
         if len(ctx.data["channel_angle_map"]) == 1:
-            return RpmInput()
+            return Setup()
         else:
             return ChannelConfirm()
 
@@ -367,7 +365,7 @@ class NameOverwriteConfirm(SessionStep):
             ctx.data.pop("pending_name", None)
 
             if len(ctx.data["channel_angle_map"]) == 1:
-                return RpmInput()
+                return Setup()
             else:
                 return ChannelConfirm()
 
@@ -389,24 +387,34 @@ class ChannelConfirm(SessionStep):
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         if ctx.inputs.has_inputs:
-            return RpmInput()
+            return Setup()
         return None
 
 
-class RpmInput(SessionStep):
-    step_id = "rpm_input"
+class Setup(SessionStep):
+    step_id = "setup"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         default_rpm = ctx.data["rpm"]
         return steps.form(
-            "Stirring setup",
-            "Set the stirring RPM used during readings. Enter 0 to measure without stirring.",
-            [fields.float("rpm", label="Stirring RPM", default=default_rpm, minimum=0, maximum=10000)],
+            "Calibration setup",
+            "How many samples do you have to test (including your blank)?\n\n"
+            "The blank is measured first. Enter 0 RPM to measure without stirring.",
+            [
+                fields.int(
+                    "sample_count",
+                    label="Number of samples (including blank)",
+                    minimum=2,
+                    min_error_msg="Include at least the blank and one non-blank sample.",
+                ),
+                fields.float("rpm", label="Stirring RPM", default=default_rpm, minimum=0, maximum=10000),
+            ],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         rpm = ctx.inputs.float("rpm")
         ctx.data["rpm"] = rpm
+        ctx.data["sample_count"] = ctx.inputs.int("sample_count")
         return PlaceBlank()
 
 
@@ -414,9 +422,9 @@ class PlaceStandard(SessionStep):
     step_id = "place_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        standard_index = int(ctx.data.get("standard_index", 1))
+        standard_index = ctx.data["standard_index"]
         step = steps.info(
-            f"Place standard {standard_index}",
+            f"Place standard {standard_index} of {ctx.data['sample_count'] - 1}",
             f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
         )
         step.metadata = {
@@ -439,9 +447,9 @@ class MeasureStandard(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         n_frames = 12 if ctx.data["rpm"] > 0 else 0
-        standard_index = int(ctx.data.get("standard_index", 1))
+        standard_index = ctx.data["standard_index"]
         step = steps.form(
-            f"Record standard {standard_index}",
+            f"Record standard {standard_index} of {ctx.data['sample_count'] - 1}",
             f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Measure standard "
             "to take an OD reading.",
             [fields.float("od600_value", label="OD600 value", minimum=0)],
@@ -478,74 +486,13 @@ class MeasureStandard(SessionStep):
         channel_angle_map = _get_channel_angle_map(ctx)
         od600_value = ctx.inputs.float("od600_value")
         voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
-        ctx.data.setdefault("standard_index", 1)
         ctx.data["od600_values"].append(od600_value)
         for channel, voltage in voltages.items():
             ctx.data["voltages_by_channel"][channel].append(voltage)
-        return AnotherStandard()
-
-
-class AnotherStandard(SessionStep):
-    step_id = "another_standard"
-
-    def render(self, ctx: SessionContext) -> CalibrationStep:
-        standard_index = int(ctx.data.get("standard_index", 1))
-        next_standard_index = standard_index + 1
-        step = steps.form(
-            "Next standard",
-            (
-                f"Review the calibration, record standard {next_standard_index}, "
-                "or redo the last measurement."
-            ),
-            [],
-        )
-        if ctx.mode == "cli":
-            step.fields = [
-                fields.choice(
-                    "next_action",
-                    ["record another standard", "review calibration"],
-                    label="Next action",
-                    default="record another standard",
-                )
-            ]
-        step.metadata = {
-            "primary_action_label": "Review calibration",
-            "actions": [
-                {
-                    "label": f"Record standard {next_standard_index}",
-                    "inputs": {"next_action": "record another standard"},
-                },
-                {"label": "Redo last measurement", "inputs": {"action": "redo_last"}},
-            ],
-        }
-        chart = _build_standards_chart_metadata(
-            ctx.data["od600_values"],
-            ctx.data["voltages_by_channel"],
-            _get_channel_angle_map(ctx),
-        )
-        if chart:
-            step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
-        return step
-
-    def advance(self, ctx: SessionContext) -> SessionStep | None:
-        action = ctx.inputs.raw.get("action")  # type: ignore
-        if action == "redo_last":
-            ctx.data["od600_values"].pop()
-            for channel in ctx.data["voltages_by_channel"]:
-                ctx.data["voltages_by_channel"][channel].pop()
-            return PlaceStandard()
-        next_action = ctx.inputs.choice(
-            "next_action",
-            ["record another standard", "review calibration"],
-            default="review calibration",
-        )
-        if next_action == "record another standard":
-            ctx.data["standard_index"] = int(ctx.data.get("standard_index", 1)) + 1
-            return PlaceStandard()
-        # An older session may already have standards but still need its final blank.
-        if "blank_index" not in ctx.data:
-            return PlaceBlank()
-        return ReviewStandards()
+        if len(ctx.data["od600_values"]) == ctx.data["sample_count"]:
+            return ReviewStandards()
+        ctx.data["standard_index"] += 1
+        return PlaceStandard()
 
 
 class PlaceBlank(SessionStep):
@@ -605,7 +552,7 @@ class MeasureBlank(SessionStep):
         ctx.data["od600_values"].append(od600_blank)
         for channel, voltage in voltages.items():
             ctx.data["voltages_by_channel"][channel].append(voltage)
-        return ReviewStandards() if blank_index > 0 else PlaceStandard()
+        return PlaceStandard()
 
 
 class ReviewStandards(ReviewDataStep):
@@ -705,10 +652,9 @@ _OD_STANDARDS_STEPS: StepRegistry = {
     NameInput.step_id: NameInput,
     NameOverwriteConfirm.step_id: NameOverwriteConfirm,
     ChannelConfirm.step_id: ChannelConfirm,
-    RpmInput.step_id: RpmInput,
+    Setup.step_id: Setup,
     PlaceStandard.step_id: PlaceStandard,
     MeasureStandard.step_id: MeasureStandard,
-    AnotherStandard.step_id: AnotherStandard,
     PlaceBlank.step_id: PlaceBlank,
     MeasureBlank.step_id: MeasureBlank,
     ReviewStandards.step_id: ReviewStandards,
@@ -758,10 +704,7 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
         session: CalibrationSession,
         executor: SessionCleanupExecutor | None = None,
     ) -> None:
-        # Older persisted sessions have no captured experiment; do not guess a job topic.
-        experiment = session.data.get("experiment")
-        if experiment is None:
-            raise ValueError("Session has no recorded experiment. Stop OD reading and stirring manually.")
+        experiment = session.data["experiment"]
         unit = get_unit_name()
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/$state/set",

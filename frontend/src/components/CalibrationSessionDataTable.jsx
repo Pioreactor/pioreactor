@@ -48,7 +48,7 @@ function rowLabel(columns, row, rowIndex) {
 
 
 // Rows carry an `include` flag when the step lets the user leave rows out of the fit.
-export default function CalibrationSessionDataTable({ field, rows, onChange }) {
+export default function CalibrationSessionDataTable({ field, rows, onChange, disabled = false }) {
   const [focusedCell, setFocusedCell] = React.useState(null);
   const columns = Array.isArray(field.columns) ? field.columns : [];
   const tableRows = Array.isArray(rows) ? rows : [];
@@ -85,6 +85,7 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
                     <TableCell padding="checkbox">
                       <Checkbox
                         size="small"
+                        disabled={disabled}
                         checked={row.include !== false}
                         onChange={(event) => updateRow(rowIndex, { include: event.target.checked })}
                         slotProps={{ input: { "aria-label": `Include ${label}` } }}
@@ -115,6 +116,7 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
                       <TableCell key={column.key} align="right" sx={{ py: 0.5 }}>
                         <TextField
                           size="small"
+                          disabled={disabled}
                           variant="standard"
                           value={displayedValue}
                           onFocus={() => setFocusedCell(cellId)}

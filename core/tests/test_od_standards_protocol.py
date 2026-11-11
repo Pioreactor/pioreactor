@@ -142,6 +142,8 @@ def test_measurement_steps_show_stirring_only_for_positive_rpm(rpm: float) -> No
             "od600_values": [],
             "voltages_by_channel": {"1": []},
             "rpm": rpm,
+            "sample_count": 2,
+            "standard_index": 1,
         }
     )
     ctx = SessionContext(
@@ -197,18 +199,6 @@ def test_on_session_abort_aggregates_cleanup_errors(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(od_standards, "publish", failing_publish)
     with pytest.raises(RuntimeError, match="failed od_reading"):
         od_standards.StandardsODProtocol.on_session_abort(_dummy_session())
-
-
-def test_abort_legacy_session_reports_missing_experiment(monkeypatch: pytest.MonkeyPatch) -> None:
-    session = _dummy_session()
-    session.data.clear()
-
-    def unavailable_leader() -> str:
-        raise AssertionError("Abort must not query the leader")
-
-    monkeypatch.setattr(od_standards, "get_testing_experiment_name", unavailable_leader)
-    with pytest.raises(ValueError, match="Stop OD reading and stirring manually"):
-        od_standards.StandardsODProtocol.on_session_abort(session)
 
 
 def test_session_measurement_uses_captured_experiment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -362,8 +352,13 @@ def test_positive_rpm_settles_and_cleans_up_stirring(
 @pytest.mark.parametrize("target_device", ["od90", "od"])
 @pytest.mark.parametrize("blank_od600", [0.0, 0.05])
 @pytest.mark.parametrize("rpm", [0, 500])
+@pytest.mark.parametrize("sample_count", [2, 4])
 def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
-    monkeypatch: pytest.MonkeyPatch, target_device: pt.ODCalibrationDevices, blank_od600: float, rpm: float
+    monkeypatch: pytest.MonkeyPatch,
+    target_device: pt.ODCalibrationDevices,
+    blank_od600: float,
+    rpm: float,
+    sample_count: int,
 ) -> None:
     monkeypatch.setattr(od_standards, "is_pio_job_running", lambda _jobs: [False, False])
     monkeypatch.setattr(od_standards, "list_of_calibrations_by_device", lambda _device: [])
@@ -375,7 +370,7 @@ def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
         if action == "od_standards_measure":
             assert payload["rpm"] == rpm
             measured.append(session.step_id)
-            scale = 0.001 if len(measured) == 1 else 0.1
+            scale = 0.001 if len(measured) == 1 else 0.1 * (len(measured) - 1)
             return {
                 "voltages": {channel: int(channel) * scale for channel in session.data["channel_angle_map"]}
             }
@@ -391,102 +386,53 @@ def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
     if target_device == "od":
         assert session.step_id == "channel_confirm"
         session = advance_session(registry, session, {}, execute)
-    assert session.step_id == "rpm_input"
-    session = advance_session(registry, session, {"rpm": rpm}, execute)
+    assert session.step_id == "setup"
+    session = advance_session(registry, session, {"rpm": rpm, "sample_count": sample_count}, execute)
     assert session.step_id == "place_blank"
     session = advance_session(registry, session, {}, execute)
     assert session.step_id == "measure_blank"
     session = advance_session(registry, session, {"od600_blank": blank_od600}, execute)
     assert session.step_id == "place_standard"
     assert session.data["blank_index"] == 0
-    session = advance_session(registry, session, {}, execute)
-    table = get_session_step(registry, session, execute).metadata["table"]
-    assert table["rows"] == [["Blank", blank_od600]]
-    session = advance_session(registry, session, {"od600_value": 0.5}, execute)
-    assert session.step_id == "another_standard"
-    next_step = get_session_step(registry, session, execute)
-    assert next_step.fields == []
-    assert next_step.metadata["primary_action_label"] == "Review calibration"
-    session = advance_session(registry, session, {}, execute)
+    for index in range(1, sample_count):
+        assert session.step_id == "place_standard"
+        step = get_session_step(registry, session, execute)
+        assert step.title == f"Place standard {index} of {sample_count - 1}"
+        assert "actions" not in step.metadata
+        session = advance_session(registry, session, {}, execute)
+        step = get_session_step(registry, session, execute)
+        assert step.title == f"Record standard {index} of {sample_count - 1}"
+        if index == 1:
+            assert step.metadata["table"]["rows"] == [["Blank", blank_od600]]
+        session = advance_session(registry, session, {"od600_value": 0.5 * index}, execute)
     assert session.step_id == "review_data"
     # Simulate resuming a persisted UI session before saving.
     session = decode(encode(session), type=CalibrationSession)
     review = get_session_step(registry, session, execute)
-    assert [row["standard"] for row in review.fields[0].default] == ["Blank", "1"]
+    assert [row["standard"] for row in review.fields[0].default] == [
+        "Blank",
+        *[str(index) for index in range(1, sample_count)],
+    ]
     session = advance_session(registry, session, {"recorded_data": review.fields[0].default}, execute)
     assert session.status == "complete"
-    assert measured == ["measure_blank", "measure_standard"]
+    assert measured == ["measure_blank", *["measure_standard"] * (sample_count - 1)]
     assert {cal["device"] for cal in saved} == ({"od90", "od135"} if target_device == "od" else {"od90"})
     for payload in saved:
         calibration = convert(payload["calibration"], type=structs.OD600Calibration)
-        assert calibration.recorded_data["x"] == [blank_od600, 0.5]
+        assert calibration.recorded_data["x"] == [blank_od600, *[0.5 * i for i in range(1, sample_count)]]
         assert calibration.x_to_y(blank_od600) == pytest.approx(calibration.recorded_data["y"][0])
 
 
-def test_add_and_redo_standard_preserve_blank_and_standard_numbering() -> None:
+@pytest.mark.parametrize("sample_count", [0, 1, -1, 2.5, "2.5", ""])
+def test_setup_requires_a_whole_sample_count_including_blank(sample_count: object) -> None:
     session = _dummy_session()
-    session.step_id = "another_standard"
-    session.data.update(
-        {
-            "blank_index": 0,
-            "rpm": 500,
-            "standard_index": 1,
-            "channel_angle_map": {"2": "90"},
-            "od600_values": [0.05, 0.5],
-            "voltages_by_channel": {"2": [0.001, 0.1]},
-        }
-    )
-    registry = od_standards._OD_STANDARDS_STEPS
-
-    def execute(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-        assert action == "od_standards_measure"
-        return {"voltages": {"2": 0.2}}
-
-    step = get_session_step(registry, session, execute)
-    session = advance_session(registry, session, step.metadata["actions"][0]["inputs"], execute)
-    assert session.step_id == "place_standard"
-    assert session.data["standard_index"] == 2
-    session = advance_session(registry, session, {}, execute)
-    session = advance_session(registry, session, {"od600_value": 10.0}, execute)
-    session = advance_session(registry, session, {"action": "redo_last"}, execute)
-    assert session.step_id == "place_standard"
-    assert session.data["standard_index"] == 2
-    assert session.data["blank_index"] == 0
-    assert session.data["od600_values"] == [0.05, 0.5]
-    assert session.data["voltages_by_channel"]["2"] == [0.001, 0.1]
-    session = advance_session(registry, session, {}, execute)
-    table = get_session_step(registry, session, execute).metadata["table"]
-    assert table["rows"] == [["Blank", 0.05], ["1", 0.5]]
-    session = advance_session(registry, session, {"od600_value": 1.0}, execute)
-    session = advance_session(registry, session, {}, execute)
-    review = get_session_step(registry, session, execute)
-    assert [row["standard"] for row in review.fields[0].default] == ["Blank", "1", "2"]
-    assert session.data["od600_values"] == [0.05, 0.5, 1.0]
-
-
-def test_legacy_session_collects_its_missing_blank_before_review() -> None:
-    session = _dummy_session()
-    session.step_id = "another_standard"
-    session.data.update(
-        {
-            "rpm": 500,
-            "standard_index": 1,
-            "channel_angle_map": {"2": "90"},
-            "od600_values": [0.5],
-            "voltages_by_channel": {"2": [0.1]},
-        }
-    )
-    registry = od_standards._OD_STANDARDS_STEPS
-
-    def execute(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-        assert action == "od_standards_measure"
-        return {"voltages": {"2": 0.001}}
-
-    session = advance_session(registry, session, {}, execute)
-    assert session.step_id == "place_blank"
-    session = advance_session(registry, session, {}, execute)
-    session = advance_session(registry, session, {"od600_blank": 0.05}, execute)
-    assert session.step_id == "review_data"
-    assert session.data["blank_index"] == 1
-    review = get_session_step(registry, session, execute)
-    assert [row["standard"] for row in review.fields[0].default] == ["1", "Blank"]
+    session.step_id = "setup"
+    session.data["rpm"] = 500
+    with pytest.raises(ValueError):
+        advance_session(
+            od_standards._OD_STANDARDS_STEPS,
+            session,
+            {"sample_count": sample_count, "rpm": 500},
+        )
+    assert session.step_id == "setup"
+    assert "sample_count" not in session.data

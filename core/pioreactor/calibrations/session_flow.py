@@ -60,7 +60,7 @@ def _parse_float_input(name: Str, value: object) -> Float:
 def _parse_int_input(name: Str, value: object) -> int:
     if isinstance(value, int):
         return value
-    if isinstance(value, float):
+    if isinstance(value, float) and value.is_integer():
         return int(value)
     if isinstance(value, str):
         try:

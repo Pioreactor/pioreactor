@@ -2579,7 +2579,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
         response = post_into_unit(
             registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{quote(session_id, safe="")}/inputs",
-            json={"inputs": body.inputs},
+            json={"inputs": body.inputs, "expected_step_id": body.expected_step_id},
             timeout=300,
         )
         response.raise_for_status()

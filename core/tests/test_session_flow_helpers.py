@@ -31,6 +31,16 @@ def test_validate_field_bounds_uses_custom_max_error() -> None:
         session_flow._validate_field_bounds(fields, {"count": 5})
 
 
+@pytest.mark.parametrize("value", [2.5, -2.5, float("nan"), float("inf")])
+def test_integer_inputs_reject_values_that_are_not_whole_numbers(value: float) -> None:
+    with pytest.raises(ValueError, match="expected integer"):
+        session_flow.SessionInputs({"count": value}).int("count")
+
+
+def test_integer_inputs_accept_whole_valued_json_numbers() -> None:
+    assert session_flow.SessionInputs({"count": 2.0}).int("count") == 2
+
+
 def test_prompt_for_calibration_choice_field_preserves_prompt_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

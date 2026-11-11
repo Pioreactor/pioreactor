@@ -168,18 +168,15 @@ def test_od_standards_cannot_save_without_the_blank() -> None:
     assert executor.saved == []
 
 
-@pytest.mark.parametrize("blank_index", [1, 3, None])
-def test_review_uses_blank_identity_and_supports_legacy_blank_last_sessions(blank_index: int | None) -> None:
+@pytest.mark.parametrize("blank_index", [1, 3])
+def test_review_uses_explicit_blank_identity(blank_index: int) -> None:
     session = _od_session()
-    target_index = 3 if blank_index is None else blank_index
+    target_index = blank_index
     values = session.data["od600_values"]
     values.insert(target_index, values.pop(0))
     voltages = session.data["voltages_by_channel"]["2"]
     voltages.insert(target_index, voltages.pop(0))
-    if blank_index is None:
-        del session.data["blank_index"]
-    else:
-        session.data["blank_index"] = blank_index
+    session.data["blank_index"] = blank_index
     executor = FakeExecutor()
     step = get_session_step(od_standards._OD_STANDARDS_STEPS, session, executor)
     rows = _table(step)

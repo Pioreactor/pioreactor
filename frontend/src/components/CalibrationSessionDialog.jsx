@@ -109,7 +109,7 @@ function formatInputs(step, values) {
       return;
     }
     if (field.field_type === "int") {
-      output[field.name] = rawValue === "" ? rawValue : Number.parseInt(rawValue, 10);
+      output[field.name] = rawValue === "" ? rawValue : Number(rawValue);
       return;
     }
     output[field.name] = rawValue;
@@ -527,6 +527,7 @@ export default function CalibrationSessionDialog({
             step={sessionStep}
             values={sessionValues}
             onFieldChange={updateSessionValue}
+            disabled={sessionLoading || isWaiting || aborting}
           />
           <CalibrationSessionResultLinks
             result={sessionResult}

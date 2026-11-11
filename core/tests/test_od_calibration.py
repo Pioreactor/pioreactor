@@ -103,18 +103,16 @@ def test_run_od_standards(rpm: float) -> None:
         [
             "",
             calibration_name,
+            "4",
             str(rpm),
             "",
             "0.0",
             "",
             "1",
             "",
-            "",
             "0.5",
             "",
-            "",
             "0.1",
-            "review calibration",
             "y",
         ]
     )
