@@ -177,9 +177,6 @@ class RpmFromFrequency(RpmCalculator):
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
-        # self._running_max  / self._running_min # in a high vortex, noisy case, these aren't more than 25% apart.
-        # at 3200 RPM, we still aren't seeing much difference here. I'm pretty confident we don't see skipping.
-
         if self._running_sum == 0.0:
             return 0.0
         else:
@@ -607,7 +604,16 @@ class Stirrer(BackgroundJobWithDodging):
         if rpm > 0 and previous_rpm > 0 and abs(rpm - previous_rpm) > max(75, 0.30 * previous_rpm):
             reasons.append("abrupt_rpm_change")
 
+        from pioreactor.utils.rpm_diagnostics import suggest_interval_correction
+
         calculator = self.rpm_calculator
+        correction = None
+        if isinstance(calculator, RpmFromFrequency) and calculator._running_count == len(
+            calculator.intervals_s
+        ):
+            correction = suggest_interval_correction(calculator.intervals_s)
+            if correction is not None:
+                reasons.append(correction.reason)
         if isinstance(calculator, RpmFromFrequency) and calculator._running_count >= 4:
             if calculator._running_min <= 0 or calculator._running_max > 2 * calculator._running_min:
                 reasons.append("irregular_hall_intervals")
@@ -620,6 +626,19 @@ class Stirrer(BackgroundJobWithDodging):
         pulse_details = {}
         if isinstance(calculator, RpmFromFrequency):
             pulse_details = {
+                "raw_rpm": rpm,
+                "corrected_rpm": (
+                    round(
+                        (calculator._running_count + correction.count_adjustment)
+                        * 60
+                        / calculator._running_sum,
+                        1,
+                    )
+                    if correction is not None
+                    else rpm
+                ),
+                "correction_reason": correction.reason if correction is not None else None,
+                "correction_interval_index": correction.interval_index if correction is not None else None,
                 "interval_count": calculator._running_count,
                 "first_edge_timestamp_ns": calculator.first_edge_timestamp_ns,
                 "last_edge_timestamp_ns": calculator.last_edge_timestamp_ns,
