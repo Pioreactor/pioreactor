@@ -5,7 +5,6 @@ import threading
 from contextlib import contextmanager
 from contextlib import suppress
 from os import getpid
-from os import kill
 from time import sleep
 from typing import Any
 from typing import Callable
@@ -26,6 +25,7 @@ from pioreactor.structs import PWMDutyCycles
 from pioreactor.types import GpioPin
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import clamp
+from pioreactor.utils import is_lock_owner_alive
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import remove_signal_handlers
 from pioreactor.utils.timing import current_utc_datetime
@@ -503,36 +503,17 @@ class PWM:
                     if not self._external_client:
                         self.pub_client.shutdown()
 
-    @staticmethod
-    def _owner_is_alive(owner: object) -> bool:
-        # Legacy/unknown values and permission errors are not proof of a dead owner.
-        if not isinstance(owner, str):
-            return True
-        parts = owner.split(":")
-        if len(parts) != 2 or not all(part.isdecimal() for part in parts):
-            return True
-        pid = int(parts[0])
-        if pid <= 0:
-            return True
-        try:
-            kill(pid, 0)
-        except ProcessLookupError:
-            return False
-        except PermissionError:
-            return True
-        return True
-
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as locks:
             owner = locks.get(self.pin)
-            return owner is not None and self._owner_is_alive(owner)
+            return owner is not None and is_lock_owner_alive(owner)
 
     def lock(self) -> None:
         with local_intermittent_storage("pwm_locks") as locks, locks.transaction():
             owner = locks.get(self.pin)
             if owner == self._lock_id:
                 return
-            if owner is not None and self._owner_is_alive(owner):
+            if owner is not None and is_lock_owner_alive(owner):
                 raise PWMLockedError(f"GPIO-{self.pin} is currently locked by another task ({owner}).")
             self._recovered_lock = owner is not None
             locks[self.pin] = self._lock_id

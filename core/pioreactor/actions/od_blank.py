@@ -160,6 +160,13 @@ def od_blank(
                 fake_data=whoami.is_testing_env(),
                 calibration=True,
             ) as od_stream:
+                # Current invariant: a stored OD blank never coexists with an OD calibration or fused
+                # estimator, since od_reading refuses to start with both. Refuse here, where the blank is created.
+                if od_stream.calibration_transformer.models or od_stream.estimator_transformer.estimator:
+                    raise ValueError(
+                        "OD blank is incompatible with an active OD calibration or fused estimator. Clear the active calibration or estimator first."
+                    )
+
                 means, _ = od_statistics(
                     od_stream,
                     action_name,

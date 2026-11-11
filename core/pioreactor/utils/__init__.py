@@ -325,6 +325,29 @@ def get_running_pio_job_id(job_name: str) -> int | None:
         return jm.get_running_job_id(job_name)
 
 
+def is_lock_owner_alive(owner: object) -> bool:
+    """
+    Soft locks (PWM, LED) store their owner as "<pid>:<token>". A lock whose owning process
+    has died (OOM, kill -9) is stale and can be reclaimed.
+    """
+    # Legacy/unknown values and permission errors are not proof of a dead owner.
+    if not isinstance(owner, str):
+        return True
+    parts = owner.split(":")
+    if len(parts) != 2 or not all(part.isdecimal() for part in parts):
+        return True
+    pid = int(parts[0])
+    if pid <= 0:
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def get_cpu_temperature() -> float:
     if whoami.is_testing_env():
         return 22.0

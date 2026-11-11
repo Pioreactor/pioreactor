@@ -279,7 +279,8 @@ def test_heating_reduced_during_inference_stays_reduced_after_inference(monkeypa
         t.infer_temperature()
 
         assert t.state == t.READY
-        assert 0 < t.heater_duty_cycle < 30
+        # reduced once per inference, not once per temperature sample.
+        assert t.heater_duty_cycle == 27
 
 
 def test_heater_update_during_inference_is_applied_after_inference(monkeypatch) -> None:

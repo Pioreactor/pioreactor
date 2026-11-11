@@ -33,6 +33,9 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
         cache[testing_experiment] = "999.0"
 
     class FakeODStream:
+        calibration_transformer = od_reading_module.NullCalibrationTransformer()
+        estimator_transformer = od_reading_module.NullEstimatorTransformer()
+
         def __init__(self) -> None:
             self._count = 0
 
@@ -83,3 +86,30 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
     assert output == {"2": 0.2}
     with local_persistent_storage("ir_led_reference_normalization") as cache:
         assert testing_experiment not in cache
+
+
+def test_od_blank_refuses_when_an_od_calibration_is_active(monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.background_jobs.od_reading as od_reading_module
+
+    experiment = "test_od_blank_refuses_when_an_od_calibration_is_active"
+
+    class FakeCalibratedODStream:
+        calibration_transformer = od_reading_module.CachedCalibrationTransformer()
+        estimator_transformer = od_reading_module.NullEstimatorTransformer()
+
+        def __enter__(self) -> "FakeCalibratedODStream":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    FakeCalibratedODStream.calibration_transformer.models["2"] = object()  # type: ignore[assignment]
+    monkeypatch.setattr(
+        od_reading_module, "start_od_reading", lambda *args, **kwargs: FakeCalibratedODStream()
+    )
+
+    with pytest.raises(ValueError, match="incompatible with an active OD calibration"):
+        od_blank(n_samples=7, experiment=experiment)
+
+    with local_persistent_storage("od_blank") as cache:
+        assert experiment not in cache

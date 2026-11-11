@@ -127,7 +127,6 @@ function Logs(props) {
                   variant="standard"
                   value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
                   onChange={onSelectionChange}
-
                   sx={{
                     "& .MuiSelect-select": {
                       paddingY: 0,
@@ -140,7 +139,7 @@ function Logs(props) {
                   {assignedUnits.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All assigned</MenuItem>
                 </Select>
               </Typography>
             </Box>

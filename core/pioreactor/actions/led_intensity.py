@@ -18,6 +18,7 @@ from pioreactor.types import Experiment
 from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
 from pioreactor.types import Unit
+from pioreactor.utils import is_lock_owner_alive
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.timing import current_utc_datetime
@@ -61,7 +62,9 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[str]:
     try:
         with local_intermittent_storage("led_locks") as cache, cache.transaction():
             for c in channels:
-                if cache.set_if_absent(c, lock_id):
+                # reclaim a lock whose owner died mid-reading, else the channel stays locked until reboot.
+                if _live_lock_owner(cache, c) is None:
+                    cache[c] = lock_id
                     acquired_channels.append(c)
         yield lock_id
     finally:
@@ -71,9 +74,17 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[str]:
                     cache.pop(c)
 
 
+def _live_lock_owner(lock_cache: Any, channel: LedChannel) -> object | None:
+    """The lock's owner, or None if the channel is unlocked or its owning process has died."""
+    owner = lock_cache.get(channel)
+    if owner is not None and is_lock_owner_alive(owner):
+        return owner
+    return None
+
+
 def is_led_channel_locked(channel: LedChannel) -> bool:
     with local_intermittent_storage("led_locks") as cache:
-        return cache.get(channel) is not None
+        return _live_lock_owner(cache, channel) is not None
 
 
 def _update_current_state(
@@ -167,7 +178,7 @@ def led_intensity(
         # A lock grants write authority to its token; it is not a blanket freeze on the channel.
         with local_intermittent_storage("led_locks") as lock_cache:
             for channel in list(desired_state.keys()):
-                current_lock_owner = lock_cache.get(channel)
+                current_lock_owner = _live_lock_owner(lock_cache, channel)
                 if current_lock_owner is not None and current_lock_owner != lock_owner:
                     logger.debug(
                         f"Unable to update channel {channel} due to a software lock on it. Please try again."

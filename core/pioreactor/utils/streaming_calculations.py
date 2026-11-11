@@ -113,13 +113,16 @@ class PID:
         assert isinstance(self.setpoint, float)
 
         error = self.setpoint - input_
-        # Update error sum with clamping for anti-windup
+        # Update error sum, with anti-windup: the integral term, Ki * error_sum, stays within the output limits.
         self.error_sum += error * dt
 
-        if self.output_limits[0] is not None:
-            self.error_sum = max(self.error_sum, self.output_limits[0])
-        if self.output_limits[1] is not None:
-            self.error_sum = min(self.error_sum, self.output_limits[1])
+        if self.Ki != 0:
+            integral = self.Ki * self.error_sum
+            if self.output_limits[0] is not None:
+                integral = max(integral, self.output_limits[0])
+            if self.output_limits[1] is not None:
+                integral = min(integral, self.output_limits[1])
+            self.error_sum = integral / self.Ki
 
         # Calculate error derivative with smoothing
         # derivative = ((error - self.error_prev) if self.error_prev is not None else 0) / dt

@@ -1849,7 +1849,8 @@ def start_od_reading(
     if calibration is True:
         from pioreactor.calibrations import load_active_calibration
 
-        calibrations_to_use = [load_active_calibration(f"od{angle}") for angle in channel_angle_map.values()]  # type: ignore
+        # one lookup per angle: two channels at the same angle share a single active calibration.
+        calibrations_to_use = [load_active_calibration(f"od{angle}") for angle in dict.fromkeys(channel_angle_map.values())]  # type: ignore
     elif isinstance(calibration, list):
         calibrations_to_use = list(calibration)
     elif isinstance(calibration, structs.CalibrationBase):
@@ -1861,12 +1862,23 @@ def start_od_reading(
         CachedCalibrationTransformer() if calibration else NullCalibrationTransformer()
     )
 
+    # Current invariant: a hydrated calibration model was created on the same PD channel, angle, and
+    # IR LED intensity that it is applied to.
     for calibration_item in calibrations_to_use:
-        if (
-            calibration_item is not None
-            and calibration_item.pd_channel in channel_angle_map
-            and calibration_item.ir_led_intensity != intensity
-        ):
+        if calibration_item is None:
+            continue
+
+        configured_angle = channel_angle_map.get(calibration_item.pd_channel)
+        if configured_angle != calibration_item.angle:
+            message = (
+                f"OD calibration `{calibration_item.calibration_name}` was created at {calibration_item.angle}° on PD channel {calibration_item.pd_channel}, "
+                f"but that channel is now configured as {configured_angle or 'unused'} in [od_config.photodiode_channel]. "
+                "Recalibrate, restore the configuration, or clear the active calibration."
+            )
+            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
+            raise exc.CalibrationError(message)
+
+        if calibration_item.ir_led_intensity != intensity:
             message = (
                 f"OD calibration `{calibration_item.calibration_name}` for channel {calibration_item.pd_channel} "
                 f"requires IR LED intensity {calibration_item.ir_led_intensity}%, but IR LED intensity is {intensity}%."

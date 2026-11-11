@@ -307,3 +307,25 @@ def test_led_intensity_invalid_inputs_do_not_modify_storage(desired_state) -> No
         for channel in ALL_LED_CHANNELS:
             # If present, values should be default
             assert cache.get(channel, 0.0) == pytest.approx(0.0)
+
+
+def test_led_lock_left_by_a_dead_process_is_reclaimed() -> None:
+    import subprocess
+
+    dead_process = subprocess.Popen(["true"])
+    dead_process.wait()
+
+    with local_intermittent_storage("led_locks") as cache:
+        cache["B"] = f"{dead_process.pid}:123"
+
+    try:
+        assert not is_led_channel_locked("B")
+        assert led_intensity({"B": 20.0}, verbose=False, source_of_event="test")
+
+        with lock_leds_temporarily(["B"]) as lock_owner:
+            with local_intermittent_storage("led_locks") as cache:
+                assert cache.get("B") == lock_owner
+    finally:
+        led_intensity({"B": 0.0}, verbose=False, source_of_event="test")
+        with local_intermittent_storage("led_locks") as cache:
+            cache.pop("B")

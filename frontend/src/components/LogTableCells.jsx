@@ -13,6 +13,7 @@ export const LogTableCell = styled(TableCell, {
     level === "WARNING" ? WARNING_COLOR :
     level === "NOTICE" ? NOTICE_COLOR : "inherit",
   whiteSpace: "normal",
+  overflowWrap: "anywhere",
   "&.MuiTableCell-head": { backgroundColor: uiColors.surface },
 }));
 

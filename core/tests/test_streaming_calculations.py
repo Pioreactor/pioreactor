@@ -163,3 +163,20 @@ def test_pid_rejects_invalid_dt_without_changing_state(dt: float) -> None:
 
     assert (pid.error_prev, pid.error_sum, pid.derivative_prev, pid._last_input, pid._last_output) == state
     assert client.publish.call_count == published
+
+
+def test_pid_anti_windup_bounds_the_integral_term_not_the_error_sum() -> None:
+    # A negative-gain controller, as in pid_morbidostat: input above the setpoint should raise the output.
+    pid = PID(0.0, -0.5, 0.0, setpoint=0.2, output_limits=(0, 1), pub_client=Mock())
+
+    for _ in range(3):
+        output = pid.update(0.5, dt=1.0)  # error = -0.3
+
+    assert pid.error_sum == pytest.approx(-0.9)
+    assert output == pytest.approx(0.45)
+
+    for _ in range(20):
+        output = pid.update(0.5, dt=1.0)
+
+    assert output == pytest.approx(1.0)
+    assert pid.Ki * pid.error_sum == pytest.approx(1.0)

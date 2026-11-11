@@ -2908,3 +2908,56 @@ def test_average_over_od_readings_uses_per_channel_counts() -> None:
 
     assert averaged.ods["1"].od == pytest.approx(3.0)
     assert averaged.ods["2"].od == pytest.approx(3.0)
+
+
+def _linear_od90_calibration(pd_channel: pt.PdChannel) -> structs.OD600Calibration:
+    return structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_data_=_poly_curve([2.0, 0.0]),
+        calibration_name="linear",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel=pd_channel,
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+
+def test_start_od_reading_rejects_calibration_for_a_channel_now_at_another_angle() -> None:
+    # calibrated at 90° on channel 2, but channel 2 has since been configured as 45°.
+    with pytest.raises(exc.CalibrationError, match="now configured as 45"):
+        start_od_reading(
+            make_channels("REF", "45"),
+            interval=None,
+            fake_data=True,
+            experiment="test_start_od_reading_rejects_calibration_for_a_channel_now_at_another_angle",
+            unit=get_unit_name(),
+            calibration=_linear_od90_calibration("2"),
+            estimator=False,
+            ir_led_intensity=90.0,
+        )
+
+
+def test_start_od_reading_with_two_channels_at_the_same_angle_loads_calibration_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loaded_devices: list[str] = []
+
+    def fake_load_active_calibration(device: str) -> structs.OD600Calibration:
+        loaded_devices.append(device)
+        return _linear_od90_calibration("1")
+
+    monkeypatch.setattr("pioreactor.calibrations.load_active_calibration", fake_load_active_calibration)
+
+    with start_od_reading(
+        make_channels("90", "90"),
+        interval=None,
+        fake_data=True,
+        experiment="test_start_od_reading_with_two_channels_at_the_same_angle_loads_calibration_once",
+        unit=get_unit_name(),
+        calibration=True,
+        estimator=False,
+        ir_led_intensity=90.0,
+    ) as od:
+        assert loaded_devices == ["od90"]
+        assert list(od.calibration_transformer.models) == ["1"]

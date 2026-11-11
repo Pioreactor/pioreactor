@@ -746,3 +746,41 @@ def test_click_stirring_help_includes_new_flags(flag) -> None:
     result = runner.invoke(stirring_mod.click_stirring, ["--help"])
     assert result.exit_code == 0
     assert flag in result.output
+
+
+def test_stirring_started_at_zero_rpm_can_poll_and_update() -> None:
+    exp = "test_stirring_started_at_zero_rpm_can_poll_and_update"
+    with start_stirring(0.0, unit, exp, use_rpm=True) as st:
+        st.poll_and_update_dc(0.01)
+        assert st.target_rpm == 0.0
+
+
+def test_rpm_polling_after_od_reading_fits_in_the_default_od_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pioreactor.background_jobs.base import compute_od_timing
+    from pioreactor.background_jobs.stirring import START_KICK_SECONDS
+
+    exp = "test_rpm_polling_after_od_reading_fits_in_the_default_od_interval"
+    polls: list[float] = []
+
+    with start_stirring(500, unit, exp, use_rpm=True) as st:
+
+        def fake_poll(poll_for_seconds: float) -> float:
+            polls.append(poll_for_seconds)
+            return 500.0
+
+        monkeypatch.setattr(st, "poll", fake_poll)
+        st.action_to_do_after_od_reading()
+        assert polls == pytest.approx([1.2])
+
+        # the dodging timer stops the job if this raises DodgingTimingError.
+        compute_od_timing(
+            interval=5.0,
+            first_od_obs_time=0.0,
+            now=1.0,
+            od_duration=st.OD_READING_DURATION,
+            pre_delay=1.5,
+            post_delay=0.25,
+            after_action=START_KICK_SECONDS + 0.15 + sum(polls),
+        )

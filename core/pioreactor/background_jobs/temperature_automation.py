@@ -141,6 +141,7 @@ class TemperatureAutomationJob(AutomationJob):
         self.heater_duty_cycle = 0.0
         self._requested_heater_duty_cycle = 0.0
         self._inferring = False
+        self._reduced_heating_this_inference = False
         self.pwm = self.setup_pwm()
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.get_temp_address())
@@ -309,7 +310,10 @@ class TemperatureAutomationJob(AutomationJob):
             )
 
             with self._heater_state_lock:
-                self._update_heater(self._requested_heater_duty_cycle * 0.9)
+                # an inference samples the temperature many times in a row: reduce once per inference, not per sample.
+                if not (self._inferring and self._reduced_heating_this_inference):
+                    self._reduced_heating_this_inference = self._inferring
+                    self._update_heater(self._requested_heater_duty_cycle * 0.9)
 
         return temp
 
@@ -390,6 +394,7 @@ class TemperatureAutomationJob(AutomationJob):
             # add how much heat/energy we just applied
             features["previous_heater_dc"] = self.heater_duty_cycle
             self._inferring = True
+            self._reduced_heating_this_inference = False
             self._apply_heater()
 
         time_series_of_temp = []

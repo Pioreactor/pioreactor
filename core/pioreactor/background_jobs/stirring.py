@@ -323,7 +323,7 @@ class Stirrer(BackgroundJobWithDodging):
             Kp=config.getfloat("stirring.pid", "Kp"),
             Ki=config.getfloat("stirring.pid", "Ki"),
             Kd=config.getfloat("stirring.pid", "Kd"),
-            setpoint=self.target_rpm or 0,
+            setpoint=float(self.target_rpm or 0),
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
@@ -348,7 +348,7 @@ class Stirrer(BackgroundJobWithDodging):
             self._paused_for_od_reading = False
             self.apply_duty_cycle(self._estimate_duty_cycle)
             sleep(0.15)
-            self.poll_and_update_dc()  # do it twice.
+            # only once: two polls don't fit between OD readings at the default interval, and the dodging timer then stops the job.
             self.poll_and_update_dc()
 
     def duty_cycle_during_od_reading(self) -> float:
