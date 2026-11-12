@@ -544,13 +544,25 @@ class Stirrer(BackgroundJobWithDodging):
 
         duty_cycle_before = self.duty_cycle
         recent_rpm = self.rpm_calculator.estimate(poll_for_seconds)
+        raw_rpm = recent_rpm
+        from pioreactor.utils.rpm_diagnostics import suggest_interval_correction
+
+        calculator = self.rpm_calculator
+        if isinstance(calculator, RpmFromFrequency) and calculator._running_count == len(
+            calculator.intervals_s
+        ):
+            correction = suggest_interval_correction(calculator.intervals_s)
+            # Only the validated extra-edge pattern affects feedback. Missing
+            # edges remain diagnostic hypotheses; never infer rotations at a stall.
+            if correction is not None and correction.count_adjustment == -1:
+                recent_rpm = round((calculator._running_count - 1) * 60 / calculator._running_sum, 1)
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(
             timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
         )
 
-        self._log_rpm_anomaly(recent_rpm, poll_for_seconds, duty_cycle_before)
+        self._log_rpm_anomaly(recent_rpm, poll_for_seconds, duty_cycle_before, raw_rpm=raw_rpm)
 
         target_rpm = self.target_rpm or 0
         if recent_rpm == 0 and self.state is st.READY and target_rpm > 0:  # and not is_testing_env():
@@ -570,12 +582,16 @@ class Stirrer(BackgroundJobWithDodging):
 
         return self._measured_rpm
 
-    def _log_rpm_anomaly(self, rpm: float, window_s: float, duty_cycle_before: float) -> None:
-        """Diagnose steady continuous stirring without rejecting samples or changing control.
+    def _log_rpm_anomaly(
+        self, rpm: float, window_s: float, duty_cycle_before: float, *, raw_rpm: float | None = None
+    ) -> None:
+        """Report interval hypotheses alongside the RPM used for feedback.
 
         Thresholds are diagnostic heuristics, not proof of a sensor or motor fault.
         Keep GPIO callbacks cheap: format and publish only here, after collection.
         """
+        if raw_rpm is None:
+            raw_rpm = rpm
         previous = self._previous_rpm_observation
         if (
             self.state is not st.READY
@@ -626,7 +642,8 @@ class Stirrer(BackgroundJobWithDodging):
         pulse_details = {}
         if isinstance(calculator, RpmFromFrequency):
             pulse_details = {
-                "raw_rpm": rpm,
+                "raw_rpm": raw_rpm,
+                "correction_applied": rpm != raw_rpm,
                 "corrected_rpm": (
                     round(
                         (calculator._running_count + correction.count_adjustment)
@@ -648,7 +665,7 @@ class Stirrer(BackgroundJobWithDodging):
                 "intervals_truncated": calculator._running_count > len(calculator.intervals_s),
             }
         self.logger.warning(
-            "Stirring anomaly (diagnostic only; reading unchanged): "
+            "Stirring anomaly (extra-edge correction enabled): "
             + dumps(
                 {
                     "reasons": reasons,

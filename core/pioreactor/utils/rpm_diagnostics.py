@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Conservative Hall interval hypotheses for diagnostics, never motor control."""
+"""Conservative Hall interval hypotheses; only extra-edge merges are used for feedback."""
 from math import isfinite
 from statistics import median
 from typing import NamedTuple

@@ -15,6 +15,18 @@ from pioreactor.utils.timing import current_utc_datetime
 # name, recorded intervals (seconds), hypothesized count adjustment, corrected RPM
 TRACES = [
     (
+        "pio4_live_validation",
+        [0.199173, 0.199446, 0.199826, 0.201177, 0.200878, 0.200085, 0.046105, 0.153278, 0.199081, 0.198733],
+        -1,
+        300.4,
+    ),
+    (
+        "pio3_live_validation",
+        [0.199923, 0.200541, 0.199964, 0.199824, 0.200405, 0.200764, 0.200395, 0.057767, 0.142427, 0.200011],
+        -1,
+        299.7,
+    ),
+    (
         "pio7_split",
         [0.200272, 0.200419, 0.20043, 0.200145, 0.201287, 0.201499, 0.054261, 0.147012, 0.200788, 0.200733],
         -1,
@@ -266,7 +278,7 @@ def replay(monkeypatch, intervals):
 
 
 @pytest.mark.parametrize("name,intervals,adjustment,expected", TRACES, ids=[t[0] for t in TRACES])
-def test_captured_trace_replay(monkeypatch, name, intervals, adjustment, expected):
+def test_captured_trace_replay(monkeypatch, name, intervals, adjustment, expected) -> None:
     calculator, raw = replay(monkeypatch, intervals)
     assert raw == round(len(intervals) * 60 / sum(intervals), 1)
     correction = suggest_interval_correction(calculator.intervals_s)
@@ -294,12 +306,12 @@ def test_captured_trace_replay(monkeypatch, name, intervals, adjustment, expecte
         [0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24],
     ],
 )
-def test_abstains_on_insufficient_ambiguous_or_invalid_data(intervals):
+def test_abstains_on_insufficient_ambiguous_or_invalid_data(intervals) -> None:
     assert suggest_interval_correction(intervals) is None
 
 
-def test_diagnostic_log_keeps_raw_rpm_and_reports_hypothesis(monkeypatch):
-    intervals = TRACES[0][1]
+def test_diagnostic_log_keeps_raw_rpm_and_reports_hypothesis(monkeypatch) -> None:
+    intervals = TRACES[2][1]
     calculator, raw = replay(monkeypatch, intervals)
     job = SimpleNamespace(
         state=JobState.READY,
@@ -330,8 +342,8 @@ def test_diagnostic_log_keeps_raw_rpm_and_reports_hypothesis(monkeypatch):
     assert payload["corrected_rpm"] == raw
 
 
-@pytest.mark.parametrize("trace_index", [0, 4])
-def test_control_receives_raw_rpm_even_when_correction_is_logged(monkeypatch, trace_index):
+@pytest.mark.parametrize("trace_index", range(len(TRACES)))
+def test_control_applies_only_extra_edge_correction(monkeypatch, trace_index) -> None:
     from .test_stirring_anomalies import make_stirrer
 
     calculator, raw = replay(monkeypatch, TRACES[trace_index][1])
@@ -342,7 +354,31 @@ def test_control_receives_raw_rpm_even_when_correction_is_logged(monkeypatch, tr
     monkeypatch.setattr(calculator, "estimate", lambda _: raw)
     object.__setattr__(job, "update_dc_with_measured_rpm", MagicMock())
     job.poll_and_update_dc(2.0)
+    adjustment = TRACES[trace_index][2]
+    expected = (
+        round((len(calculator.intervals_s) - 1) * 60 / calculator._running_sum, 1)
+        if adjustment == -1
+        else raw
+    )
+    job.update_dc_with_measured_rpm.assert_called_once_with(expected)
+    assert job.measured_rpm.measured_rpm == expected
+    if adjustment:
+        payload = json.loads(job.logger.warning.call_args.args[0].split(": ", 1)[1])
+        assert payload["raw_rpm"] == raw
+        assert payload["rpm"] == expected
+        assert payload["correction_applied"] == (adjustment == -1)
+
+
+def test_truncated_window_never_changes_feedback(monkeypatch) -> None:
+    from .test_stirring_anomalies import make_stirrer
+
+    # A split in the retained prefix is insufficient evidence about the full window.
+    intervals = TRACES[0][1] + [0.2] * 130
+    calculator, raw = replay(monkeypatch, intervals)
+    assert len(calculator.intervals_s) == 128
+    job = make_stirrer()
+    object.__setattr__(job, "rpm_calculator", calculator)
+    monkeypatch.setattr(calculator, "estimate", lambda _: raw)
+    object.__setattr__(job, "update_dc_with_measured_rpm", MagicMock())
+    job.poll_and_update_dc(30.0)
     job.update_dc_with_measured_rpm.assert_called_once_with(raw)
-    assert job.measured_rpm.measured_rpm == raw
-    payload = json.loads(job.logger.warning.call_args.args[0].split(": ", 1)[1])
-    assert payload["corrected_rpm"] != raw
