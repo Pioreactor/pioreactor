@@ -34,34 +34,6 @@ def test_spline_fit_and_eval_linear() -> None:
     assert spline_eval(spline_data, -1.0) == pytest.approx(-1.0, rel=1e-6)
 
 
-def test_spline_fit_fixes_blank_and_regresses_remaining_knot_values() -> None:
-    x = np.array([0.25, 0.5, 1.0, 2.0])
-    y = np.array([0.01, 0.06, 0.08, 0.23])
-    weights = np.array([1.0, 2.0, 1.0, 1.0])
-    shifted_x = x - x[0]
-    slope = np.sum(weights * shifted_x * (y - y[0])) / np.sum(weights * shifted_x**2)
-
-    curve = spline_fit(x, y, knots=2, weights=weights, anchor=(x[0], y[0]))
-
-    assert spline_eval(curve, x[0]) == y[0]
-    assert spline_eval(curve, 1.0) == pytest.approx(y[0] + slope * (1.0 - x[0]))
-
-
-def test_spline_fit_auto_preserves_blank_with_unsorted_observations() -> None:
-    curve = spline_fit(USER_OD600[::-1], USER_VOLTAGES[::-1], anchor=(0.0, USER_VOLTAGES[0]))
-
-    assert spline_eval(curve, 0.0) == USER_VOLTAGES[0]
-    assert len(curve.knots) > 2
-
-
-def test_spline_fit_rejects_anchor_away_from_left_endpoint() -> None:
-    with pytest.raises(ValueError, match="smallest observed x"):
-        spline_fit([0.0, 1.0, 2.0], [0.0, 0.1, 0.3], anchor=(1.0, 0.1))
-
-    with pytest.raises(ValueError, match="first knot"):
-        spline_fit([0.0, 1.0, 2.0], [0.0, 0.1, 0.3], knots=[-1.0, 2.0], anchor=(0.0, 0.0))
-
-
 def test_spline_fit_auto_selects_knots() -> None:
     x = [0.0, 1.0, 2.0, 3.0]
     y = [1.0, 3.0, 5.0, 7.0]

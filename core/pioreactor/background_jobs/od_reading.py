@@ -1041,8 +1041,9 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
 
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
             try:
-                recorded_ods = calibration_data.recorded_data["x"]
-                recorded_voltages = calibration_data.recorded_data["y"]
+                recorded_data = calibration_data.included_recorded_data()
+                recorded_ods = recorded_data["x"]
+                recorded_voltages = recorded_data["y"]
                 min_OD, max_OD = min(recorded_ods), max(recorded_ods)
                 voltage_od_pairs = list(zip(recorded_voltages, recorded_ods))
                 min_voltage, od_at_min_voltage = min(voltage_od_pairs, key=lambda pair: pair[0])

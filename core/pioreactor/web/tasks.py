@@ -971,6 +971,44 @@ def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict
 
 
 @huey.task()
+def update_calibration_measurements(
+    device: str, calibration_name: str, included: list[bool], y_values: list[float] | None = None
+) -> dict[str, Any]:
+    from pioreactor.calibrations import load_calibration
+    from pioreactor.calibrations.refit import refit_calibration
+
+    calibration = load_calibration(device, calibration_name)
+    candidate = refit_calibration(calibration, included, y_values)
+    candidate.save_to_disk_for_device(device)
+    result = to_builtins(candidate)
+    result["is_active"] = candidate.is_active(device)
+    result["pioreactor_unit"] = whoami.get_unit_name()
+    return result
+
+
+@huey.task()
+def update_worker_calibration_measurements(
+    unit: str,
+    device: str,
+    calibration_name: str,
+    included: list[bool],
+    y_values: list[float] | None = None,
+) -> dict[str, Any]:
+    from pioreactor.web.cache import invalidate_calibrations_cache
+
+    _, result = _request_unit(
+        "PATCH",
+        unit,
+        f"/unit_api/calibrations/{quote(device, safe='')}/{quote(calibration_name, safe='')}",
+        json={"included": included, "y_values": y_values},
+        timeout=30.0,
+    )
+    # Invalidate after worker completion, including uncertain outcomes after network errors.
+    invalidate_calibrations_cache(unit)
+    return {unit: result}
+
+
+@huey.task()
 def calibration_save_calibration(device: str, calibration_payload: dict[str, object]) -> dict[str, str]:
     logger.debug(
         "Starting calibration save: device=%s payload_keys=%s",

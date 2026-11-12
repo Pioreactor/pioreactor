@@ -2434,6 +2434,20 @@ def get_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> Del
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<calibration_name>", methods=["PATCH"])
+def update_calibration_measurements(
+    pioreactor_unit: str, device: str, calibration_name: str
+) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(400, "Edit recorded measurements on one Pioreactor at a time.")
+    body = decode_request_body(structs.UpdateCalibrationMeasurementsRequest)
+    return create_task_response(
+        tasks.update_worker_calibration_measurements(
+            pioreactor_unit, device, calibration_name, body.included, body.y_values
+        )
+    )
+
+
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["POST"])
 def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     """

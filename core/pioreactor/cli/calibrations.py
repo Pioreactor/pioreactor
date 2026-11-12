@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from copy import deepcopy as copy
-from statistics import mean
 
 import click
 from msgspec import ValidationError
@@ -213,8 +212,8 @@ def display_calibration(device: str, calibration_name: str) -> None:
     click.echo()
     curve = curve_to_callable(data.curve_data_)
     plot_data(
-        data.recorded_data["x"],
-        data.recorded_data["y"],
+        data.included_recorded_data()["x"],
+        data.included_recorded_data()["y"],
         calibration_name,
         data.x,
         data.y,
@@ -300,18 +299,6 @@ def analyze_calibration(device: str, calibration_name: str, fit: str) -> None:
 
     calibration = load_calibration(device, calibration_name)
 
-    anchor = None
-    if isinstance(calibration, structs.ODCalibration):
-        # Older files do not identify the blank separately. Only zero-OD standards
-        # unambiguously identify the blank; their order in recorded_data is arbitrary.
-        blank_voltages = [
-            y for x, y in zip(calibration.recorded_data["x"], calibration.recorded_data["y"]) if x == 0.0
-        ]
-        if blank_voltages:
-            anchor = (0.0, mean(blank_voltages))
-
-    new_calibration = crunch_data_and_confirm_with_user(
-        copy(calibration), initial_degree=3, fit=fit, anchor=anchor
-    )
+    new_calibration = crunch_data_and_confirm_with_user(copy(calibration), initial_degree=3, fit=fit)
 
     new_calibration.save_to_disk_for_device(device)

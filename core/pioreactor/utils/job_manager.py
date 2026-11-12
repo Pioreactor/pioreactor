@@ -168,7 +168,10 @@ class JobManager:
                 )
 
         except sqlite3.IntegrityError:
-            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {setting=} and {value=}.")
+            import os
+
+            pid = os.getpid()
+            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {pid=}, {setting=} and {value=}.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW') WHERE job_id=(?)"

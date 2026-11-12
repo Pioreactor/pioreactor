@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from click.testing import CliRunner
 from pioreactor import structs
-from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
 from pioreactor.cli.calibrations import analyze_calibration
@@ -40,8 +39,8 @@ def test_analyze() -> None:
 
 
 @pytest.mark.parametrize("fit", ["poly", "spline"])
-def test_analyze_anchors_reported_calibration_to_blank(fit: str) -> None:
-    # The blank is last, not first. The original fit mapped 0.0008 V to zero OD.
+def test_analyze_produces_reproducible_unanchored_calibration(fit: str) -> None:
+    # The zero-OD observation is an ordinary measurement, not an implicit constraint.
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_data_=structs.PolyFitCoefficients(
@@ -52,7 +51,7 @@ def test_analyze_anchors_reported_calibration_to_blank(fit: str) -> None:
                 0.0008976697259911073,
             ]
         ),
-        calibration_name=f"test_blank_anchor_{uuid4().hex}",
+        calibration_name=f"test_unanchored_{uuid4().hex}",
         ir_led_intensity=80.0,
         angle="90",
         recorded_data={
@@ -77,20 +76,17 @@ def test_analyze_anchors_reported_calibration_to_blank(fit: str) -> None:
         result = CliRunner().invoke(
             analyze_calibration,
             ["--device", "od90", "--name", cal.calibration_name, "--fit", fit],
-            input="y\n",
+            input="d\n3\ny\n" if fit == "poly" else "y\n",
         )
         assert result.exception is None, result.output
         refitted = load_calibration("od90", cal.calibration_name)
         assert isinstance(refitted, structs.OD600Calibration)
-        blank_voltage = cal.recorded_data["y"][-1]
-        assert refitted.x_to_y(0.0) == pytest.approx(blank_voltage, abs=1e-10)
-        assert refitted.y_to_x(blank_voltage, enforce_bounds=True) == pytest.approx(0.0, abs=1e-9)
-        assert refitted.recorded_data == cal.recorded_data
+        from pioreactor.calibrations.refit import refit_calibration
 
-        transformer = CachedCalibrationTransformer()
-        transformer.hydate_models(refitted)
-        assert transformer.models["2"](blank_voltage) == pytest.approx(0.0, abs=1e-9)
-        assert 0.0 < transformer.models["2"](0.0008) < 0.035
+        assert refitted.recorded_data == cal.recorded_data
+        recreated = refit_calibration(refitted, [True] * len(refitted.recorded_data["x"]))
+        for x in refitted.recorded_data["x"]:
+            assert recreated.x_to_y(x) == pytest.approx(refitted.x_to_y(x), abs=1e-10)
     finally:
         cal.path_on_disk_for_device("od90").unlink()
 

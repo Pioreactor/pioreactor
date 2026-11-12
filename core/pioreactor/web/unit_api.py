@@ -1915,6 +1915,16 @@ def create_calibration(device: str) -> ResponseReturnValue:
         )
 
 
+@unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["PATCH"])
+def update_calibration_measurements(device: str, calibration_name: str) -> DelayedResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
+    body = decode_request_body(structs.UpdateCalibrationMeasurementsRequest)
+    return create_task_response(
+        tasks.update_calibration_measurements(device, calibration_name, body.included, body.y_values)
+    )
+
+
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
 def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
     """

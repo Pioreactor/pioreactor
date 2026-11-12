@@ -17,8 +17,6 @@ def calculate_poly_curve_of_best_fit(
     y: list[float],
     degree: int,
     weights: list[float] | None = None,
-    *,
-    anchor: tuple[float, float] | None = None,
 ) -> structs.PolyFitCoefficients:
     if weights is None:
         weights = [1.0] * len(x)
@@ -29,10 +27,8 @@ def calculate_poly_curve_of_best_fit(
     y, x, weights = zip(*sorted(zip(y, x, weights), key=lambda t: t[0]))  # type: ignore
 
     try:
-        coefs = poly_fit(x, y, degree=degree, weights=weights, anchor=anchor)
+        coefs = poly_fit(x, y, degree=degree, weights=weights)
     except Exception:
-        if anchor is not None:
-            raise
         click.echo(red("Unable to fit."))
         coefs = structs.PolyFitCoefficients(coefficients=[0.0] * (degree + 1))
 
@@ -156,11 +152,11 @@ def crunch_data_and_confirm_with_user(
     fit: str = "poly",
     initial_degree: int = 1,
     initial_knots: int = 4,
-    anchor: tuple[float, float] | None = None,
 ) -> Calb:
-    y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
+    recorded_data = calibration.included_recorded_data()
+    y, x = recorded_data["y"], recorded_data["x"]
     candidate_curve = calibration.curve_data_
-    if calibration.curve_data_.type != fit or (anchor is not None and fit in ("poly", "spline")):
+    if calibration.curve_data_.type != fit:
         if fit == "poly":
             candidate_curve = structs.PolyFitCoefficients(coefficients=[])
         elif fit == "spline":
@@ -182,7 +178,7 @@ def crunch_data_and_confirm_with_user(
                     initial_degree = len(x) - 1
 
                 degree = initial_degree
-                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights, anchor=anchor)
+                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights)
             elif fit == "spline":
                 from pioreactor.utils.splines import spline_fit
 
@@ -191,7 +187,7 @@ def crunch_data_and_confirm_with_user(
                     info(f"Knots count adjusted to {knots} for {len(x)} observed data points.")
                     initial_knots = knots
 
-                candidate_curve = spline_fit(x, y, knots=knots, weights=weights, anchor=anchor)
+                candidate_curve = spline_fit(x, y, knots=knots, weights=weights)
             elif fit == "akima":
                 from pioreactor.utils.akimas import akima_fit
 
@@ -234,7 +230,7 @@ q: exit
                 type=click.IntRange(1, 5, clamp=True),
                 prompt_suffix=": ",
             )
-            candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights, anchor=anchor)
+            candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights)
         elif r == "k":
             if fit != "spline":
                 raise ValueError("only spline supports knot selection")
@@ -245,7 +241,7 @@ q: exit
                 type=click.IntRange(2, max(2, len(x)), clamp=True),
                 prompt_suffix=": ",
             )
-            candidate_curve = spline_fit(x, y, knots=knots, weights=weights, anchor=anchor)
+            candidate_curve = spline_fit(x, y, knots=knots, weights=weights)
 
         else:
             raise click.Abort()

@@ -23,7 +23,7 @@ import {
   VictoryTooltip,
   LineSegment
 } from "victory";
-import { generateCurveData } from "../utils/curve_utils";
+import { generateCurveData, includedCalibrationPoints } from "../utils/curve_utils";
 import EmptyState from "./EmptyState";
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
@@ -297,10 +297,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
         {calibrations.map((cal) => {
           // Convert recorded_data into an array of {x, y} for scatter
-          const scatterData = (cal.recorded_data?.x || []).map((xVal, i) => ({
-            x: xVal,
-            y: cal.recorded_data.y?.[i] ?? null,
-          }));
+          const scatterData = includedCalibrationPoints(cal);
           const filteredScatterData = filterDataForScale(scatterData);
 
           // Simple color selection (optional)

@@ -6,6 +6,7 @@ These define structs for internal data structures including MQTT messages, and a
 import typing as t
 from datetime import datetime
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from msgspec import field
 from msgspec import Meta
@@ -240,10 +241,27 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     x: str
     y: str
     recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
+    included: list[bool] | None = None
 
     def __post_init__(self) -> None:
         if len(self.recorded_data["x"]) != len(self.recorded_data["y"]):
             raise ValueError("Lists in `recorded_data` should have the same lengths")
+        if self.included is not None:
+            if len(self.included) != len(self.recorded_data["x"]) or any(
+                type(value) is not bool for value in self.included
+            ):
+                raise ValueError("Inclusion mask must contain one boolean per recorded measurement.")
+            if not any(self.included):
+                raise ValueError("Include at least one recorded measurement.")
+
+    def included_recorded_data(self) -> dict[t.Literal["x", "y"], list[float]]:
+        """Return the observations used by the curve, retaining all original rows on the artifact."""
+        if self.included is None:
+            return self.recorded_data
+        return {
+            axis: [value for value, included in zip(values, self.included) if included]
+            for axis, values in self.recorded_data.items()
+        }
 
     @property
     def calibration_type(self) -> str:
@@ -265,9 +283,18 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         device_dir = out_file.parent
         device_dir.mkdir(parents=True, exist_ok=True)
 
-        # Serialize to YAML
-        with out_file.open("wb") as f:
-            f.write(yaml_encode(self))
+        self.__post_init__()
+        # Replace the complete artifact so a failed write never truncates a valid calibration.
+        payload = yaml_encode(self)
+        with NamedTemporaryFile(dir=device_dir, prefix=".calibration-", delete=False) as f:
+            temporary_path = Path(f.name)
+            try:
+                f.write(payload)
+                f.flush()
+                temporary_path.chmod(out_file.stat().st_mode & 0o777 if out_file.exists() else 0o644)
+                temporary_path.replace(out_file)
+            finally:
+                temporary_path.unlink(missing_ok=True)
 
         logger.info(f"Saved {device} calibration `{self.calibration_name}` to {out_file}")
         return str(out_file)
@@ -368,12 +395,13 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         else:
             raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
-        if len(self.recorded_data["x"]) == 0:
+        recorded_x = self.included_recorded_data()["x"]
+        if len(recorded_x) == 0:
             from math import inf
 
             min_X, max_X = -inf, inf
         else:
-            min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
+            min_X, max_X = min(recorded_x), max(recorded_x)
 
         if len(plausible_sols_) == 0:
             raise exc.NoSolutionsFoundError("No solutions found")
@@ -790,6 +818,11 @@ class InstallPluginFromUsbRequest(Struct, forbid_unknown_fields=True):
 
 class InstallPluginFromLeaderCopyRequest(Struct, forbid_unknown_fields=True):
     filename: str
+
+
+class UpdateCalibrationMeasurementsRequest(Struct, forbid_unknown_fields=True):
+    included: list[bool]
+    y_values: list[float] | None = None
 
 
 class CreateCalibrationRequest(Struct, forbid_unknown_fields=True):

@@ -18,8 +18,6 @@ def spline_fit(
     y: Sequence[float],
     knots: int | Sequence[float] | Literal["auto"] | None = "auto",
     weights: Sequence[float] | None = None,
-    *,
-    anchor: tuple[float, float] | None = None,
 ) -> structs.SplineFitData:
     """
     Fit a natural cubic regression spline.
@@ -34,8 +32,6 @@ def spline_fit(
         x) are selected by AICc over a small candidate range.
     weights
         Optional weights for each observation.
-    anchor
-        Optional exact (x, y) constraint at the smallest observed x.
 
     Returns
     -------
@@ -55,9 +51,6 @@ def spline_fit(
     if np.allclose(x_values, x_values[0]):
         raise ValueError("x values must not all be the same.")
 
-    if anchor is not None and anchor[0] != float(np.min(x_values)):
-        raise ValueError("The spline anchor must be at the smallest observed x.")
-
     if weights is None:
         weight_values = np.ones_like(x_values)
     else:
@@ -68,17 +61,15 @@ def spline_fit(
             raise ValueError("weights must be non-negative.")
 
     if knots is None or knots == "auto":
-        knot_positions = _auto_select_knots(x_values, y_values, weight_values, anchor=anchor)
+        knot_positions = _auto_select_knots(x_values, y_values, weight_values)
     elif isinstance(knots, str):
         raise ValueError('knots must be an int, a sequence of floats, or "auto".')
     else:
         knot_positions = _normalize_knots(x_values, knots)
     if len(knot_positions) < 2:
         raise ValueError("At least two knots are required.")
-    if anchor is not None and knot_positions[0] != anchor[0]:
-        raise ValueError("The spline anchor must be at the first knot.")
 
-    knot_values, _ = _fit_knot_values(knot_positions, x_values, y_values, weight_values, anchor)
+    knot_values, _ = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
     coefficients = _natural_cubic_spline_coefficients(knot_positions, knot_values)
 
     return structs.SplineFitData(
@@ -176,7 +167,6 @@ def _fit_knot_values(
     x_values: Any,
     y_values: Any,
     weight_values: Any,
-    anchor: tuple[float, float] | None = None,
 ) -> tuple[Any, Any]:
     import numpy as np
 
@@ -184,15 +174,7 @@ def _fit_knot_values(
     sqrt_weights = np.sqrt(weight_values)
     weighted_design = design_matrix * sqrt_weights[:, None]
     weighted_y = y_values * sqrt_weights
-    if anchor is None:
-        knot_values, *_ = np.linalg.lstsq(weighted_design, weighted_y, rcond=None)
-    else:
-        # The first natural-spline basis coefficient is the value at the left endpoint.
-        # Fix it exactly and regress only the remaining knot values.
-        remaining_values, *_ = np.linalg.lstsq(
-            weighted_design[:, 1:], weighted_y - weighted_design[:, 0] * anchor[1], rcond=None
-        )
-        knot_values = np.concatenate(([anchor[1]], remaining_values))
+    knot_values, *_ = np.linalg.lstsq(weighted_design, weighted_y, rcond=None)
     return knot_values, design_matrix
 
 
@@ -202,14 +184,11 @@ def _auto_select_knots(
     weight_values: Any,
     *,
     max_knots: int | None = None,
-    anchor: tuple[float, float] | None = None,
 ) -> Any:
     import numpy as np
 
     n_obs = x_values.size
     unique_x = np.unique(x_values)
-    # The anchor pins a recorded point exactly, so it removes an observation as well as a parameter.
-    pinned = int(anchor is not None)
     if max_knots is None:
         max_knots = min(6, n_obs)
     max_knots = min(max_knots, unique_x.size)
@@ -225,13 +204,11 @@ def _auto_select_knots(
         targets = np.linspace(unique_x[0], unique_x[-1], count)
         spread_knots = np.unique(unique_x[np.abs(unique_x[None, :] - targets[:, None]).argmin(axis=1)])
         for knot_positions in (_normalize_knots(x_values, count), spread_knots):
-            knot_values, design_matrix = _fit_knot_values(
-                knot_positions, x_values, y_values, weight_values, anchor
-            )
+            knot_values, design_matrix = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
             y_pred = design_matrix @ knot_values
             residual = y_values - y_pred
             weighted_sse = float(np.sum(weight_values * residual**2))
-            score = aicc_score(weighted_sse, n_obs - pinned, knot_positions.size - pinned)
+            score = aicc_score(weighted_sse, n_obs, knot_positions.size)
             if score < best_score:
                 best_score = score
                 best_knots = knot_positions

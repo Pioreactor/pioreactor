@@ -43,3 +43,21 @@ Wait steps use the existing asynchronous inputs endpoint. They do not hold a Hue
 worker for the entire waiting period. Protocols own their readiness conditions,
 sensor freshness checks, timeouts, and resource cleanup. Browser-driven polling
 stops while the browser is closed; hardware jobs have their own lifecycle.
+
+## Reproducible calibration artifacts
+
+Every saved calibration YAML must contain the measurements and fit parameters
+that created its curve. Keep all recorded rows in their original order, and use
+`included` to select the observations used for fitting; absent or null means all
+rows are included. Exclusion never deletes measurements. Curve coefficients
+retain the polynomial degree; spline artifacts retain their knot positions. Do
+not introduce implicit anchor constraints or external weighting state.
+
+Saved-calibration edits compute a valid candidate before atomically replacing
+the artifact. Running activities keep their loaded calibration; restart them to
+use a saved edit.
+
+The saved-calibration editor also permits corrections to `recorded_data.y` for
+any calibration type. The x values and row order remain unchanged. Corrections
+overwrite the previous y values only after validating their count and finiteness
+and successfully recalculating the curve; no editable-column metadata is stored.

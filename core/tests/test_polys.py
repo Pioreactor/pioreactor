@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import subprocess
 import sys
-from typing import Literal
 
 import numpy as np
 import pytest
@@ -32,22 +31,6 @@ def test_property_poly_eval_matches_numpy(coefficients: list[float], x: float) -
     assert poly_eval(curve, x) == pytest.approx(float(np.polyval(coefficients, x)), rel=1e-12, abs=1e-12)
 
 
-@settings(max_examples=100)
-@given(
-    values=st.lists(st.floats(-10, 10, allow_nan=False, allow_infinity=False), min_size=6, max_size=12),
-    degree=st.sampled_from([0, 1, 2, 3, "auto"]),
-    anchor_x=st.floats(-1, 1, allow_nan=False, allow_infinity=False),
-    anchor_y=st.floats(-10, 10, allow_nan=False, allow_infinity=False),
-)
-def test_property_poly_fit_preserves_anchor(
-    values: list[float], degree: int | Literal["auto"], anchor_x: float, anchor_y: float
-) -> None:
-    # Evenly spaced inputs keep the fit well-conditioned while varying the anchor and data.
-    x = np.linspace(-1.0, 1.0, len(values)) + anchor_x
-    curve = poly_fit(x, values, degree=degree, anchor=(anchor_x, anchor_y))
-    assert poly_eval(curve, anchor_x) == pytest.approx(anchor_y, rel=1e-10, abs=1e-10)
-
-
 def test_poly_fit_matches_numpy() -> None:
     x = [0.0, 1.0, 2.0, 3.0]
     y = [1.0, 2.0, 5.0, 10.0]
@@ -59,32 +42,6 @@ def test_poly_fit_auto_degree_matches_linear() -> None:
     x = [0.0, 1.0, 2.0, 3.0]
     y = [1.0, 3.0, 5.0, 7.0]
     assert poly_fit(x, y, "auto") == pytest.approx(poly_fit(x, y, 1))
-
-
-@pytest.mark.parametrize("anchor_x", [0.0, 0.25])
-def test_poly_fit_fixes_anchor_and_regresses_remaining_coefficients(anchor_x: float) -> None:
-    x = np.array([anchor_x, 0.5, 1.0, 2.0])
-    y = np.array([0.01, 0.06, 0.08, 0.23])
-    weights = np.array([1.0, 2.0, 1.0, 1.0])
-    shifted_x = x - anchor_x
-    slope = np.sum(weights**2 * shifted_x * (y - y[0])) / np.sum(weights**2 * shifted_x**2)
-
-    curve = poly_fit(x, y, degree=1, weights=weights, anchor=(anchor_x, y[0]))
-
-    assert curve.coefficients == pytest.approx([slope, y[0] - slope * anchor_x])
-    assert poly_eval(curve, anchor_x) == pytest.approx(y[0], abs=1e-14)
-
-
-@pytest.mark.parametrize("degree", [0, 3, "auto"])
-def test_poly_fit_preserves_blank_when_selecting_degree(degree: int | Literal["auto"]) -> None:
-    curve = poly_fit(
-        [0.0, 0.1, 0.3, 0.8, 1.5, 2.0],
-        [0.00024, 0.005, 0.02, 0.05, 0.12, 0.19],
-        degree=degree,
-        anchor=(0.0, 0.00024),
-    )
-
-    assert poly_eval(curve, 0.0) == 0.00024
 
 
 @pytest.mark.parametrize("y", [0.0, 5.0, -5.0])

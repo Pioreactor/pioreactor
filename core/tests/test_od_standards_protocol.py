@@ -354,7 +354,7 @@ def test_positive_rpm_settles_and_cleans_up_stirring(
 @pytest.mark.parametrize("blank_od600", [0.0, 0.05])
 @pytest.mark.parametrize("rpm", [0, 500])
 @pytest.mark.parametrize("sample_count", [2, 4])
-def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
+def test_blank_first_flow_saves_each_channel_reproducibly(
     monkeypatch: pytest.MonkeyPatch,
     target_device: pt.ODCalibrationDevices,
     blank_od600: float,
@@ -431,7 +431,11 @@ def test_blank_first_flow_saves_each_channel_anchored_to_the_blank(
     for payload in saved:
         calibration = convert(payload["calibration"], type=structs.OD600Calibration)
         assert calibration.recorded_data["x"] == [blank_od600, *[0.5 * i for i in range(1, sample_count)]]
-        assert calibration.x_to_y(blank_od600) == pytest.approx(calibration.recorded_data["y"][0])
+        from pioreactor.calibrations.refit import refit_calibration
+
+        assert calibration.included == [True] * sample_count
+        recreated = refit_calibration(calibration, calibration.included)
+        assert recreated.curve_data_ == calibration.curve_data_
 
 
 @pytest.mark.parametrize("sample_count", [0, 1, -1, 2.5, "2.5", ""])
@@ -448,3 +452,37 @@ def test_setup_requires_a_whole_sample_count_including_blank(sample_count: objec
     assert session.step_id == "setup"
     assert "sample_count" not in session.data
     assert session.data["rpm"] == 500
+
+
+def test_review_saves_excluded_measurements_and_can_recreate_curve() -> None:
+    from pioreactor.calibrations.refit import refit_calibration
+
+    session = _dummy_session()
+    session.data.update(
+        {
+            "calibration_name": "masked-standards",
+            "channel_angle_map": {"2": "90"},
+            "od600_values": [0.0, 0.5, 1.0, 2.0],
+            "voltages_by_channel": {"2": [0.1234567890123, 0.5, 1.0, 200.0]},
+        }
+    )
+    saved: list[dict] = []
+
+    def execute(action: str, payload: dict) -> dict:
+        assert action == "save_calibration"
+        saved.append(payload)
+        return {"path": "test.yaml", "device": "od90", "calibration_name": "masked-standards"}
+
+    ctx = SessionContext(
+        session=session, mode="ui", inputs=SessionInputs({}), collected_calibrations=[], executor=execute
+    )
+    od_standards.ReviewStandards().save(ctx, [0, 1, 2])
+    cal = convert(saved[0]["calibration"], type=structs.OD600Calibration)
+    assert cal.recorded_data == {
+        "x": session.data["od600_values"],
+        "y": session.data["voltages_by_channel"]["2"],
+    }
+    assert cal.included == [True, True, True, False]
+    assert refit_calibration(cal, cal.included).curve_data_ == cal.curve_data_
+    restored = refit_calibration(cal, [True] * 4)
+    assert restored.x_to_y(2.0) != cal.x_to_y(2.0)

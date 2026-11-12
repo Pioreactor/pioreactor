@@ -186,12 +186,10 @@ def _devices_for_angles(channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> li
 def _calculate_curve_data(
     od600_values: list[float],
     voltages: list[float],
-    *,
-    blank: tuple[float, float],
 ) -> structs.CalibrationCurveData:
     from pioreactor.utils.splines import spline_fit
 
-    return spline_fit(od600_values, voltages, anchor=blank)
+    return spline_fit(od600_values, voltages)
 
 
 def _build_standards_chart_metadata(
@@ -538,8 +536,6 @@ class MeasureBlank(SessionStep):
 
 
 class ReviewStandards(ReviewDataStep):
-    body = f"{ReviewDataStep.body} Keep the blank included; it anchors the calibration curve."
-
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
         voltage_columns = [
             column(f"voltage_{channel}", f"Voltage (V), {channel} ({angle}°)")
@@ -579,16 +575,10 @@ class ReviewStandards(ReviewDataStep):
         if chart is None:
             return None
         for series in cast(list[dict[str, Any]], chart["series"]):
-            if 0 not in included:
-                continue
             try:
                 curve = _calculate_curve_data(
                     od600_values,
                     voltages_by_channel[series["id"]],
-                    blank=(
-                        ctx.data["od600_values"][0],
-                        ctx.data["voltages_by_channel"][series["id"]][0],
-                    ),
                 )
             except ValueError:
                 continue
@@ -597,8 +587,6 @@ class ReviewStandards(ReviewDataStep):
         return chart
 
     def save(self, ctx: SessionContext, included: list[int]) -> None:
-        if 0 not in included:
-            raise ValueError("Keep the blank included; it anchors the calibration curve.")
         od600_values = select_rows(ctx.data["od600_values"], included)
         calibration_links: list[dict[str, str | None]] = []
         for pd_channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0])):
@@ -606,20 +594,17 @@ class ReviewStandards(ReviewDataStep):
             curve_data_ = _calculate_curve_data(
                 od600_values,
                 voltages_list,
-                blank=(
-                    ctx.data["od600_values"][0],
-                    ctx.data["voltages_by_channel"][pd_channel][0],
-                ),
             )
             cal = to_struct(
                 curve_data_,
-                voltages_list,
-                od600_values,
+                ctx.data["voltages_by_channel"][pd_channel],
+                ctx.data["od600_values"],
                 angle,
                 ctx.data["calibration_name"],
                 pd_channel,
                 get_unit_name(),
             )
+            cal.included = [index in included for index in range(len(ctx.data["od600_values"]))]
             device = f"od{angle}"
             calibration_links.append(ctx.store_calibration(cal, device))
 

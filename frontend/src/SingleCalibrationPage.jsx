@@ -23,7 +23,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableRow,
 } from "@mui/material";
 import PioreactorIcon from "./components/PioreactorIcon"
@@ -39,7 +38,7 @@ import DisplaySourceCode from "./components/DisplaySourceCode";
 import DownloadIcon from '@mui/icons-material/Download';
 import DialogCloseButton from "./components/DialogCloseButton";
 import { textIcon } from "./theme";
-import { calibrationAxisPrecision, formatCalibrationNumber } from "./utils/formatCalibrationNumber";
+import CalibrationMeasurements from "./components/CalibrationMeasurements";
 
 
 function formatPolynomial(coefficients) {
@@ -437,6 +436,7 @@ function SingleCalibrationPage(props) {
         calibrationName={calibrationName}
         calibration={calibration}
         loading={loading}
+        onSaved={(saved) => { setCalibration(saved); showSnackbar("Calibration recalculated and saved."); }}
       />
 
       <Snackbar
@@ -452,7 +452,7 @@ function SingleCalibrationPage(props) {
 }
 
 
-function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, calibration, loading } ) {
+function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, calibration, loading, onSaved } ) {
   const unitsColorMap = new ColorCycler(colors)
   if (loading) {
     return (
@@ -476,13 +476,8 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
     calibration_type,
     created_at,
     curve_data_,
-    x,
-    y,
-    recorded_data,
     is_active,
   } = calibration;
-  const xIsVoltage = x.toLowerCase() === "voltage";
-  const yIsVoltage = y.toLowerCase() === "voltage";
 
   return (
     <Grid container spacing={0}>
@@ -565,34 +560,14 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                   </Table>
               </Box>
 
-              <Box sx={{ px: 5, mt: 5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" component="h2">Recorded data</Typography>
-                  {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyRecordedDataCsvToClipboard}>
-                    <ContentCopyOutlinedIcon fontSize="small" sx={textIcon}/> Copy as CSV
-                  </Button>*/}
-                </Box>
-                <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>{xIsVoltage ? "Voltage (V)" : x}</TableCell>
-                        <TableCell>{yIsVoltage ? "Voltage (V)" : y}</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {recorded_data.x.map((xVal, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{formatCalibrationNumber(xVal, calibrationAxisPrecision(x))}</TableCell>
-                          <TableCell>
-                            {formatCalibrationNumber(recorded_data.y[idx], calibrationAxisPrecision(y))}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              </Box>
+              <CalibrationMeasurements
+                key={`${pioreactorUnit}/${device}/${calibrationName}`}
+                calibration={calibration}
+                unit={pioreactorUnit}
+                device={device}
+                name={calibrationName}
+                onSaved={onSaved}
+              />
           </CardContent>
       </Card>
     </Grid>
