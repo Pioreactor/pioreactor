@@ -1,1 +1,0 @@
-import{r as o}from"./mui-BFuDemEd.js";import{h as m}from"./main-BvQVX3kK.js";function p(e){const{experimentMetadata:r}=m()||{},t=r?.experiment;o.useEffect(()=>{document.title=t?`${e} ~ ${t}`:e},[e,t])}export{p as u};

@@ -6,11 +6,16 @@
 
 #### Enhancements
 
+ - Added **Edit** beside **Recorded data** on saved calibration pages. Correct either measurement column, exclude or restore individual points, and save to recalculate the curve. Excluded points remain available in the table but do not affect the curve, graphs, or calibration bounds. Invalid edits leave the saved calibration unchanged.
+ - Preserved measurements unchecked during new OD calibration reviews, so they can be restored later from the saved calibration page. Measurements discarded by older calibration saves cannot be recovered.
+ - Added MCP tools to read and edit shared `config.ini` and per-unit `unit_config.ini` files, using the same configuration validation and history as the UI.
  - Sped up media-rate summaries for experiments with long dosing histories.
  - Added a **Line colors** tab to the Overview's chart settings (the gear icon). Pick a color from the chart palette for any Pioreactor that has been in the experiment, and its line uses that color on every Overview chart. Choices are saved with the experiment, so everyone viewing it sees the same colors. Pioreactors left on Automatic keep their usual color unless it was picked for another Pioreactor, in which case they move to the next unused color. The colors are also available from `/api/experiments/<experiment>/chart_preferences` as `overview_unit_colors`.
 
 #### Bug fixes
 
+ - Fixed long, unbroken log messages stretching log tables beyond the page width.
+ - Corrected stirring RPM readings when the Hall sensor detects a recognizable extra-pulse pattern, preventing those extra pulses from inflating the RPM used for stirring control.
  - Fixed repeated shutdown signals interrupting job cleanup during software updates or Huey restarts, which could leave stopped activities showing as ready or lost in MQTT and leave old automation names and settings in the UI.
 
 ### 26.12.0

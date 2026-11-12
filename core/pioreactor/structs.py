@@ -823,6 +823,7 @@ class InstallPluginFromLeaderCopyRequest(Struct, forbid_unknown_fields=True):
 class UpdateCalibrationMeasurementsRequest(Struct, forbid_unknown_fields=True):
     included: list[bool]
     y_values: list[float] | None = None
+    x_values: list[float] | None = None
 
 
 class CreateCalibrationRequest(Struct, forbid_unknown_fields=True):

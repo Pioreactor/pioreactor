@@ -1,43 +1,51 @@
 export class TaskPollingTimeoutError extends Error {}
 
+// Most leader fan-out reads finish within ~100-200 ms, so poll soon after the task is accepted and
+// double the wait up to delayMs. delayMs remains the steady-state polling interval.
+const FIRST_POLL_DELAY_MS = 25;
+
 export async function checkTaskCallback(callbackURL, { maxRetries = 150, delayMs = 100 } = {}) {
-  if (maxRetries <= 0) {
-    throw new TaskPollingTimeoutError("Timed out waiting for task completion.");
+  let waitMs = Math.min(FIRST_POLL_DELAY_MS, delayMs);
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      waitMs = Math.min(2 * waitMs, delayMs);
+    }
+
+    let response;
+    try {
+      response = await fetch(callbackURL);
+    } catch (err) {
+      console.error("Error fetching callback:", err);
+      continue;
+    }
+
+    if (response.status === 202) {
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (payload?.status === "succeeded") {
+      return payload;
+    }
+
+    if (payload?.status === "failed") {
+      throw new Error(payload.error || "Task failed.");
+    }
+
+    if (payload?.status === "pending" || payload?.status === "running") {
+      continue;
+    }
+
+    throw new Error(`Unexpected task status: ${payload?.status ?? "unknown"}`);
   }
 
-  let response;
-  try {
-    response = await fetch(callbackURL);
-  } catch (err) {
-    console.error("Error fetching callback:", err);
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
-  }
-
-  if (response.status === 202) {
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
-  }
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! Status: ${response.status}`);
-  }
-
-  const payload = await response.json();
-  if (payload?.status === "succeeded") {
-    return payload;
-  }
-
-  if (payload?.status === "failed") {
-    throw new Error(payload.error || "Task failed.");
-  }
-
-  if (payload?.status === "pending" || payload?.status === "running") {
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
-  }
-
-  throw new Error(`Unexpected task status: ${payload?.status ?? "unknown"}`);
+  throw new TaskPollingTimeoutError("Timed out waiting for task completion.");
 }
 
 export async function fetchTaskResult(

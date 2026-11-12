@@ -175,3 +175,36 @@ def test_invalid_y_values_leave_saved_calibration_unchanged(
             "media_pump", original.calibration_name, [True, True, True, False], values
         )
     assert path.read_bytes() == previous
+
+
+@pytest.mark.parametrize("family", ["poly", "spline", "akima"])
+def test_correct_both_axes_and_reproduce(family: str) -> None:
+    original = example()
+    if family == "spline":
+        original.curve_data_ = spline_fit(original.recorded_data["x"], original.recorded_data["y"], knots=2)
+    elif family == "akima":
+        original.curve_data_ = akima_fit(original.recorded_data["x"], original.recorded_data["y"])
+    x = [10.1234567890123, 20.0, 30.0, 40.0]
+    y = [2 * value for value in x]
+    candidate = refit_calibration(original, [True, True, True, False], y_values=y, x_values=x)
+    assert candidate.recorded_data == {"x": x, "y": y}
+    assert original.recorded_data["x"][0] == 0.0
+    assert candidate.x_to_y(15.0) == pytest.approx(30.0)
+    saved = decode(encode(candidate), type=structs.SimplePeristalticPumpCalibration)
+    assert saved.recorded_data == candidate.recorded_data
+    assert refit_calibration(saved, saved.included).curve_data_ == candidate.curve_data_
+
+
+@pytest.mark.parametrize("x", [[1.0], [1.0, 1.0, 1.0, 1.0], [0.0, 1.0, 2.0, float("inf")]])
+def test_invalid_x_edits_do_not_overwrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, x: list[float]
+) -> None:
+    monkeypatch.setattr(calibrations, "CALIBRATION_PATH", tmp_path)
+    original = example()
+    path = Path(original.save_to_disk_for_device("media_pump"))
+    previous = path.read_bytes()
+    with pytest.raises(ValueError):
+        tasks.update_calibration_measurements.call_local(
+            "media_pump", original.calibration_name, [True, True, True, False], x_values=x
+        )
+    assert path.read_bytes() == previous

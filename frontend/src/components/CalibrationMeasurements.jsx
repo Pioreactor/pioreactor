@@ -33,7 +33,7 @@ function MeasurementInput({ value, label, precision, disabled, onChange }) {
   );
 }
 
-function MeasurementsTable({ calibration, included, onChange, yValues, onValueChange, saving = false }) {
+function MeasurementsTable({ calibration, included, onChange, values, onValueChange, saving = false }) {
   const { x, y, recorded_data: data } = calibration;
   const MeasurementRow = onChange ? ZebraTableRow : TableRow;
   const alignment = onChange ? "right" : "left";
@@ -48,7 +48,7 @@ function MeasurementsTable({ calibration, included, onChange, yValues, onValueCh
           </TableRow>
         </TableHead>
         <TableBody>
-          {data.x.map((xValue, index) => (
+          {data.x.map((_value, index) => (
             <MeasurementRow
               key={index}
               sx={!onChange && !included[index] ? { "& .MuiTableCell-root": { color: "text.disabled" } } : undefined}
@@ -63,20 +63,19 @@ function MeasurementsTable({ calibration, included, onChange, yValues, onValueCh
                   />
                 </TableCell>
               )}
-              <TableCell align={alignment}>
-                {formatCalibrationNumber(xValue, calibrationAxisPrecision(x))}
-              </TableCell>
-              <TableCell align={alignment}>
-                {onValueChange ? (
-                  <MeasurementInput
-                    value={yValues[index]}
-                    label={`${y} for measurement ${index + 1}`}
-                    precision={calibrationAxisPrecision(y)}
-                    disabled={saving}
-                    onChange={(nextValue) => onValueChange(index, nextValue)}
-                  />
-                ) : formatCalibrationNumber(data.y[index], calibrationAxisPrecision(y))}
-              </TableCell>
+              {["x", "y"].map((axis) => (
+                <TableCell key={axis} align={alignment}>
+                  {onValueChange ? (
+                    <MeasurementInput
+                      value={values[axis][index]}
+                      label={`${calibration[axis]} for measurement ${index + 1}`}
+                      precision={calibrationAxisPrecision(calibration[axis])}
+                      disabled={saving}
+                      onChange={(nextValue) => onValueChange(axis, index, nextValue)}
+                    />
+                  ) : formatCalibrationNumber(data[axis][index], calibrationAxisPrecision(calibration[axis]))}
+                </TableCell>
+              ))}
             </MeasurementRow>
           ))}
         </TableBody>
@@ -92,11 +91,12 @@ export default function CalibrationMeasurements({ calibration, unit, device, nam
   const pending = useRef(false);
   const savedMask = calibration.included ?? calibration.recorded_data.x.map(() => true);
   const included = draft?.included ?? savedMask;
-  const savedValues = calibration.recorded_data.y;
-  const yValues = draft?.yValues ?? savedValues;
-  const valuesChanged = yValues.some((value, index) => Number(value) !== savedValues[index]);
-  const invalidValues = yValues.some((value) => measurementValueError(value));
-  const dirty = valuesChanged || included.some((value, index) => value !== savedMask[index]);
+  const values = draft?.values ?? calibration.recorded_data;
+  const changedAxes = ["x", "y"].filter((axis) => values[axis].some((value, index) => (
+    Number(value) !== calibration.recorded_data[axis][index]
+  )));
+  const invalidValues = ["x", "y"].some((axis) => values[axis].some(measurementValueError));
+  const dirty = changedAxes.length > 0 || included.some((value, index) => value !== savedMask[index]);
 
   const close = () => {
     if (pending.current) return;
@@ -116,7 +116,7 @@ export default function CalibrationMeasurements({ calibration, unit, device, nam
           fetchOptions: {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ included, ...(valuesChanged ? { y_values: yValues.map(Number) } : {}) }),
+            body: JSON.stringify({ included, ...Object.fromEntries(changedAxes.map((axis) => [`${axis}_values`, values[axis].map(Number)])) }),
           },
           maxRetries: 400,
         },
@@ -136,7 +136,7 @@ export default function CalibrationMeasurements({ calibration, unit, device, nam
     <Box sx={{ px: 5, mt: 5 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h6" component="h2">Recorded data</Typography>
-        <Button onClick={() => { setDraft({ included: [...savedMask], yValues: savedValues.map(String) }); setError(""); }}>
+        <Button onClick={() => { setDraft({ included: [...savedMask], values: { x: calibration.recorded_data.x.map(String), y: calibration.recorded_data.y.map(String) } }); setError(""); }}>
           <EditIcon fontSize="small" sx={textIcon} /> Edit
         </Button>
       </Box>
@@ -148,15 +148,15 @@ export default function CalibrationMeasurements({ calibration, unit, device, nam
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Edit {calibration.y} values or choose which measurements to include in the curve.
+            Edit measurement values or choose which measurements to include in the curve.
           </Typography>
           <MeasurementsTable
             calibration={calibration}
             included={included}
             saving={saving}
-            yValues={yValues}
-            onValueChange={(index, value) => {
-              setDraft({ ...draft, yValues: yValues.map((current, i) => i === index ? value : current) });
+            values={values}
+            onValueChange={(axis, index, value) => {
+              setDraft({ ...draft, values: { ...values, [axis]: values[axis].map((current, i) => i === index ? value : current) } });
               setError("");
             }}
             onChange={(index, checked) => {

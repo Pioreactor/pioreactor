@@ -2443,7 +2443,7 @@ def update_calibration_measurements(
     body = decode_request_body(structs.UpdateCalibrationMeasurementsRequest)
     return create_task_response(
         tasks.update_worker_calibration_measurements(
-            pioreactor_unit, device, calibration_name, body.included, body.y_values
+            pioreactor_unit, device, calibration_name, body.included, body.y_values, body.x_values
         )
     )
 

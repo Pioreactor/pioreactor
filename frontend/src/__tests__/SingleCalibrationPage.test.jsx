@@ -321,27 +321,30 @@ describe("saved measurement inclusion", () => {
   });
 });
 
-describe("editing recorded y values", () => {
+describe("editing recorded measurement values", () => {
   afterEach(() => jest.resetAllMocks());
 
-  test("edits only y, preserves full precision, and submits values with the mask", async () => {
+  test("edits both axes, preserves full precision, and submits values with the mask", async () => {
     const payload = calibrationPayload();
     payload.result["unit-1"].value.recorded_data.y = [3.1234567890123, 4];
     fetchTaskResult.mockResolvedValueOnce(payload).mockRejectedValueOnce(new Error("Cannot fit these values."));
     const user = userEvent.setup();
     renderSingleCalibrationPage();
     await user.click(await screen.findByRole("button", { name: "Edit" }));
-    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+    expect(screen.getAllByRole("textbox")).toHaveLength(4);
     const first = screen.getByRole("textbox", { name: "od for measurement 1" });
     await user.click(first);
     expect(first).toHaveValue("3.1234567890123");
     const second = screen.getByRole("textbox", { name: "od for measurement 2" });
     await user.clear(second);
     await user.type(second, "4.9876543210123");
+    const xField = screen.getByRole("textbox", { name: "voltage for measurement 1" });
+    await user.clear(xField);
+    await user.type(xField, "0.9876543210123");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText("Cannot fit these values.");
     expect(JSON.parse(fetchTaskResult.mock.calls[1][1].fetchOptions.body)).toEqual({
-      included: [true, true], y_values: [3.1234567890123, 4.9876543210123],
+      included: [true, true], x_values: [0.9876543210123, 2], y_values: [3.1234567890123, 4.9876543210123],
     });
     await user.click(second);
     expect(second).toHaveValue("4.9876543210123");
@@ -351,6 +354,9 @@ describe("editing recorded y values", () => {
     const reopened = screen.getByRole("textbox", { name: "od for measurement 2" });
     await user.click(reopened);
     expect(reopened).toHaveValue("4");
+    const reopenedX = screen.getByRole("textbox", { name: "voltage for measurement 1" });
+    await user.click(reopenedX);
+    expect(reopenedX).toHaveValue("1");
   });
 
   test("rejects empty and nonfinite values before submitting", async () => {

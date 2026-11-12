@@ -57,7 +57,9 @@ Saved-calibration edits compute a valid candidate before atomically replacing
 the artifact. Running activities keep their loaded calibration; restart them to
 use a saved edit.
 
-The saved-calibration editor also permits corrections to `recorded_data.y` for
-any calibration type. The x values and row order remain unchanged. Corrections
-overwrite the previous y values only after validating their count and finiteness
-and successfully recalculating the curve; no editable-column metadata is stored.
+The saved-calibration editor permits corrections to both `recorded_data.x` and
+`recorded_data.y` for every calibration type. Row order remains unchanged.
+Corrections overwrite the previous values only after validating their count and
+finiteness and successfully recalculating the curve. No editable-column metadata
+is stored. For spline fits, changing included x coordinates relocates knots using
+the saved knot count; the new positions are persisted with the curve.

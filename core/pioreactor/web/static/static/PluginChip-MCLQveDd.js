@@ -1,1 +1,0 @@
-import{j as o,g as i}from"./mui-BFuDemEd.js";import{L as r,y as l}from"./main-BvQVX3kK.js";import{u as m}from"./useLeaderHostname-CWXTiwD3.js";function g({name:s,unit:t,sx:a}){const e=m(),n=t||e;return o.jsx(i,{size:"small",icon:o.jsx(l,{}),label:s,clickable:!0,component:r,to:n?`/plugins/${n}`:"/plugins",sx:a,"data-plugin-name":s})}export{g as P};

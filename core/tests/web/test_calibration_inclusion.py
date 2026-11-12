@@ -36,7 +36,11 @@ def test_patch_saved_calibration(
             storage["media_pump"] = cal.calibration_name
     response = client.patch(
         "/unit_api/calibrations/media_pump/mask-api",
-        json={"included": [True, True, False], "y_values": [0.0, 2.0, 40.1234567890123]},
+        json={
+            "included": [True, True, False],
+            "y_values": [0.0, 2.0, 40.1234567890123],
+            "x_values": [0.0, 2.0, 3.1234567890123],
+        },
     )
     assert response.status_code == 202
     completed = client.get(response.json["result_url_path"])
@@ -44,9 +48,9 @@ def test_patch_saved_calibration(
     assert completed.json["result"]["is_active"] is active
     loaded = calibrations.load_calibration("media_pump", "mask-api")
     assert loaded.included == [True, True, False]
-    assert loaded.recorded_data["x"] == cal.recorded_data["x"]
+    assert loaded.recorded_data["x"] == [0.0, 2.0, 3.1234567890123]
     assert loaded.recorded_data["y"] == [0.0, 2.0, 40.1234567890123]
-    assert loaded.x_to_y(1.0) == pytest.approx(2.0)
+    assert loaded.x_to_y(1.0) == pytest.approx(1.0)
     before = loaded.path_on_disk_for_device("media_pump").read_bytes()
     response = client.patch(
         "/unit_api/calibrations/media_pump/mask-api", json={"included": [True, False, False]}
@@ -66,7 +70,7 @@ def test_patch_saved_calibration(
         {"included": [True], "recorded_data": {}},
         {"included": [True], "y_values": [True]},
         {"included": [True], "y_values": ["bad"]},
-        {"included": [True], "x_values": [2.0]},
+        {"included": [True], "z_values": [2.0]},
     ],
 )
 def test_patch_rejects_invalid_request(client: FlaskClient, body: dict) -> None:
@@ -92,7 +96,7 @@ def test_leader_patch_dispatch(client: FlaskClient, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(tasks, "update_worker_calibration_measurements", task)
     response = client.patch("/api/workers/unit1/calibrations/od90/test", json={"included": [True, False]})
     assert response.status_code == 202
-    task.assert_called_once_with("unit1", "od90", "test", [True, False], None)
+    task.assert_called_once_with("unit1", "od90", "test", [True, False], None, None)
     assert (
         client.patch("/api/workers/$broadcast/calibrations/od90/test", json={"included": [True]}).status_code
         == 400

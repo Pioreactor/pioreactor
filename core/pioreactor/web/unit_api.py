@@ -1921,7 +1921,9 @@ def update_calibration_measurements(device: str, calibration_name: str) -> Delay
     _validate_storage_path_component(calibration_name, "calibration_name")
     body = decode_request_body(structs.UpdateCalibrationMeasurementsRequest)
     return create_task_response(
-        tasks.update_calibration_measurements(device, calibration_name, body.included, body.y_values)
+        tasks.update_calibration_measurements(
+            device, calibration_name, body.included, body.y_values, body.x_values
+        )
     )
 
 

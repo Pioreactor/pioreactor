@@ -6,6 +6,7 @@ measurements, their inclusion mask, and the curve family and parameters. No impl
 blank anchors or external weights are applied.
 """
 from math import isfinite
+from typing import Literal
 from warnings import catch_warnings
 from warnings import simplefilter
 
@@ -18,16 +19,22 @@ from pioreactor.utils.splines import spline_fit
 
 
 def refit_calibration(
-    calibration: structs.CalibrationBase, included: list[bool], y_values: list[float] | None = None
+    calibration: structs.CalibrationBase,
+    included: list[bool],
+    y_values: list[float] | None = None,
+    x_values: list[float] | None = None,
 ) -> structs.CalibrationBase:
     candidate = replace(calibration, included=included)
     candidate.__post_init__()
-    if y_values is not None:
-        if len(y_values) != len(calibration.recorded_data["y"]):
-            raise ValueError("Provide one y value per recorded measurement.")
-        if not all(isfinite(value) for value in y_values):
-            raise ValueError("Recorded y values must be finite numbers.")
-        candidate.recorded_data = {**calibration.recorded_data, "y": list(y_values)}
+    candidate.recorded_data = dict(calibration.recorded_data)
+    updates: dict[Literal["x", "y"], list[float] | None] = {"x": x_values, "y": y_values}
+    for axis, values in updates.items():
+        if values is not None:
+            if len(values) != len(calibration.recorded_data[axis]):
+                raise ValueError(f"Provide one {axis} value per recorded measurement.")
+            if not all(isfinite(value) for value in values):
+                raise ValueError(f"Recorded {axis} values must be finite numbers.")
+            candidate.recorded_data[axis] = list(values)
     data = candidate.included_recorded_data()
     x, y = data["x"], data["y"]
     if not all(isfinite(value) for value in x + y):
@@ -49,7 +56,15 @@ def refit_calibration(
         elif isinstance(curve, structs.SplineFitData):
             if len(set(x)) < len(curve.knots):
                 raise ValueError(f"Include at least {len(curve.knots)} distinct x values for this spline.")
-            fitted_spline = spline_fit(x, y, knots=curve.knots)
+            # If included x coordinates change, relocate knots using the same knot count.
+            # Persist the resulting positions so the curve remains reproducible.
+            x_changed = any(
+                keep and before != after
+                for keep, before, after in zip(
+                    included, calibration.recorded_data["x"], candidate.recorded_data["x"]
+                )
+            )
+            fitted_spline = spline_fit(x, y, knots=len(curve.knots) if x_changed else curve.knots)
             design = _build_spline_design_matrix(np.asarray(fitted_spline.knots), np.asarray(x))
             if np.linalg.matrix_rank(design) < len(fitted_spline.knots):
                 raise ValueError(

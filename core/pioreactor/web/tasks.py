@@ -972,13 +972,17 @@ def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict
 
 @huey.task()
 def update_calibration_measurements(
-    device: str, calibration_name: str, included: list[bool], y_values: list[float] | None = None
+    device: str,
+    calibration_name: str,
+    included: list[bool],
+    y_values: list[float] | None = None,
+    x_values: list[float] | None = None,
 ) -> dict[str, Any]:
     from pioreactor.calibrations import load_calibration
     from pioreactor.calibrations.refit import refit_calibration
 
     calibration = load_calibration(device, calibration_name)
-    candidate = refit_calibration(calibration, included, y_values)
+    candidate = refit_calibration(calibration, included, y_values, x_values)
     candidate.save_to_disk_for_device(device)
     result = to_builtins(candidate)
     result["is_active"] = candidate.is_active(device)
@@ -993,6 +997,7 @@ def update_worker_calibration_measurements(
     calibration_name: str,
     included: list[bool],
     y_values: list[float] | None = None,
+    x_values: list[float] | None = None,
 ) -> dict[str, Any]:
     from pioreactor.web.cache import invalidate_calibrations_cache
 
@@ -1000,7 +1005,7 @@ def update_worker_calibration_measurements(
         "PATCH",
         unit,
         f"/unit_api/calibrations/{quote(device, safe='')}/{quote(calibration_name, safe='')}",
-        json={"included": included, "y_values": y_values},
+        json={"included": included, "y_values": y_values, "x_values": x_values},
         timeout=30.0,
     )
     # Invalidate after worker completion, including uncertain outcomes after network errors.
