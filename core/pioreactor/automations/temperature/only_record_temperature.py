@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Any
 
-from pioreactor.automations.events import NoEvent
 from pioreactor.automations.temperature.base import TemperatureAutomationJob
 
 
@@ -12,7 +11,7 @@ class OnlyRecordTemperature(TemperatureAutomationJob):
         super(OnlyRecordTemperature, self).__init__(**kwargs)
         self.update_heater(0)
 
-    def execute(self) -> NoEvent:
+    def execute(self) -> None:
         if self.heater_duty_cycle != 0:
             self.update_heater(0)
-        return NoEvent()
+        return

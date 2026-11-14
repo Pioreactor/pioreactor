@@ -1058,9 +1058,7 @@ def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) 
 def calibration_read_voltage() -> float:
     from pioreactor.hardware import voltage_in_aux
 
-    logger.debug("Starting aux voltage read")
     voltage = float(voltage_in_aux())
-    logger.debug("Finished aux voltage read: voltage=%s", voltage)
     return voltage
 
 

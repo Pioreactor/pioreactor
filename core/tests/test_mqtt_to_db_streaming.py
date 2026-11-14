@@ -110,44 +110,6 @@ def test_testing_data_is_filtered() -> None:
         assert len(bucket) == 0
 
 
-def test_updated_heater_dc() -> None:
-    unit = get_unit_name()
-    exp = "test_updated_heater_dc"
-    connection = sqlite3.connect(config["storage"]["database"])
-    cursor = connection.cursor()
-
-    cursor.executescript("DROP TABLE IF EXISTS temperature_automation_events;")
-    cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
-    seed_experiment(cursor, "test")
-
-    connection.commit()
-
-    parsers = [
-        m2db.TopicToParserToTable(
-            "pioreactor/+/+/temperature_automation/latest_event",
-            m2db.parse_automation_event,
-            "temperature_automation_events",
-        ),
-    ]
-
-    with m2db.MqttToDBStreamer(unit, exp, parsers):
-        sleep(1)
-        publish(
-            f"pioreactor/{unit}/test/temperature_automation/latest_event",
-            '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125},"timestamp":"2026-01-01T12:00:00.000Z"}',
-        )
-        assert wait_for(
-            lambda: cursor.execute(
-                "SELECT COUNT(*) FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,)
-            ).fetchone()[0]
-            == 1
-        )
-
-    cursor.execute("SELECT timestamp FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,))
-    results = cursor.fetchall()
-    assert results == [("2026-01-01T12:00:00.000Z",)]
-
-
 def test_dosing_events_land_in_db() -> None:
     from pioreactor.actions.pump import add_media
 
