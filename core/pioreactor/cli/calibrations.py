@@ -72,10 +72,8 @@ def _display_calibrations_by_device(device: str) -> None:
             data = yaml_decode(location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
             row = f"{device:<25}{data.calibration_name:<50}{data.calibration_type:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}"
             click.echo(row)
-        except Exception:
-            pass
-            # error_message = f"Error reading {name}: {e}"
-            # click.echo(f"{error_message:<60}")
+        except Exception as e:
+            click.echo(f"Error reading {device} calibration `{name}`: {e}", err=True)
 
 
 @calibration.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
@@ -214,8 +212,8 @@ def display_calibration(device: str, calibration_name: str) -> None:
     click.echo()
     curve = curve_to_callable(data.curve_data_)
     plot_data(
-        data.recorded_data["x"],
-        data.recorded_data["y"],
+        data.included_recorded_data()["x"],
+        data.included_recorded_data()["y"],
         calibration_name,
         data.x,
         data.y,
@@ -301,15 +299,6 @@ def analyze_calibration(device: str, calibration_name: str, fit: str) -> None:
 
     calibration = load_calibration(device, calibration_name)
 
-    if isinstance(calibration, structs.ODCalibration):
-        n = len(calibration.recorded_data["x"])
-        weights = [1.0] * n
-        weights[0] = n / 2
-    else:
-        weights = None
-
-    new_calibration = crunch_data_and_confirm_with_user(
-        copy(calibration), initial_degree=3, weights=weights, fit=fit
-    )
+    new_calibration = crunch_data_and_confirm_with_user(copy(calibration), initial_degree=3, fit=fit)
 
     new_calibration.save_to_disk_for_device(device)

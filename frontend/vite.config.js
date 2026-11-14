@@ -34,15 +34,34 @@ function serveStaticPublicAssetsFromProductionPath() {
   };
 }
 
+// The touchscreen UI lives under /k/ (see KIOSK.md). In development, serve its own
+// HTML entry for those paths, so the kiosk never loads the main app's bundle.
+function serveKioskEntryUnderK() {
+  return {
+    name: "serve-kiosk-entry-under-k",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = req.url?.split("?")[0];
+        if (path === "/k" || path?.startsWith("/k/")) {
+          req.url = "/kiosk.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/static/" : "/",
   plugins: [
     serveStaticPublicAssetsFromProductionPath(),
+    serveKioskEntryUnderK(),
     transformJsFilesWithJsx(),
     react({ include: /\.(js|jsx|ts|tsx)$/ }),
   ],
   optimizeDeps: {
-    entries: ["index.html"],
+    entries: ["index.html", "kiosk.html"],
     esbuildOptions: {
       loader: {
         ".js": "jsx",
@@ -51,6 +70,7 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     proxy: {
+      "/mqtt": { target: "ws://127.0.0.1:9001", ws: true },
       "/api": "http://localhost:4999",
       "/unit_api": "http://localhost:4999",
       "/mcp": "http://localhost:4999",
@@ -61,6 +81,18 @@ export default defineConfig(({ command }) => ({
     assetsDir: "static",
     outDir: "build",
     rollupOptions: {
+      // kiosk.html is the lean touchscreen UI each Pioreactor serves under /k/.
+      input: {
+        main: "index.html",
+        kiosk: "kiosk.html",
+      },
+      output: {
+        // Shared modules otherwise become dozens of sub-kilobyte chunks (single icons, small MUI
+        // components), each its own HTTP/1.1 request on a route's first load.
+        manualChunks(id) {
+          if (id.includes("/node_modules/@mui/")) return "mui";
+        },
+      },
       onwarn(warning, defaultHandler) {
         const source = warning.id?.replaceAll("\\", "/");
         const isKnownLegacyChartEval =

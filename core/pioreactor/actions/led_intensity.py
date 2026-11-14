@@ -18,6 +18,7 @@ from pioreactor.types import Experiment
 from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
 from pioreactor.types import Unit
+from pioreactor.utils import is_lock_owner_alive
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.timing import current_utc_datetime
@@ -59,21 +60,31 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[str]:
     lock_id = f"{os.getpid()}:{time_ns()}"
     acquired_channels: list[LedChannel] = []
     try:
-        with local_intermittent_storage("led_locks") as cache:
+        with local_intermittent_storage("led_locks") as cache, cache.transaction():
             for c in channels:
-                if cache.set_if_absent(c, lock_id):
+                # reclaim a lock whose owner died mid-reading, else the channel stays locked until reboot.
+                if _live_lock_owner(cache, c) is None:
+                    cache[c] = lock_id
                     acquired_channels.append(c)
         yield lock_id
     finally:
-        with local_intermittent_storage("led_locks") as cache:
+        with local_intermittent_storage("led_locks") as cache, cache.transaction():
             for c in acquired_channels:
                 if cache.get(c) == lock_id:
                     cache.pop(c)
 
 
+def _live_lock_owner(lock_cache: Any, channel: LedChannel) -> object | None:
+    """The lock's owner, or None if the channel is unlocked or its owning process has died."""
+    owner = lock_cache.get(channel)
+    if owner is not None and is_lock_owner_alive(owner):
+        return owner
+    return None
+
+
 def is_led_channel_locked(channel: LedChannel) -> bool:
     with local_intermittent_storage("led_locks") as cache:
-        return cache.get(channel) is not None
+        return _live_lock_owner(cache, channel) is not None
 
 
 def _update_current_state(
@@ -96,8 +107,8 @@ def _update_current_state(
         for channel, intensity in state.items():
             led_cache[channel] = intensity
 
-        new_state: LEDsToIntensityMapping = {
-            channel: led_cache.getfloat(str(channel), fallback=0.0) for channel in ALL_LED_CHANNELS
+        new_state: LEDsToIntensityMapping = old_state | {
+            channel: float(intensity) for channel, intensity in state.items()
         }
 
         return new_state, old_state
@@ -167,7 +178,7 @@ def led_intensity(
         # A lock grants write authority to its token; it is not a blanket freeze on the channel.
         with local_intermittent_storage("led_locks") as lock_cache:
             for channel in list(desired_state.keys()):
-                current_lock_owner = lock_cache.get(channel)
+                current_lock_owner = _live_lock_owner(lock_cache, channel)
                 if current_lock_owner is not None and current_lock_owner != lock_owner:
                     logger.debug(
                         f"Unable to update channel {channel} due to a software lock on it. Please try again."
@@ -176,15 +187,18 @@ def led_intensity(
 
                     updated_successfully = False
 
+        # Validate every channel before touching the DAC, so a bad entry can't leave earlier
+        # channels changed in hardware but not in the cache or MQTT.
+        for channel, intensity in desired_state.items():
+            if channel not in ALL_LED_CHANNELS:
+                logger.error(f"Saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}")
+                return False
+            if not (0.0 <= intensity <= 100.0):
+                logger.error(f"Channel {channel} intensity should be between 0 and 100, inclusive")
+                return False
+
         for channel, intensity in desired_state.items():
             try:
-                assert (
-                    channel in ALL_LED_CHANNELS
-                ), f"Saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
-                assert (
-                    0.0 <= intensity <= 100.0
-                ), f"Channel {channel} intensity should be between 0 and 100, inclusive"
-
                 if dac is None:
                     dac = DAC()
                 dac.set_intensity_to(getattr(dac, channel), intensity)
@@ -193,10 +207,6 @@ def led_intensity(
                 logger.error(
                     "Unable to find i2c for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi? Is the firmware loaded?"
                 )
-                updated_successfully = False
-                return updated_successfully
-            except AssertionError as e:
-                logger.error(e)
                 updated_successfully = False
                 return updated_successfully
 
@@ -275,7 +285,8 @@ def click_led_intensity(
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
 
-    if not is_active(unit):
+    # Turning LEDs off is always allowed: stopping an inactive unit's activities does it.
+    if not is_active(unit) and any(v for v in (a, b, c, d)):
         return False
 
     state: LEDsToIntensityMapping = {}
@@ -305,17 +316,20 @@ def click_led_intensity(
                 cache.getfloat(channel, fallback=0.0) == 0.0 for channel in ALL_LED_CHANNELS
             )
 
-        if not all_leds_are_off:
-            with JobManager() as job_manager:
-                if not job_manager.does_pid_exist(os.getpid()):
-                    job_manager.register_and_set_running(
-                        unit,
-                        experiment,
-                        "led_intensity",
-                        source_of_event or os.environ.get("JOB_SOURCE", "user"),
-                        os.getpid(),
-                        "",
-                        False,
-                    )
+        with JobManager() as job_manager:
+            if all_leds_are_off:
+                # an earlier `pio run led_intensity` registered itself; with every LED off, it's no longer running.
+                while (job_id := job_manager.get_running_job_id("led_intensity")) is not None:
+                    job_manager.set_not_running(job_id)
+            elif not job_manager.does_pid_exist(os.getpid()):
+                job_manager.register_and_set_running(
+                    unit,
+                    experiment,
+                    "led_intensity",
+                    source_of_event or os.environ.get("JOB_SOURCE", "user"),
+                    os.getpid(),
+                    "",
+                    False,
+                )
 
     return status

@@ -6,18 +6,17 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
-import CloseIcon from "@mui/icons-material/Close";
+import { stepHasInvalidDataTable } from "./CalibrationSessionDataTable";
 import CalibrationSessionFields from "./CalibrationSessionFields";
 import CalibrationSessionResultLinks from "./CalibrationSessionResultLinks";
 import CalibrationSessionStepContent from "./CalibrationSessionStepContent";
+import { advanceCalibrationSession, isDataReviewStep } from "../utils/calibrationSessions";
+import DialogCloseButton from "./DialogCloseButton";
 
 const sessionStartEndpoint = (unit) =>
   `/api/workers/${unit}/calibrations/sessions`;
-const sessionAdvanceEndpoint = (unit, sessionId) =>
-  `/api/workers/${unit}/calibrations/sessions/${sessionId}/inputs`;
 const sessionAbortEndpoint = (unit, sessionId) =>
   `/api/workers/${unit}/calibrations/sessions/${sessionId}/abort`;
 
@@ -28,6 +27,12 @@ function buildInitialValues(step) {
     return nextValues;
   }
   step.fields.forEach((field) => {
+    if (field.field_type === "data_table") {
+      nextValues[field.name] = Array.isArray(field.default)
+        ? field.default.map((row) => ({ ...row }))
+        : [];
+      return;
+    }
     if (field.field_type === "float_list") {
       if (Array.isArray(field.default)) {
         nextValues[field.name] = field.default.join(", ");
@@ -61,6 +66,19 @@ function formatInputs(step, values) {
   const output = {};
   step.fields.forEach((field) => {
     const rawValue = values[field.name];
+    if (field.field_type === "data_table") {
+      const editableKeys = (field.columns || [])
+        .filter((column) => column.editable)
+        .map((column) => column.key);
+      output[field.name] = (Array.isArray(rawValue) ? rawValue : []).map((row) => {
+        const formatted = { ...row };
+        editableKeys.forEach((key) => {
+          formatted[key] = row[key] === "" ? "" : Number(row[key]);
+        });
+        return formatted;
+      });
+      return;
+    }
     if (field.field_type === "bool") {
       if (field.name === "confirmed") {
         output[field.name] = true;
@@ -91,7 +109,7 @@ function formatInputs(step, values) {
       return;
     }
     if (field.field_type === "int") {
-      output[field.name] = rawValue === "" ? rawValue : Number.parseInt(rawValue, 10);
+      output[field.name] = rawValue === "" ? rawValue : Number(rawValue);
       return;
     }
     output[field.name] = rawValue;
@@ -125,10 +143,15 @@ export default function CalibrationSessionDialog({
   const [loadingImageIndex, setLoadingImageIndex] = React.useState(0);
   const [loadedStepImageSrc, setLoadedStepImageSrc] = React.useState(null);
   const [imageActionPending, setImageActionPending] = React.useState(false);
+  const abortRequestedRef = React.useRef(false);
+  const advanceInFlightRef = React.useRef(false);
+  const requestGenerationRef = React.useRef(0);
+  const [aborting, setAborting] = React.useState(false);
   const startInFlightRef = React.useRef(false);
   const loadingDelayTimerRef = React.useRef(null);
   const loadingImageTimerRef = React.useRef(null);
 
+  const isWaiting = sessionStep?.step_type === "wait";
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
   const inlineActions = Array.isArray(sessionStep?.metadata?.actions)
     ? sessionStep.metadata.actions
@@ -137,10 +160,15 @@ export default function CalibrationSessionDialog({
   const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
     ? sessionStep.metadata.loading_images
     : [];
+  const hasInvalidValues = stepHasInvalidDataTable(sessionStep, sessionValues);
   const primaryActionLabel =
     sessionResult ? "Done" : sessionStep?.metadata?.primary_action_label || "Continue";
 
   const resetSessionState = React.useCallback(() => {
+    requestGenerationRef.current += 1;
+    advanceInFlightRef.current = false;
+    setAborting(false);
+    abortRequestedRef.current = false;
     setSessionId(null);
     setSessionStep(null);
     setSessionError("");
@@ -261,9 +289,11 @@ export default function CalibrationSessionDialog({
   }, [effectiveSessionId, open, unit]);
 
   const advanceSession = React.useCallback(async (overrideInputs, imageUpdateExpected) => {
-    if (!unit || !effectiveSessionId) {
+    if (!unit || !effectiveSessionId || advanceInFlightRef.current || aborting) {
       return;
     }
+    advanceInFlightRef.current = true;
+    const generation = requestGenerationRef.current;
     if (overrideInputs && typeof overrideInputs.preventDefault === "function") {
       overrideInputs = null;
     }
@@ -272,40 +302,41 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     try {
       const inputs = overrideInputs ?? formatInputs(sessionStep, sessionValues);
-      const response = await fetch(sessionAdvanceEndpoint(unit, effectiveSessionId), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = `Failed to advance session (${response.status}).`;
-        try {
-          const payload = await response.json();
-          errorMessage = payload.error || JSON.stringify(payload);
-        } catch (_error) {
-          // Keep the fallback message.
-        }
-        throw new Error(errorMessage);
-      }
-
-      const payload = await response.json();
+      const payload = await advanceCalibrationSession(unit, effectiveSessionId, inputs, undefined, sessionStep?.step_id);
+      if (generation !== requestGenerationRef.current) return;
       setSessionStep(payload.step);
       setSessionValues(buildInitialValues(payload.step));
     } catch (err) {
-      setSessionError(err.message || "Failed to advance session.");
+      if (generation === requestGenerationRef.current) {
+        setSessionError(isWaiting
+          ? `${err.message || "Unable to check progress."} Retrying automatically…`
+          : err.message || "Failed to advance session.");
+      }
     } finally {
-      setImageActionPending(false);
-      setSessionLoading(false);
+      advanceInFlightRef.current = false;
+      if (generation === requestGenerationRef.current) {
+        setImageActionPending(false);
+        setSessionLoading(false);
+      }
     }
-  }, [effectiveSessionId, sessionStep, sessionValues, unit]);
+  }, [aborting, effectiveSessionId, isWaiting, sessionStep, sessionValues, unit]);
+
+  React.useEffect(() => {
+    if (!open || !isWaiting || sessionLoading || aborting || abortRequestedRef.current) return;
+    const timer = setTimeout(() => advanceSession({}), sessionStep.poll_interval_s * 1000);
+    return () => clearTimeout(timer);
+  }, [advanceSession, aborting, isWaiting, open, sessionError, sessionLoading, sessionStep]);
+
+  React.useEffect(() => () => {
+    requestGenerationRef.current += 1;
+  }, [open, effectiveSessionId]);
 
   const abortSession = React.useCallback(
     async (shouldAbort) => {
+      if (aborting) return;
       if (shouldAbort && effectiveSessionId && unit) {
+        abortRequestedRef.current = true;
+        setAborting(true);
         try {
           const response = await fetch(sessionAbortEndpoint(unit, effectiveSessionId), {
             method: "POST",
@@ -329,6 +360,8 @@ export default function CalibrationSessionDialog({
           }
         } catch (err) {
           const message = err.message || "Failed to abort calibration session.";
+          setAborting(false);
+          setSessionLoading(advanceInFlightRef.current);
           setSessionError(message);
           if (onAbortFailure) {
             onAbortFailure(message);
@@ -344,7 +377,7 @@ export default function CalibrationSessionDialog({
         onClose();
       }
     },
-    [effectiveSessionId, onAbortFailure, onAbortSuccess, onClose, onComplete, resetSessionState, unit]
+    [aborting, effectiveSessionId, onAbortFailure, onAbortSuccess, onClose, onComplete, resetSessionState, unit]
   );
 
   React.useEffect(() => {
@@ -415,6 +448,7 @@ export default function CalibrationSessionDialog({
     <Dialog
       open={open}
       onClose={(_event, reason) => {
+        if (isWaiting || aborting) return;
         if (sessionResult) {
           abortSession(false);
           return;
@@ -442,18 +476,7 @@ export default function CalibrationSessionDialog({
     >
       <DialogTitle>
         {protocol?.title || "Calibration session"}
-        <IconButton
-          aria-label="close"
-          onClick={() => abortSession(!sessionResult)}
-          sx={{
-            position: "absolute",
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        {!isWaiting && <DialogCloseButton onClick={() => abortSession(!sessionResult)} />}
       </DialogTitle>
       <DialogContent
         sx={{
@@ -464,7 +487,7 @@ export default function CalibrationSessionDialog({
         }}
       >
         <Box sx={{ height: 4, mb: 2 }}>
-          <LinearProgress sx={{ visibility: showLoading ? "visible" : "hidden" }} />
+          <LinearProgress sx={{ visibility: (showLoading || (isWaiting && !sessionError)) ? "visible" : "hidden" }} />
         </Box>
         {sessionError && <Alert severity="error">{sessionError}</Alert>}
         {sessionResult && (
@@ -487,7 +510,7 @@ export default function CalibrationSessionDialog({
         )}
         <CalibrationSessionStepContent
           step={sessionStep}
-          showLoading={showLoading}
+          showLoading={showLoading && !isWaiting}
           loadingImages={loadingImages}
           loadingImageIndex={loadingImageIndex}
           loadedStepImageSrc={loadedStepImageSrc}
@@ -498,11 +521,12 @@ export default function CalibrationSessionDialog({
             setSessionError("Image could not be loaded. Try again.");
           }}
         />
-        <Box sx={{ width: "75%", mt: 1 }}>
+        <Box sx={{ width: isDataReviewStep(sessionStep) ? "100%" : "75%", mt: 1 }}>
           <CalibrationSessionFields
             step={sessionStep}
             values={sessionValues}
             onFieldChange={updateSessionValue}
+            disabled={sessionLoading || isWaiting || aborting}
           />
           <CalibrationSessionResultLinks
             result={sessionResult}
@@ -511,15 +535,22 @@ export default function CalibrationSessionDialog({
           />
         </Box>
       </DialogContent>
-      <DialogActions sx={{ justifyContent: "right", alignItems: "center" }}>
-        {inlineActions.length > 0 && (
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", pl: 1 }}>
+      <DialogActions sx={{ justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+        {!isWaiting && inlineActions.length > 0 && (
+          <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: "wrap", pl: 1 }}>
             {inlineActions.map((action) => (
               <Button
                 key={action.label}
                 variant="text"
-                onClick={() => advanceSession(action.inputs, action.updates_image === true)}
-                disabled={sessionLoading}
+                onClick={() =>
+                  advanceSession(
+                    action.include_values
+                      ? { ...formatInputs(sessionStep, sessionValues), ...action.inputs }
+                      : action.inputs,
+                    action.updates_image === true
+                  )
+                }
+                disabled={sessionLoading || (action.include_values && hasInvalidValues)}
               >
                 {action.label}
               </Button>
@@ -530,17 +561,18 @@ export default function CalibrationSessionDialog({
           <Button
             onClick={() => abortSession(true)}
             color="secondary"
+            disabled={aborting}
           >
             Abort
           </Button>
         )}
-        <Button
+        {!isWaiting && <Button
           variant="contained"
           onClick={sessionResult ? () => abortSession(false) : advanceSession}
-          disabled={!sessionStep || sessionLoading}
+          disabled={!sessionStep || sessionLoading || aborting || (!sessionResult && hasInvalidValues)}
         >
           {primaryActionLabel}
-        </Button>
+        </Button>}
       </DialogActions>
     </Dialog>
   );

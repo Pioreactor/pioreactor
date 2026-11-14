@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {runPioreactorJobViaUnitAPI} from "../utils/jobs"
-import {unitTargetHeaders} from "../utils/unitApi"
 
 
 // Create the context
@@ -14,12 +13,16 @@ export function useRunningProfiles() {
 }
 
 // Create a provider component
-export function RunningProfilesProvider({ children, experiment, leaderHostname }) {
+export function RunningProfilesProvider({ children, experiment }) {
   const [runningProfiles, setRunningProfiles] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+  const fetchRequestId = React.useRef(0);
 
   // Use a callback for fetching the running profiles
   const fetchRunningProfiles = React.useCallback(async () => {
+    const requestId = ++fetchRequestId.current;
+    setError(false);
     // If we don't yet know the experiment, don't hit the API.
     if (!experiment) {
       setRunningProfiles([]);
@@ -36,17 +39,21 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
         throw new Error(`Failed to fetch running profiles: ${response.statusText}`);
       }
       const data = await response.json();
-      setRunningProfiles(data);
+      if (requestId === fetchRequestId.current) setRunningProfiles(data);
     } catch (error) {
-      console.error('Error fetching running profiles:', error);
+      if (requestId === fetchRequestId.current) setError(true);
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestId.current) setLoading(false);
     }
   }, [experiment]);
 
   // Fetch running profiles once on mount, and whenever `experiment` changes
   React.useEffect(() => {
+    setRunningProfiles([]);
     fetchRunningProfiles();
+    return () => {
+      fetchRequestId.current += 1;
+    };
   }, [fetchRunningProfiles]);
 
   // Helper to re-fetch
@@ -62,7 +69,6 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
           method: 'POST',
           body: JSON.stringify({ job_id: job_id }),
           headers: {
-            ...unitTargetHeaders(leaderHostname),
             Accept: 'application/json',
             'Content-Type': 'application/json'
           }
@@ -81,7 +87,7 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
         throw error;
       }
     },
-    [refreshRunningProfiles, leaderHostname]
+    [refreshRunningProfiles]
   );
 
   // Start a profile (or run a job) — for example:
@@ -90,7 +96,6 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
       try {
         const params = dryRun ? { 'dry-run': null } : {};
         await runPioreactorJobViaUnitAPI(
-          leaderHostname,
           'experiment_profile',
           ['execute', selectedExperimentProfile, experiment],
           params
@@ -105,13 +110,14 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
         throw error;
       }
     },
-    [refreshRunningProfiles, leaderHostname]
+    [refreshRunningProfiles]
   );
 
   // The value exposed by the context
   const value = {
     runningProfiles,
     loading,
+    error,
     stopProfile,
     startProfile,
     refreshRunningProfiles

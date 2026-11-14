@@ -14,6 +14,6 @@ column_descriptions:
   label: User-assigned label for the Pioreactor unit within the experiment.
   created_at: UTC timestamp when the label was created or last updated.
   created_at_localtime: Local-time rendering of created_at.
-  hours_since_experiment_created: Hours from experiment creation to created_at.
+  hours_since_experiment_started: Hours from experiment start to created_at.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h

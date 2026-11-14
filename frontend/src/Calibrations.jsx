@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { NavigableTableRow } from "./components/TableRows";
 import { uiColors } from "./theme/colors";
@@ -5,14 +6,11 @@ import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from "react-router";
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
 import {
   CircularProgress,
   FormControl,
   MenuItem,
   Select,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -25,6 +23,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import { fetchTaskResult, getSuccessfulUnitTaskResults } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
+import { byUnit, compareNatural, sortNatural } from "./utils/naturalSort";
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -44,16 +43,8 @@ import 'prismjs/components/prism-yaml';
 import CheckIcon from '@mui/icons-material/Check';
 import ChecklistRtlOutlinedIcon from '@mui/icons-material/ChecklistRtlOutlined';
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
-
-function sanitizeDeviceName(raw) {
-  const cleaned = raw
-    .replace(/\s+/g, "_")          // spaces, tabs, line‑breaks → “_”
-    .replace(/[^A-Za-z0-9_-]/g, "") // drop everything else (only allow these chars)
-    .replace(/^[_.]+/, "")           // no leading “.” or “_”
-    .slice(0, 255);                // extra‑long names are sliced
-
-  return cleaned;
-}
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
 export function getFailedCalibrationUploadUnits(taskPayload) {
   const result = taskPayload?.result;
@@ -64,7 +55,7 @@ export function getFailedCalibrationUploadUnits(taskPayload) {
   return Object.entries(result)
     .filter(([_unit, unitResult]) => !unitResult || unitResult.ok === false)
     .map(([unit]) => unit)
-    .sort((a, b) => a.localeCompare(b));
+    .sort(compareNatural);
 }
 
 export function buildCalibrationUploadFailureMessage(failedUnits) {
@@ -87,13 +78,46 @@ export function UploadCalibrationDialog({
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [calibrationYaml, setCalibrationYaml] = useState('');
   const [markAsActive, setMarkAsActive] = useState(true);
+  const [deviceRegistry, setDeviceRegistry] = useState(null);
+  const registryReady = deviceRegistry?.unit === selectedWorker;
+  const uploadDevices = registryReady ? deviceRegistry.devices : [];
+  const uploadDevice = uploadDevices.includes(selectedDevice) ? selectedDevice : '';
+
+  useEffect(() => {
+    if (!open || !selectedWorker) return;
+    let cancelled = false;
+    setDeviceRegistry(null);
+
+    const loadDevices = async () => {
+      try {
+        const payload = await fetchTaskResult(`/api/workers/${selectedWorker}/calibration_protocols`);
+        const failedUnits = getFailedCalibrationUploadUnits(payload);
+        if (failedUnits.length > 0) {
+          throw new Error(`Could not load calibration devices for: ${failedUnits.join(', ')}.`);
+        }
+        const registries = Object.values(getSuccessfulUnitTaskResults(payload));
+        const devicesByUnit = registries.map((protocols) => new Set(
+          protocols.map((protocol) => protocol.target_device).filter((name) => name !== 'od'),
+        ));
+        // A broadcast upload must target a device registered on every selected unit.
+        const devices = [...(devicesByUnit[0] || [])]
+          .filter((name) => devicesByUnit.every((unitDevices) => unitDevices.has(name)))
+          .sort();
+        if (!cancelled) setDeviceRegistry({ unit: selectedWorker, devices });
+      } catch (err) {
+        if (!cancelled) setDeviceRegistry({ unit: selectedWorker, devices: [], error: err.message });
+      }
+    };
+    loadDevices();
+    return () => { cancelled = true; };
+  }, [open, selectedWorker]);
 
   const handleWorkerChange = (event) => {
     setSelectedWorker(event.target.value);
   };
 
   const handleDeviceChange = (event) => {
-    setSelectedDevice(sanitizeDeviceName(event.target.value));
+    setSelectedDevice(event.target.value);
   };
 
   const handleMarkAsActiveChange = (event) => {
@@ -173,7 +197,7 @@ export function UploadCalibrationDialog({
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.json();
-        setWorkers(data.map(worker => worker.pioreactor_unit));
+        setWorkers(sortNatural(data.map(byUnit)));
         setSelectedWorker((currentWorker) => {
           if (currentWorker) {
             return currentWorker;
@@ -202,18 +226,7 @@ export function UploadCalibrationDialog({
       <DialogTitle>
       Upload calibration from a YAML description
 
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
 
       </DialogTitle>
       <DialogContent>
@@ -221,7 +234,7 @@ export function UploadCalibrationDialog({
           <FormControl variant="standard" sx={{ mr: 4, minWidth: 200 }}>
             <FormLabel component="legend">Pioreactor</FormLabel>
             <Select
-              value={selectedWorker}
+              value={workers.length ? selectedWorker : ''}
               onChange={handleWorkerChange}
             >
               {workers.map((worker) => (
@@ -238,16 +251,26 @@ export function UploadCalibrationDialog({
           </FormControl>
 
           <FormControl variant="standard" sx={{ mr: 4, minWidth: 200 }}>
-            <FormLabel component="legend">Device</FormLabel>
-            <TextField
-              variant="standard"
-              fullWidth
-              placeholder="e.g. od, media_pump"
-              value={selectedDevice}
+            <FormLabel id="upload-calibration-device-label" required>Device</FormLabel>
+            <Select
+              labelId="upload-calibration-device-label"
+              value={uploadDevice}
               onChange={handleDeviceChange}
-            />
+              disabled={!registryReady || uploadDevices.length === 0}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>{registryReady ? "Select a device" : "Loading devices..."}</MenuItem>
+              {uploadDevices.map((name) => (
+                <MenuItem key={name} value={name}>{name}</MenuItem>
+              ))}
+            </Select>
           </FormControl>
         </Box>
+
+        {registryReady && deviceRegistry.error && <Alert severity="error">{deviceRegistry.error}</Alert>}
+        {registryReady && !deviceRegistry.error && uploadDevices.length === 0 && (
+          <Alert severity="info">No shared calibration devices are registered for the selected Pioreactor(s).</Alert>
+        )}
 
         <FormControlLabel
           control={<Checkbox checked={markAsActive} onChange={handleMarkAsActiveChange} />}
@@ -313,7 +336,7 @@ export function UploadCalibrationDialog({
               React.startTransition(() => {
                 uploadCalibration({
                   selectedWorker,
-                  selectedDevice,
+                  selectedDevice: uploadDevice,
                   calibrationYaml,
                   markAsActive,
                 });
@@ -322,7 +345,7 @@ export function UploadCalibrationDialog({
             variant="contained"
             loading={uploadPending}
             sx={{mt: "10px"}}
-            disabled={!selectedDevice || !calibrationYaml || !selectedWorker}
+            disabled={!uploadDevice || !calibrationYaml || !selectedWorker}
           >
             Upload calibration
           </Button>
@@ -417,7 +440,7 @@ function CalibrationData({ loading, rawData }) {
     const deviceSet = new Set();
     const deviceMap = {}; // deviceName -> array of calibrations
 
-    setWorkers(Object.keys(allMachines))
+    setWorkers(sortNatural(Object.keys(allMachines)))
     //    Keys like media_pump, waste_pump, od, stirring, alt_media_pump, etc.
     Object.values(allMachines).forEach((machine) => {
       // machine is an object like:
@@ -514,7 +537,7 @@ function CalibrationData({ loading, rawData }) {
         return bTime - aTime; // newest first
       }
 
-      const unitCmp = a.pioreactor_unit.localeCompare(b.pioreactor_unit);
+      const unitCmp = compareNatural(a.pioreactor_unit, b.pioreactor_unit);
       if (unitCmp !== 0) return unitCmp;
 
       return a.calibration_name.localeCompare(b.calibration_name);
@@ -646,7 +669,7 @@ function CalibrationData({ loading, rawData }) {
                 <NavigableTableRow
                   onMouseOver={(e) => onMouseOverRow(e, cal) }
                   onMouseOut={(e) => onMouseExitRow(e)}
-                  to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
+                  to={`/calibrations/${unitName}/${selectedDevice}/${encodeURIComponent(calName)}`}
                   key={i}
                   >
                   <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
@@ -683,7 +706,7 @@ function CalibrationData({ loading, rawData }) {
                         data-calibration-name={calName}
                         clickable
                         component={Link}
-                        to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
+                        to={`/calibrations/${unitName}/${selectedDevice}/${encodeURIComponent(calName)}`}
                         />
                   </TableCell>
                   <TableCell align="left" data-copy-value={cal.is_active ? "Active" : ""} sx={{padding: "6px 0px"}}>
@@ -765,17 +788,17 @@ function CalibrationsContainer() {
               component={Link}
               to="/calibration-coverage"
             >
-              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+              <ChecklistRtlOutlinedIcon fontSize="small" sx={textIcon}/>
               Calibration status
             </Button>
             <Button sx={{ mr: "0px"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
             >
-              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Upload calibration
+              <UploadIcon fontSize="small" sx={textIcon}/> Upload calibration
             </Button>
             <Button color="primary" onClick={handleDownloadCalibrations} loading={downloading}>
-              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
+              <DownloadIcon fontSize="small" sx={textIcon}/> Download all calibrations
             </Button>
           </>
         )}
@@ -803,9 +826,7 @@ function CalibrationsContainer() {
 }
 
 function Calibrations(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title]);
+    useDocumentTitle(props.title);
     return (
       <Grid container spacing={2} >
         <Grid

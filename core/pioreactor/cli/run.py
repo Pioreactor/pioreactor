@@ -4,6 +4,7 @@ from typing import Any
 
 import click
 from pioreactor import plugin_management
+from pioreactor.cli import resume_garbage_collection
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
@@ -22,8 +23,6 @@ lazy_subcommands: dict[str, str] = {
     "pumps": "pioreactor.actions.pumps.click_pumps",
     "add_media": "pioreactor.actions.pump.click_add_media",
     "remove_waste": "pioreactor.actions.pump.click_remove_waste",
-    "circulate_media": "pioreactor.actions.pump.click_circulate_media",
-    "circulate_alt_media": "pioreactor.actions.pump.click_circulate_alt_media",
     "od_blank": "pioreactor.actions.od_blank.click_od_blank",
     "camera_snapshot": "pioreactor.actions.camera_snapshot.click_camera_snapshot",
     "self_test": "pioreactor.actions.self_test.click_self_test",
@@ -85,6 +84,8 @@ def run(ctx: click.Context, config_override: list[tuple[str, str, str | None]]) 
 
     pio run --config-override stirring.config,pwm_hz,100
     """
+    resume_garbage_collection()
+
     stack = ExitStack()
     stack.enter_context(temporary_config_changes(config, config_override))
     ctx.call_on_close(stack.close)

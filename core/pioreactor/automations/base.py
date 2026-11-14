@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from datetime import timedelta
+from threading import current_thread
 from threading import Event
 from threading import Lock
+from threading import RLock
 from threading import Thread
 from typing import Any
 from typing import Callable
@@ -44,6 +46,12 @@ class AutomationJob(BackgroundJob):
     _latest_od_fused: None | float = None
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
+        self._automation_runner_lock = RLock()
+        self._automation_runner: Thread | None = None
+        self._automation_stopping = Event()
+        self._automation_execution_done = Event()
+        self._automation_execution_done.set()
+        self._automation_execution_thread: Thread | None = None
         super().__init__(unit, experiment)
         if self.automation_name in DISALLOWED_AUTOMATION_NAMES:
             raise NameError(f"{self.automation_name} is not allowed.")
@@ -102,13 +110,18 @@ class AutomationJob(BackgroundJob):
         """
         Execute the automation body once, with shared state gating and event handling.
         """
-        if self.state == self.DISCONNECTED:
+        if self._shutdown_started or self.state == self.DISCONNECTED:
             return None
 
         if not self._automation_execution_lock.acquire(blocking=False):
             return None
 
         try:
+            self._automation_execution_thread = current_thread()
+            self._automation_execution_done.clear()
+            # Shutdown may have started between the first check and lock acquisition.
+            if self._shutdown_started:
+                return None
             if wait_for_ready:
                 if not self.block_until_ready(timeout=timeout):
                     return None
@@ -117,7 +130,7 @@ class AutomationJob(BackgroundJob):
 
             try:
                 event = self.execute()
-                if event:
+                if event and not self._is_cleaned_up:
                     self.logger.info(event.display())
             except exc.JobRequiredError as e:
                 self.logger.debug(e, exc_info=True)
@@ -128,10 +141,13 @@ class AutomationJob(BackgroundJob):
                 self.logger.error(e)
                 event = events.ErrorOccurred(str(e))
 
-            self.latest_event = event
-            self._latest_run_at = current_utc_datetime()
+            if not self._is_cleaned_up:
+                self.latest_event = event
+                self._latest_run_at = current_utc_datetime()
             return event
         finally:
+            self._automation_execution_thread = None
+            self._automation_execution_done.set()
             self._automation_execution_lock.release()
 
     def run_every(
@@ -171,26 +187,41 @@ class AutomationJob(BackgroundJob):
         """
         Start a non-overlapping automation execution from an MQTT callback.
         """
-        # A burst of callbacks can start more than one runner thread before any
-        # runner acquires _automation_execution_lock. run_once still prevents
-        # overlapping execute() calls, and biomass updates are not normally bursty
-        # enough for this to matter in production. Ignore unless field evidence
-        # shows real harm.
-        if self._automation_execution_lock.locked():
-            self._automation_trigger_pending = True
-            return
 
         def runner() -> None:
-            while self.state != self.DISCONNECTED:
-                self.run_once(timeout=timeout, wait_for_ready=False)
-                if not self._automation_trigger_pending:
-                    break
-                self._automation_trigger_pending = False
+            try:
+                while not self._automation_stopping.is_set():
+                    self.run_once(timeout=timeout, wait_for_ready=False)
+                    with self._automation_runner_lock:
+                        if not self._automation_trigger_pending:
+                            self._automation_runner = None
+                            return
+                        self._automation_trigger_pending = False
+            finally:
+                with self._automation_runner_lock:
+                    if self._automation_runner is current_thread():
+                        self._automation_runner = None
 
-        Thread(target=runner, daemon=True).start()
+        with self._automation_runner_lock:
+            if self._shutdown_started or self._automation_stopping.is_set() or self.state != self.READY:
+                return
+            if self._automation_runner is not None or self._automation_execution_lock.locked():
+                self._automation_trigger_pending = True
+                return
+            self._automation_runner = Thread(target=runner, daemon=True)
+            self._automation_runner.start()
 
     def on_disconnected(self) -> None:
-        self.cancel_automation_timer()
+        self._automation_stopping.set()
+        self.cancel_automation_timer(timeout=None)
+        with self._automation_runner_lock:
+            runner = self._automation_runner
+        # Never hold the runner mutex while joining: the runner needs it to exit.
+        if runner is not None and runner is not current_thread() and runner.ident is not None:
+            runner.join()
+        # Also drain an execution from a rescheduled timer or an external caller.
+        if self._automation_execution_thread is not current_thread():
+            self._automation_execution_done.wait()
 
     def on_sleeping(self) -> None:
         if self._automation_timer is not None:
@@ -200,11 +231,11 @@ class AutomationJob(BackgroundJob):
         if self._automation_timer is not None:
             self._automation_timer.unpause()
 
-    def cancel_automation_timer(self) -> None:
+    def cancel_automation_timer(self, timeout: float | None = 10) -> None:
         if self._automation_timer is None:
             return
 
-        self._automation_timer.cancel(timeout=10)
+        self._automation_timer.cancel(timeout=timeout)
         if self._automation_timer.is_alive():
             self.logger.debug("automation timer still alive!")
         self._automation_timer = None

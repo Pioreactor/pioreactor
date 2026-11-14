@@ -8,11 +8,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import CloseIcon from "@mui/icons-material/Close";
+import DialogCloseButton from "./DialogCloseButton";
 
 function normalizeExperimentTagList(tags) {
   const normalizedTags = [];
@@ -40,7 +38,14 @@ function normalizeExperimentTagList(tags) {
   return normalizedTags;
 }
 
-export default function ExperimentMetadataDialog({
+export default function ExperimentMetadataDialog(props) {
+  if (!props.open || !props.experiment) {
+    return null;
+  }
+  return <ExperimentMetadataForm key={props.experiment.experiment} {...props} />;
+}
+
+function ExperimentMetadataForm({
   experiment,
   open,
   onClose,
@@ -49,19 +54,13 @@ export default function ExperimentMetadataDialog({
   isSaving,
   errorMessage,
 }) {
-  const [description, setDescription] = React.useState("");
-  const [tags, setTags] = React.useState([]);
+  const [description, setDescription] = React.useState(experiment.description || "");
+  const [tags, setTags] = React.useState(experiment.tags || []);
   const [tagInputValue, setTagInputValue] = React.useState("");
-
-  React.useEffect(() => {
-    if (!open || !experiment) {
-      return;
-    }
-
-    setDescription(experiment.description || "");
-    setTags(Array.isArray(experiment.tags) ? experiment.tags : []);
-    setTagInputValue("");
-  }, [open, experiment]);
+  const [startedAt, setStartedAt] = React.useState(
+    () => dayjs(experiment.started_at).format("YYYY-MM-DDTHH:mm:ss"),
+  );
+  const [startTimeError, setStartTimeError] = React.useState("");
 
   const commitPendingTag = React.useCallback(() => {
     if (!tagInputValue.trim()) {
@@ -77,12 +76,20 @@ export default function ExperimentMetadataDialog({
   };
 
   const handleSave = () => {
-    if (!experiment) {
+    if (isSaving) {
+      return;
+    }
+    const startTime = new Date(startedAt);
+    if (!startedAt || !Number.isFinite(startTime.getTime())) {
+      setStartTimeError("Enter a valid start date and time.");
       return;
     }
 
     onSave({
       ...experiment,
+      started_at: startedAt === dayjs(experiment.started_at).format("YYYY-MM-DDTHH:mm:ss")
+        ? experiment.started_at
+        : startTime.toISOString(),
       description,
       tags: normalizeExperimentTagList([...tags, tagInputValue]),
     });
@@ -92,20 +99,39 @@ export default function ExperimentMetadataDialog({
     <Dialog open={open} onClose={isSaving ? undefined : onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ pr: 6 }}>
         Edit {experiment?.experiment || "experiment"}
-        <IconButton
-          aria-label="Close"
-          onClick={onClose}
-          disabled={isSaving}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} disabled={isSaving} />
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            Created {experiment?.created_at ? dayjs(experiment.created_at).format("D MMMM YYYY, h:mm a") : "Unknown"}
-          </Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: "flex-start" }}>
+            <TextField
+              label="Experiment start (local time)"
+              type="datetime-local"
+              required
+              value={startedAt}
+              disabled={isSaving}
+              onChange={(event) => {
+                setStartedAt(event.target.value);
+                setStartTimeError("");
+              }}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: "1" } }}
+              error={Boolean(startTimeError)}
+              helperText={startTimeError}
+              fullWidth
+            />
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => {
+                setStartedAt(dayjs().format("YYYY-MM-DDTHH:mm:ss"));
+                setStartTimeError("");
+              }}
+              disabled={isSaving}
+              sx={{ flexShrink: 0, minHeight: 44, alignSelf: { xs: "flex-end", sm: "center" } }}
+            >
+              Set to now
+            </Button>
+          </Stack>
           <TextField
             label="Description"
             value={description}
@@ -155,7 +181,7 @@ export default function ExperimentMetadataDialog({
           variant="contained"
           disabled={isSaving}
         >
-          Save
+          {isSaving ? "Saving..." : "Save"}
         </Button>
       </DialogActions>
     </Dialog>

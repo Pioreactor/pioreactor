@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { ZebraTableRow } from "./components/TableRows";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
@@ -40,6 +41,8 @@ import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
 import { fetchTaskResult, TaskPollingTimeoutError } from "./utils/tasks";
 import Snackbar from "./components/Snackbar";
+import { textIcon } from "./theme";
+import EmptyState from "./components/EmptyState";
 
 const TAGS_TO_SHOW = 6;
 
@@ -67,6 +70,7 @@ function ExperimentActionsMenu({
   return (
     <React.Fragment>
       <IconButton
+        color="primary"
         size="small"
         onClick={(event) => setAnchorEl(event.currentTarget)}
         aria-label={`More actions for ${experiment.experiment}`}
@@ -136,16 +140,14 @@ function ExperimentsContainer(props) {
   const [snackbarOpen, setSnackbarOpen] = React.useState(false);
   const [snackbarMessage, setSnackbarMessage] = React.useState("");
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   const refreshExperiments = React.useCallback(async () => {
     setLoading(true);
     setLoadError("");
 
     try {
-      const response = await fetch("/api/experiments");
+      const response = await fetch("/api/experiments", { cache: "no-cache" });
       if (!response.ok) {
         throw new Error(`Failed to load experiments (${response.status})`);
       }
@@ -224,6 +226,7 @@ function ExperimentsContainer(props) {
         body: JSON.stringify({
           description: updatedExperiment.description,
           tags: updatedExperiment.tags,
+          started_at: updatedExperiment.started_at,
         }),
         headers: {
           Accept: "application/json",
@@ -334,7 +337,7 @@ function ExperimentsContainer(props) {
             component={Link}
             to="/start-new-experiment"
           >
-            <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
+            <AddIcon fontSize="small" sx={textIcon}/> Create new experiment
           </Button>
         )}
       />
@@ -480,9 +483,7 @@ function ExperimentsContainer(props) {
               {!loading && filteredExperiments.length === 0 && (
                 <TableRow>
                   <StyledTableCell colSpan={4}>
-                    <Box sx={{ py: 4, textAlign: "center" }}>
-                      <Typography variant="body1">No experiments match the current filters.</Typography>
-                    </Box>
+                    <EmptyState>No experiments match the current filters.</EmptyState>
                   </StyledTableCell>
                 </TableRow>
               )}

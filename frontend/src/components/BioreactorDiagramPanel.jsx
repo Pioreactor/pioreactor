@@ -6,7 +6,7 @@ import { useMQTT } from "../providers/MQTTContext";
 import {
   getBioreactorConfirmedValue,
   getBioreactorSubscriptionTopics,
-  parseNumericValue,
+  parseBioreactorPayload,
 } from "../utils/bioreactor";
 import BioreactorDiagram from "./BioreactorDiagram.jsx";
 
@@ -35,7 +35,7 @@ export default function BioreactorDiagramPanel({
 
     const parts = topic.toString().split("/");
     const variableName = parts[4];
-    const parsedValue = parseNumericValue(message.toString());
+    const parsedValue = parseBioreactorPayload(message);
     if (!variableName || parsedValue === null) {
       return;
     }

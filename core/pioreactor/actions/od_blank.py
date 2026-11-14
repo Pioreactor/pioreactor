@@ -51,8 +51,11 @@ def od_statistics(
 
         logger.info("Starting stirring.")
         st = start_stirring(
-            target_rpm=500, unit=unit, experiment=experiment, enable_dodging_od=False
-        )  # don't dodge - the interval is too low. 500 is a reasonable value.
+            target_rpm=config.getfloat("stirring.config", "initial_target_rpm", fallback=500),
+            unit=unit,
+            experiment=experiment,
+            enable_dodging_od=False,  # don't dodge - the interval is too low.
+        )
         st.block_until_rpm_is_close_to_target(timeout=40)  # wait for stirring to be reasonable.
     else:
         st = nullcontext()  # type: ignore
@@ -130,6 +133,7 @@ def od_blank(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
 ) -> dict[pt.PdChannel, pt.OD]:
+    from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
     from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 
     from pioreactor.hardware import require_photodiodes
@@ -148,9 +152,7 @@ def od_blank(
         raise click.Abort()
 
     with managed_lifecycle(unit, experiment, action_name):
-        with local_persistent_storage("ir_led_reference_normalization") as cache:
-            if testing_experiment in cache:
-                del cache[testing_experiment]
+        PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(testing_experiment)
 
         try:
             with start_photodiode_od_reading(
@@ -161,6 +163,16 @@ def od_blank(
                 fake_data=whoami.is_testing_env(),
                 calibration=True,
             ) as od_stream:
+                # Current invariant: a stored OD blank never coexists with an OD calibration or fused
+                # estimator, since od_reading refuses to start with both. Refuse here, where the blank is created.
+                if (
+                    od_stream.device.calibration_transformer.models
+                    or od_stream.device.estimator_transformer.estimator
+                ):
+                    raise ValueError(
+                        "OD blank is incompatible with an active OD calibration or fused estimator. Clear the active calibration or estimator first."
+                    )
+
                 means, _ = od_statistics(
                     od_stream,
                     action_name,
@@ -175,9 +187,7 @@ def od_blank(
             logger.error(e)
             raise e
         finally:
-            with local_persistent_storage("ir_led_reference_normalization") as cache:
-                if testing_experiment in cache:
-                    del cache[testing_experiment]
+            PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(testing_experiment)
 
         with local_persistent_storage(action_name) as cache:
             cache[experiment] = dumps(means)

@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import { useNavigate, useParams } from "react-router";
@@ -19,6 +20,7 @@ import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
 import StirringCalibrationBatchDialog from "./components/StirringCalibrationBatchDialog";
 import PioreactorsIcon from "./components/PioreactorsIcon";
 import { fetchTaskResult, getSuccessfulUnitTaskResults, getUnitTaskResult } from "./utils/tasks";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 import CircularProgress from "@mui/material/CircularProgress";
 import RequirementsAlert from "./components/RequirementsAlert";
 
@@ -217,9 +219,7 @@ function Protocols(props) {
     return deviceOptions[0];
   }, [device, deviceOptions]);
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   React.useEffect(() => {
     const fetchWorkers = async () => {
@@ -231,8 +231,7 @@ function Protocols(props) {
           throw new Error(`Failed to load workers (${response.status}).`);
         }
         const data = await response.json();
-        const units = data.map((worker) => worker.pioreactor_unit);
-        setWorkers(units);
+        setWorkers(sortNatural(data.map(byUnit)));
       } catch (err) {
         setWorkersError(err.message || "Failed to load workers.");
       } finally {

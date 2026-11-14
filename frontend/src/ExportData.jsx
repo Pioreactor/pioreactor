@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
@@ -24,7 +25,9 @@ import { useLocation } from "react-router";
 import { fetchTaskResult } from "./utils/tasks";
 import Snackbar from './components/Snackbar';
 import SelectButton from "./components/SelectButton";
+import PluginChip from "./components/PluginChip";
 import { useExperiment } from './providers/ExperimentContext';
+import EmptyState from "./components/EmptyState";
 
 
 const datasetDescription = {
@@ -37,7 +40,7 @@ const SYSTEM_EXPERIMENT_LABEL = "<System>";
 
 const DEFAULT_EXPORT_STATE = {
   experimentSelection: "",
-  partitionByUnitSelection: false,
+  partitionByUnitSelection: true,
   selectedDatasets: [],
   // Values from datetime-local inputs, interpreted in the browser's time zone on submission.
   startTime: null,
@@ -73,7 +76,9 @@ function parseExportStateFromSearch(search) {
   return {
     ...DEFAULT_EXPORT_STATE,
     experimentSelection,
-    partitionByUnitSelection: searchParams.get("partition_by_unit") === "true",
+    partitionByUnitSelection: searchParams.has("partition_by_unit")
+      ? searchParams.get("partition_by_unit") === "true"
+      : DEFAULT_EXPORT_STATE.partitionByUnitSelection,
     selectedDatasets,
     startTime,
     endTime,
@@ -187,7 +192,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/datasets/exportable/${dataset.dataset_name}/preview`);
+      const response = await fetch(`/api/datasets/exportable/${encodeURIComponent(dataset.dataset_name)}/preview`);
       const data = await response.json();
       setPreviewData(data);
     } catch (error) {
@@ -230,13 +235,13 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
       />
       {dataset.source !== "app" && (
         <Typography
-          sx={{ ml: "30px" }}
+          sx={{ ml: "30px", display: "block" }}
           variant="caption"
-          display="block"
+          component="div"
           gutterBottom
           color="textSecondary"
         >
-          {`Provided by ${dataset.source}`}
+          Provided by <PluginChip name={dataset.source} />
         </Typography>
       )}
       <Typography sx={datasetDescription}>{dataset.description}</Typography>
@@ -280,7 +285,8 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
         <AccordionDetails
           sx={{
             padding: 2,
-            borderTop: '1px solid rgba(0, 0, 0, .125)',
+            borderTop: 1,
+            borderColor: 'divider',
           }}
         >
           {isLoading ? (
@@ -312,7 +318,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
             <Typography color="textSecondary" sx={{fontSize: 12, m:2, mt: 1, md: 0}}>(Random sample from all experiments and units)</Typography>
             </>
           ) : (
-            <Typography>No preview data available.</Typography>
+            <EmptyState>No preview data available.</EmptyState>
           )}
         </AccordionDetails>
       </Accordion>
@@ -460,7 +466,6 @@ function ExportDataContainer() {
           body: JSON.stringify({
             experiment: experimentForExport,
             partition_by_unit: state.partitionByUnitSelection,
-            partition_by_experiment: true,
             datasets: state.selectedDatasets,
             start_time: state.useTimeFilter && state.startTime
               ? new Date(state.startTime).toISOString()
@@ -702,9 +707,7 @@ function ExportDataContainer() {
 
 
 function ExportData(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title]);
+    useDocumentTitle(props.title);
     return (
       <Grid container spacing={2} >
         <Grid

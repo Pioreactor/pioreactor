@@ -16,7 +16,12 @@ S = TypeVar("S")
 class TaskLike(Protocol):
     id: str
 
+class Task:
+    id: str
+    def __init__(self, args: Any = ..., kwargs: Any = ..., id: str | None = ..., **options: Any) -> None: ...
+
 class Result(Generic[R]):
+    def __init__(self, huey: Huey, task: Task) -> None: ...
     @property
     def id(self) -> str: ...
     def is_ready(self) -> bool: ...
@@ -129,6 +134,8 @@ class chord(Generic[R]):
 
 class Huey:
     storage: TaskStorage
+    def put(self, key: str, data: Any) -> bool: ...
+    def put_result(self, key: str, data: Any) -> bool: ...
     def task(
         self,
         retries: int = ...,

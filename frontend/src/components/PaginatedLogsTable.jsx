@@ -9,6 +9,7 @@ import Button from "@mui/material/Button";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -21,7 +22,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
-import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
+import LogMessage, { useClusterUnits } from "./LogMessage";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -37,7 +38,17 @@ const LEVELS = [
   "ERROR",
   "CRITICAL"
 ]
+// Live logs are prepended as they arrive; older rows remain reachable through "Load older logs".
+const MAX_LIVE_LOG_ROWS = 500;
+
+const getLiveLogTopics = (pioreactorUnit, experiment, logLevel) => {
+  const minLevelIndex = Math.max(0, LEVELS.indexOf(logLevel));
+  return LEVELS.slice(minLevelIndex).map(
+    (level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`
+  );
+};
 const HIGHLIGHTABLE_CHIP_SX = {
+  maxWidth: "none",
   userSelect: "text",
   WebkitUserSelect: "text",
   "& .MuiChip-icon": {
@@ -68,6 +79,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     return EMPTY_STATE_ILLUSTRATIONS[randomIndex];
   }, []);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const clusterUnits = useClusterUnits();
 
   const getAPIURL = (unit, onlyAssignedLogs, experiment) => {
     if (unit && experiment === "$experiment"){
@@ -132,7 +144,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
   };
 
   const toTimestampObject = (timestamp) => {
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    // Parse ISO 8601 without a format string: when customParseFormat is loaded, a format
+    // makes parsing strict and rejects dayjs objects and timestamps without milliseconds.
+    return dayjs.utc(timestamp);
   };
 
 
@@ -142,38 +156,34 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
 
     const unit = topic.toString().split('/')[1];
     const payload = JSON.parse(message.toString());
-    const levelOfMessage = payload.level.toUpperCase();
-
-    if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
-      return
-    }
 
     setListOfLogs((currentLogs) =>
       [
         {
           timestamp: toTimestampObject(payload.timestamp),
           pioreactor_unit: unit,
+          experiment: topic.toString().split('/')[2],
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
           key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
         },
-        ...currentLogs,
+        // Never drop rows the user explicitly paged in with "Load older logs".
+        ...currentLogs.slice(0, Math.max(MAX_LIVE_LOG_ROWS, skip) - 1),
       ]);
   });
 
   useEffect(() => {
-    if (experiment && client) {
-      subscribeToTopic(
-        LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
-        onLiveLogMessage,
-        'PagLogTable'
-      );
+    if (!experiment || !client) {
+      return undefined;
     }
+    // Subscribe only to the selected level and above, so the broker doesn't forward logs we'd discard.
+    const topics = getLiveLogTopics(pioreactorUnit, experiment, logLevel);
+    subscribeToTopic(topics, onLiveLogMessage, 'PagLogTable');
     return () => {
-      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
+      unsubscribeFromTopic(topics, 'PagLogTable');
     };
-  }, [client, experiment, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, logLevel, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSwitchChange = (event) => {
@@ -198,8 +208,8 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
       <Card sx={{ width: "100%" }}>
         <CardContent sx={{ width: "100%" }}>
           {hasLogs ? (
-            <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
-              <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
+            <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
+              <Table sx={{ minWidth: 600 }} stickyHeader size="small" aria-label="log table">
                 <colgroup>
                   <Box component="col" sx={{width:'15%'}}/>
                   <Box component="col" sx={{width:'10%'}}/>
@@ -220,7 +230,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                       <StyledTimeTableCell level={log.level}>
                         {timestampCell(log.timestamp)}
                       </StyledTimeTableCell>
-                      <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
+                      <StyledTableCell level={log.level}>
                         <Chip
                           size="small"
                           icon={<PioreactorIcon/>}
@@ -233,7 +243,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                         />
                       </StyledTableCell>
                       <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                      <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                      <StyledTableCell level={log.level}>
+                        <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
+                      </StyledTableCell>
                     </ZebraTableRow>
                   ))}
                 </TableBody>
@@ -242,9 +254,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           ) : showEmptyState ? (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "350px", gap: 2, textAlign: "center" }}>
               <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "350px", width: "100%", opacity: 0.8 }} />
-              <Box sx={{ color: "text.secondary", fontSize: "14px" }}>
+              <Typography variant="body2" component="p" color="text.secondary">
                 No logs yet. They will appear here once your Pioreactor starts reporting activity.
-              </Box>
+              </Typography>
             </Box>
           ) : (
             <Box sx={{ minHeight: "350px" }} />

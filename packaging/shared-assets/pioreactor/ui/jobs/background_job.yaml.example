@@ -8,13 +8,13 @@ published_settings:
   - key: rpm   # as defined in Python
     unit: RPM  #
     label: Stirring speed # human readable name
-    description: This description is displayed with an editable field in Manage / Settings.
+    description: This description is displayed with an editable field in Control / Parameters.
     type: numeric  # one of numeric, boolean, text
     display: true # true to display on the /Pioreactors card
     editable: true # false to prevent quick editing from the /Pioreactors card
   - key: something_else
     unit: lb
     label: Something else
-    description: This description is displayed with an editable field in Manage / Settings.
+    description: This description is displayed with an editable field in Control / Parameters.
     type: numeric # one of numeric, boolean, text
     display: true # true to display on the /Pioreactors card

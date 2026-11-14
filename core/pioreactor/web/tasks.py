@@ -32,6 +32,8 @@ from time import monotonic
 from time import sleep
 from typing import Any
 from typing import cast
+from typing import Literal
+from urllib.parse import quote
 from uuid import uuid4
 
 import huey.api as huey_api
@@ -44,11 +46,9 @@ from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import exc
-from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.camera import camera_auto_capture_is_enabled
-from pioreactor.camera import camera_is_enabled
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import CameraUnavailableError
@@ -59,6 +59,7 @@ from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import start_camera_warmer
 from pioreactor.camera import stop_camera_warmer
+from pioreactor.cli.pio import is_staged_release_archive
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
@@ -70,10 +71,14 @@ from pioreactor.mureq import Response
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.plugin_management import get_plugins
-from pioreactor.pubsub import delete_from
-from pioreactor.pubsub import get_from
-from pioreactor.pubsub import patch_into
-from pioreactor.pubsub import post_into
+from pioreactor.plugin_management.utils import get_package_plugin_display_name
+from pioreactor.plugin_management.utils import get_plugin_artifact_display_name
+from pioreactor.plugin_management.utils import get_plugin_display_name
+from pioreactor.plugin_management.utils import get_python_plugin_file_display_name
+from pioreactor.pubsub import delete_from_unit
+from pioreactor.pubsub import get_from_unit
+from pioreactor.pubsub import patch_into_unit
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import publish
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
@@ -94,6 +99,7 @@ CalibrationActionHandler = tuple[
     Callable[[Any], dict[str, Any]],
 ]
 FanoutResult = dict[str, Any]
+UnitApiMethod = Literal["GET", "POST", "PATCH", "DELETE"]
 
 # Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
@@ -128,7 +134,7 @@ def publish_latest_camera_still_task(
             retain=True,
         )
     except ConnectionRefusedError:
-        logger.debug(f"Unable to publish the latest camera still for {unit} in experiment `{experiment}`.")
+        logger.debug(f"Unable to publish the latest camera still for `{unit}` in experiment `{experiment}`.")
 
 
 def enqueue_latest_camera_still_publication(
@@ -155,7 +161,7 @@ def capture_camera_still_task(
         capture_reason="manual",
     )
     logger.debug(
-        f"User requested a manual camera snapshot {metadata.image_id} on {unit} "
+        f"User requested a manual camera snapshot {metadata.image_id} on `{unit}` "
         f"for experiment `{experiment}`."
     )
     if experiment is not None:
@@ -170,7 +176,7 @@ def capture_camera_focus_preview_task(
     session_id: str,
 ) -> dict[str, bool | int | None]:
     _, focus_score = capture_camera_focus_preview(unit, session_id)
-    logger.debug(f"User requested a manual-focus camera preview on {unit} for session `{session_id}`.")
+    logger.debug(f"User requested a manual-focus camera preview on `{unit}` for session `{session_id}`.")
     return {"captured": True, "focus_score": focus_score}
 
 
@@ -178,7 +184,7 @@ def capture_camera_focus_preview_task(
 def delete_camera_focus_preview_task(unit: str, session_id: str) -> dict[str, bool]:
     deleted = delete_camera_focus_preview(session_id)
     if deleted:
-        logger.debug(f"Deleted the manual-focus camera preview on {unit} for session `{session_id}`.")
+        logger.debug(f"Deleted the manual-focus camera preview on `{unit}` for session `{session_id}`.")
     return {"deleted": deleted}
 
 
@@ -202,9 +208,6 @@ def camera_snapshot_is_due(unit: str, experiment: str, interval_minutes: int) ->
 @periodic_task(crontab(minute="*"), priority=20)
 @huey.lock_task("camera-lock")
 def capture_camera_still_periodic_task() -> dict[str, Any]:
-    if not camera_is_enabled():
-        return {"captured": False, "reason": "camera_disabled"}
-
     interval_minutes = camera_snapshot_interval_minutes()
     if interval_minutes == 0 or not camera_auto_capture_is_enabled():
         return {"captured": False, "reason": "disabled"}
@@ -234,7 +237,7 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
     except CameraUnavailableError:
         return {"captured": False, "reason": "camera_unavailable"}
     except CameraCaptureError as error:
-        logger.debug(f"Scheduled camera capture failed on {unit}: {error}")
+        logger.debug(f"Scheduled camera capture failed on `{unit}`: {error}")
         return {"captured": False, "reason": "capture_failed", "error": str(error)}
 
     enqueue_latest_camera_still_publication(unit, experiment, metadata)
@@ -275,7 +278,6 @@ ALLOWED_ENV = (
     "TESTING",
     "HOSTNAME",
     "HARDWARE",
-    "ACTIVE",
     "FIRMWARE",
     "DEBUG",
     "MODEL_NAME",
@@ -434,6 +436,25 @@ def fanout_failure(
     }
 
 
+def unknown_operation_result(result: FanoutResult, task: dict[str, Any] | None = None) -> FanoutResult:
+    """An unobserved outcome never authorizes resubmitting the original operation."""
+    result = result | {"retryable": False, "outcome": "unknown", "recovery_action": "check_state"}
+    result["error"] = result["error"] | {
+        "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it."
+    }
+    if task is not None:
+        operation = {key: task[key] for key in ("task_id", "result_url_path") if key in task}
+        if operation:
+            result["operation"] = {"unit": result["unit"]} | operation
+        if "result_url_path" in operation:
+            result["recovery_action"] = "poll_task"
+            result["error"]["remediation"] = (
+                "The operation may still complete. "
+                "GET operation.result_url_path on operation.unit; do not resubmit it."
+            )
+    return result
+
+
 def fanout_result_succeeded(value: Any) -> bool:
     return isinstance(value, dict) and value.get("ok") is True and "value" in value
 
@@ -492,12 +513,15 @@ def _process_json_response(
                     cause=data.get("cause"),
                     remediation=data.get("remediation"),
                 )
-            return unit, fanout_failure(
-                unit,
-                "task_incomplete",
-                f"Unit task status is {data.get('status') or 'unknown'}.",
-                retryable=True,
-                status_code=response.status_code,
+            return unit, unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_incomplete",
+                    f"Unit task status is {data.get('status') or 'unknown'}.",
+                    retryable=False,
+                    status_code=response.status_code,
+                ),
+                data,
             )
         return unit, fanout_success(unit, data)
     return unit, fanout_failure(
@@ -520,20 +544,27 @@ def _process_delayed_json_response(
 ) -> tuple[str, Any]:
     """
     Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
-    Poll once immediately, then wait between subsequent pending polls.
+    Poll once immediately, then wait between subsequent pending polls. The wait starts at 50 ms and
+    doubles up to retry_sleep_s, since most unit tasks finish within ~100 ms of being accepted.
     Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
     remaining_attempts = max_attempts
+    pending_sleep_s = min(0.05, retry_sleep_s)
+    task_metadata: dict[str, Any] = {}
 
     while response.status_code == 202 and "result_url_path" in data:
+        task_metadata.update({key: data[key] for key in ("task_id", "result_url_path") if key in data})
         if remaining_attempts <= 0:
-            return unit, fanout_failure(
-                unit,
-                "task_timeout",
-                "Timed out waiting for unit task result.",
-                retryable=True,
-                status_code=response.status_code,
+            return unit, unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_timeout",
+                    "Timed out waiting for unit task result.",
+                    retryable=False,
+                    status_code=response.status_code,
+                ),
+                task_metadata,
             )
 
         endpoint = data["result_url_path"]
@@ -541,36 +572,43 @@ def _process_delayed_json_response(
 
         delayed_response: Response | None = None
         try:
-            delayed_response = get_from(address, endpoint, timeout=timeout)
+            delayed_response = get_from_unit(unit, endpoint, address=address, timeout=timeout)
             delayed_response.raise_for_status()
             response = delayed_response
             data = response.json()
         except (HTTPErrorStatus, HTTPException) as e:
             logger.debug(
-                f"Could not get from {unit}'s {address=}, {endpoint=}, sent json=None and returned {e}."
+                f"Could not get from `{unit}`'s {address=}, {endpoint=}, sent json=None and returned {e}."
                 f"{_summarize_unit_api_error(delayed_response)}"
             )
-            return unit, _fanout_failure_from_response(
-                unit,
-                delayed_response,
-                fallback_kind="http_error" if delayed_response is not None else "connection_error",
-                fallback_message=f"Could not GET from {unit}'s {endpoint}.",
-                retryable=delayed_response is None or delayed_response.status_code >= 500,
+            return unit, unknown_operation_result(
+                _fanout_failure_from_response(
+                    unit,
+                    delayed_response,
+                    fallback_kind="http_error" if delayed_response is not None else "connection_error",
+                    fallback_message=f"Could not GET from {unit}'s {endpoint}.",
+                    retryable=False,
+                ),
+                task_metadata,
             )
         except DecodeError:
             logger.debug(
-                f"Could not decode response from {unit}'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
+                f"Could not decode response from `{unit}`'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
             )
-            return unit, fanout_failure(
-                unit,
-                "decode_error",
-                f"Could not decode response from {unit}'s {endpoint}.",
-                retryable=False,
-                status_code=delayed_response.status_code if delayed_response is not None else None,
+            return unit, unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "decode_error",
+                    f"Could not decode response from {unit}'s {endpoint}.",
+                    retryable=False,
+                    status_code=delayed_response.status_code if delayed_response is not None else None,
+                ),
+                task_metadata,
             )
 
         if response.status_code == 202 and "result_url_path" in data:
-            sleep(retry_sleep_s)
+            sleep(pending_sleep_s)
+            pending_sleep_s = min(2 * pending_sleep_s, retry_sleep_s)
 
     return _process_json_response(unit, response, data)
 
@@ -585,7 +623,7 @@ def initialized() -> None:
     try:
         plugins = get_plugins()
         for plugin in plugins:
-            logger.debug(f"Loading plugin {plugin}")
+            logger.debug(f"Loading plugin `{plugin}`")
         start_camera_warmer()
     except Exception:
         raise
@@ -661,24 +699,33 @@ def add_new_pioreactor(
     if address:
         command.extend(["--address", address])
     logger.debug(f"Executing `{join(command)}`")
-    check_call(command)
+    result = run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        # `pio workers add` ends with `Error: <reason>`; the full output is in its logs. Fall back
+        # to the last line of output, e.g. a traceback's, or the exit code if there is none.
+        lines = result.stderr.strip().splitlines() or result.stdout.strip().splitlines()
+        error_lines = [line for line in lines if line.startswith("Error: ")]
+        if error_lines:
+            raise RuntimeError(error_lines[-1].removeprefix("Error: "))
+        raise RuntimeError(lines[-1] if lines else f"`pio workers add` exited with code {result.returncode}.")
     return True
 
 
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
-    result = hardware.check_model_hardware_compatibility(model_name, model_version)
-    result_status = result["status"]
+    from pioreactor.unit_model import check_model_hardware as _check_model_hardware
 
-    if result_status == "skipped":
-        logger.debug(f"Hardware check skipped on {get_unit_name()}: {result['reason']}")
-    elif result_status == "warning":
-        logger.warning(f"Hardware check failed on {get_unit_name()}: {result['reason']}")
-        result = {**result, "reason": result["reason"].split(": ", 1)[-1]}
-    elif result_status == "ok":
-        logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
+    return _check_model_hardware(model_name, model_version)
 
-    return result
+
+@huey.task(priority=10)
+def report_active_to_leader(is_active: bool) -> bool:
+    # A task, not inline, so the caller doesn't wait on the leader: up to the timeout when the
+    # leader is down, and inside the leader's own timeout when it forwarded the change.
+    from pioreactor.config import leader_address
+    from pioreactor.unit_active import report_active_to_leader as _report_active_to_leader
+
+    return _report_active_to_leader(leader_address, is_active)
 
 
 @huey.task()
@@ -710,6 +757,15 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
 
 @huey.task()
 def update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
+    try:
+        return _update_app_from_release_archive_across_cluster(archive_location, units)
+    finally:
+        # This task owns the staged archive: the leader's own update keeps it so it can be copied to workers.
+        if is_staged_release_archive(archive_location):
+            Path(archive_location).unlink(missing_ok=True)
+
+
+def _update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
     worker_archive_location = f"/tmp/{Path(archive_location).name}"
     leader = get_leader_hostname()
 
@@ -800,30 +856,6 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
 
 
 @huey.task()
-def update_app_from_release_archive_on_specific_pioreactors(
-    archive_location: str, pioreactors: list[str]
-) -> bool:
-    units_cli: tuple[str, ...] = sum((("--units", p) for p in pioreactors), tuple())
-
-    logger.debug(f"Updating app and ui on unit {pioreactors} from {archive_location}")
-    archive_copy_command = [PIOS_EXECUTABLE, "cp", archive_location, "-y", *units_cli]
-    run(archive_copy_command)
-
-    worker_update_command = [
-        PIOS_EXECUTABLE,
-        "update",
-        "app",
-        "--source",
-        archive_location,
-        "-y",
-        *units_cli,
-    ]
-    run(worker_update_command)
-
-    return True
-
-
-@huey.task()
 def pio(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
@@ -876,6 +908,7 @@ def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc:
 def calibration_measure_standard(
     rpm: float,
     channel_angle_map: dict[str, str],
+    experiment: str,
 ) -> dict[str, float]:
     from pioreactor.calibrations.protocols.od_standards import _measure_standard
 
@@ -890,6 +923,7 @@ def calibration_measure_standard(
     voltages = _measure_standard(
         rpm=rpm,
         channel_angle_map=typed_map,
+        experiment=experiment,
     )
     logger.debug("Finished OD standards measurement: rpm=%s", rpm)
     return {str(channel): float(voltage) for channel, voltage in voltages.items()}
@@ -937,6 +971,49 @@ def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict
 
 
 @huey.task()
+def update_calibration_measurements(
+    device: str,
+    calibration_name: str,
+    included: list[bool],
+    y_values: list[float] | None = None,
+    x_values: list[float] | None = None,
+) -> dict[str, Any]:
+    from pioreactor.calibrations import load_calibration
+    from pioreactor.calibrations.refit import refit_calibration
+
+    calibration = load_calibration(device, calibration_name)
+    candidate = refit_calibration(calibration, included, y_values, x_values)
+    candidate.save_to_disk_for_device(device)
+    result = to_builtins(candidate)
+    result["is_active"] = candidate.is_active(device)
+    result["pioreactor_unit"] = whoami.get_unit_name()
+    return result
+
+
+@huey.task()
+def update_worker_calibration_measurements(
+    unit: str,
+    device: str,
+    calibration_name: str,
+    included: list[bool],
+    y_values: list[float] | None = None,
+    x_values: list[float] | None = None,
+) -> dict[str, Any]:
+    from pioreactor.web.cache import invalidate_calibrations_cache
+
+    _, result = _request_unit(
+        "PATCH",
+        unit,
+        f"/unit_api/calibrations/{quote(device, safe='')}/{quote(calibration_name, safe='')}",
+        json={"included": included, "y_values": y_values, "x_values": x_values},
+        timeout=30.0,
+    )
+    # Invalidate after worker completion, including uncertain outcomes after network errors.
+    invalidate_calibrations_cache(unit)
+    return {unit: result}
+
+
+@huey.task()
 def calibration_save_calibration(device: str, calibration_payload: dict[str, object]) -> dict[str, str]:
     logger.debug(
         "Starting calibration save: device=%s payload_keys=%s",
@@ -981,9 +1058,7 @@ def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) 
 def calibration_read_voltage() -> float:
     from pioreactor.hardware import voltage_in_aux
 
-    logger.debug("Starting aux voltage read")
     voltage = float(voltage_in_aux())
-    logger.debug("Finished aux voltage read: voltage=%s", voltage)
     return voltage
 
 
@@ -999,10 +1074,6 @@ def _voltage_normalizer(result: Any) -> dict[str, Any]:
 
 def _voltages_normalizer(result: Any) -> dict[str, Any]:
     return {"voltages": result}
-
-
-def _od_readings_normalizer(result: Any) -> dict[str, Any]:
-    return {"od_readings": result}
 
 
 def _register_core_calibration_actions() -> None:
@@ -1025,6 +1096,7 @@ def _register_core_calibration_actions() -> None:
             calibration_measure_standard(
                 float(payload["rpm"]),
                 payload["channel_angle_map"],
+                payload["experiment"],
             ),
             "OD measurement",
             _voltages_normalizer,
@@ -1110,6 +1182,69 @@ def _register_core_calibration_actions() -> None:
 _register_core_calibration_actions()
 
 
+def execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+    from huey.exceptions import HueyException
+    from huey.exceptions import TaskException
+
+    handler = get_calibration_action(action)
+    task, error_label, normalize = handler(payload)
+    try:
+        result = task(blocking=True, timeout=300)
+    except TaskException as exc:
+        raise ValueError(f"{error_label} failed: {exc}") from exc
+    except HueyException as exc:
+        raise ValueError(f"{error_label} timed out.") from exc
+    return normalize(result)
+
+
+@huey.task()
+def advance_calibration_session_task(
+    session_id: str, inputs: dict[str, Any], expected_step_id: str | None = None
+) -> dict[str, Any]:
+    """
+    Advance a calibration session by one step and return {"session", "step"}.
+
+    Steps can wait minutes on hardware actions, which are Huey tasks themselves, so
+    this needs a consumer with at least two workers.
+    """
+    from pioreactor.calibrations.registry import get_protocol_for_session
+    from pioreactor.calibrations.session_flow import advance_session
+    from pioreactor.calibrations.session_flow import get_session_step
+    from pioreactor.calibrations.structured_session import load_calibration_session
+    from pioreactor.calibrations.structured_session import save_calibration_session
+
+    session = load_calibration_session(session_id)
+    if session is None:
+        raise ValueError("Calibration session not found.")
+    protocol = get_protocol_for_session(session)
+    step_registry = getattr(protocol, "step_registry", None)
+    if step_registry is None:
+        raise ValueError("Protocol does not define a step registry.")
+
+    # A retried wait check must not submit inputs to the form that follows it.
+    if expected_step_id is not None and session.step_id != expected_step_id:
+        step = get_session_step(step_registry, session)
+        return {"session": to_builtins(session), "step": to_builtins(step)}
+
+    session = advance_session(step_registry, session, inputs, executor=execute_calibration_action)
+
+    current = load_calibration_session(session_id)
+    if current is not None and current.status == "aborted":
+        # A step may have launched resources after abort's cleanup snapshot.
+        # Clean those up too, using the data returned by the in-flight step.
+        try:
+            protocol.on_session_abort(session, executor=execute_calibration_action)
+        except Exception as exc:
+            current.error = f"Calibration aborted by user. Cleanup failed: {exc}"
+            save_calibration_session(current)
+        session = current
+    else:
+        save_calibration_session(session)
+
+    step = get_session_step(step_registry, session)
+    return {"session": to_builtins(session), "step": to_builtins(step) if step is not None else None}
+
+
 def require_export_disk_space(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     free_bytes = shutil.disk_usage(output_dir).free
@@ -1131,7 +1266,6 @@ def export_experiment_data_task(
     start_time: str | None = None,
     end_time: str | None = None,
     partition_by_unit: bool = False,
-    partition_by_experiment: bool = True,
 ) -> dict[str, bool | str]:
     from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
@@ -1146,7 +1280,6 @@ def export_experiment_data_task(
                 "start_time": start_time,
                 "end_time": end_time,
                 "partition_by_unit": partition_by_unit,
-                "partition_by_experiment": partition_by_experiment,
             },
             separators=(",", ":"),
         ),
@@ -1169,7 +1302,6 @@ def export_experiment_data_task(
             start_time=start_time,
             end_time=end_time,
             partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
         )
     except Exception as exc:
         error = str(exc) or exc.__class__.__name__
@@ -1221,7 +1353,6 @@ def export_experiment_data_to_usb_task(
     start_time: str | None = None,
     end_time: str | None = None,
     partition_by_unit: bool = False,
-    partition_by_experiment: bool = True,
 ) -> dict[str, bool | str]:
     from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
@@ -1249,7 +1380,6 @@ def export_experiment_data_to_usb_task(
             start_time=start_time,
             end_time=end_time,
             partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
         )
     except Exception as exc:
         error = str(exc) or exc.__class__.__name__
@@ -1273,11 +1403,11 @@ def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
         cursor = conn.execute("DELETE FROM experiments WHERE experiment=?;", (experiment,))
         deleted = cursor.rowcount > 0
         logger.debug(
-            f"Deleting experiment {experiment!r}: SQL deletion finished in {monotonic() - started:.3f}s; committing."
+            f"Deleting experiment `{experiment}`: SQL deletion finished in {monotonic() - started:.3f}s; committing."
         )
         started = monotonic()
         conn.commit()
-        logger.debug(f"Deleting experiment {experiment!r}: commit finished in {monotonic() - started:.3f}s.")
+        logger.debug(f"Deleting experiment `{experiment}`: commit finished in {monotonic() - started:.3f}s.")
 
         if not deleted:
             raise ValueError(f"Experiment {experiment} not found.")
@@ -1297,19 +1427,19 @@ def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
 @huey.task()
 def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
     started = monotonic()
-    logger.debug(f"Deleting experiment {experiment!r}: task started.")
+    logger.debug(f"Deleting experiment `{experiment}`: task started.")
     # Stops and camera cleanup are best effort; deletion does not wait for their results.
-    endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
+    endpoint = f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills"
     try:
         for unit in units:
-            post_into_unit(unit, "/unit_api/jobs/stop", {"experiment": experiment})
-            delete_from_unit(unit, endpoint)
+            request_unit_task("POST", unit, "/unit_api/jobs/stop", {"experiment": experiment})
+            request_unit_task("DELETE", unit, endpoint)
         result = delete_experiment_records_task.call_local(experiment)
     except Exception:
-        logger.exception(f"Deleting experiment {experiment!r}: failed after {monotonic() - started:.3f}s.")
+        logger.exception(f"Deleting experiment `{experiment}`: failed after {monotonic() - started:.3f}s.")
         raise
     logger.debug(
-        f"Deleting experiment {experiment!r}: completed in {monotonic() - started:.3f}s (background stop and camera cleanup may still be running)."
+        f"Deleting experiment `{experiment}`: completed in {monotonic() - started:.3f}s (background stop and camera cleanup may still be running)."
     )
     return result
 
@@ -1349,7 +1479,7 @@ def kill_jobs_task(
 def install_plugin_task(name: str, source: str | None = None, version: str | None = None) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
-    logger.debug(f"Installing plugin {name}.")
+    logger.debug(f"Installing plugin `{get_package_plugin_display_name(name)}`.")
     try:
         install_plugin(name, source=source, version=version)
         return True
@@ -1369,7 +1499,8 @@ def _install_plugin_from_usb(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
     plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
-    logger.debug(f"Installing plugin from USB {plugin_path}.")
+    display_name = get_plugin_artifact_display_name(plugin_path)
+    logger.debug(f"Installing plugin `{display_name}` from USB.")
     try:
         if plugin_path.suffix == ".whl":
             plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
@@ -1379,15 +1510,16 @@ def _install_plugin_from_usb(filepath: str) -> bool:
         clear_plugin_cache()
         return True
     except Exception as exc:
-        logger.debug(f"Installing plugin from USB {plugin_path} failed: {exc}")
+        logger.debug(f"Installing plugin `{display_name}` from USB failed: {exc}")
         return False
 
 
 def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> dict[str, Any]:
     plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
     remote_source = f"/tmp/{plugin_path.name}"
+    display_name = get_plugin_artifact_display_name(plugin_path)
 
-    logger.debug(f"Copying USB plugin {plugin_path} to {unit}:{remote_source}.")
+    logger.debug(f"Copying plugin `{display_name}` from USB to `{unit}`.")
     cp_file_across_cluster(unit, plugin_path.as_posix(), remote_source, timeout=60)
 
     if plugin_path.suffix == ".whl":
@@ -1399,14 +1531,8 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
         payload = {"filename": plugin_path.name}
         install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
 
-    logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
-    response = post_into(
-        resolve_to_address(unit),
-        install_endpoint,
-        headers={"X-Pioreactor-Target": unit},
-        json=payload,
-        timeout=60,
-    )
+    logger.debug(f"Installing plugin `{display_name}` from USB on `{unit}`.")
+    response = post_into_unit(unit, install_endpoint, json=payload, timeout=60)
     response.raise_for_status()
 
     return {
@@ -1429,6 +1555,8 @@ def install_plugin_from_leader_usb_across_units_task(
     if not units:
         return _reduce_multicast_results(units, False, [])
 
+    # only for log messages; each unit validates the path itself, so don't fail the whole task here.
+    display_name = get_plugin_artifact_display_name(Path(filepath))
     ordered_results: list[Any] = []
     for unit in units:
         try:
@@ -1437,7 +1565,9 @@ def install_plugin_from_leader_usb_across_units_task(
             else:
                 ordered_results.append(_install_plugin_from_leader_usb_on_worker(unit, filepath))
         except Exception as exc:
-            logger.debug(f"Installing USB plugin on {unit} failed: {exc}", exc_info=True)
+            logger.debug(
+                f"Installing plugin `{display_name}` from USB on `{unit}` failed: {exc}", exc_info=True
+            )
             ordered_results.append(exc)
 
     return _reduce_multicast_results(units, False, ordered_results)
@@ -1463,7 +1593,9 @@ def install_python_plugin_file_from_leader_copy_task(filename: str) -> bool:
         clear_plugin_cache()
         return True
     except Exception as exc:
-        logger.debug(f"Installing copied Python plugin {plugin_path} failed: {exc}")
+        logger.debug(
+            f"Installing plugin `{get_python_plugin_file_display_name(plugin_path)}` from USB failed: {exc}"
+        )
         return False
 
 
@@ -1486,7 +1618,7 @@ def clear_plugin_cache() -> None:
 def uninstall_plugin_task(name: str) -> bool:
     from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin
 
-    logger.debug(f"Uninstalling plugin {name}.")
+    logger.debug(f"Uninstalling plugin `{get_plugin_display_name(name)}`.")
     try:
         uninstall_plugin(name)
         return True
@@ -1502,7 +1634,15 @@ def update_clock(new_time: str) -> bool:
     if whoami.is_testing_env():
         return True
     r = run(["sudo", "date", "-s", new_time])
-    return r.returncode == 0
+    if r.returncode != 0:
+        return False
+    # Persist the corrected time immediately instead of waiting for the periodic
+    # fake-hwclock save timer (up to ~15 min). Without an RTC, fake-hwclock is the
+    # only thing that carries the clock across a power cycle; if the unit reboots
+    # before the timer fires, the just-set time is lost and the clock reverts to a
+    # stale value. Non-fatal if the save unit is unavailable.
+    run(["sudo", "systemctl", "start", "fake-hwclock-save.service"])
+    return True
 
 
 @huey.task()
@@ -1674,6 +1814,15 @@ def reboot(wait: int = 0) -> bool:
 
 
 @huey.task()
+def leave_cluster_and_reboot(stop_activities: bool) -> bool:
+    from pioreactor.cluster_membership import leave_cluster
+
+    leave_cluster(stop_activities=stop_activities)
+    logger.info(f"{get_unit_name()} left the cluster.")
+    return reboot.call_local()
+
+
+@huey.task()
 @huey.rate_limit("web-restart", limit=1, per=15, retry=False)
 @huey.lock_task("web-restart-lock")
 def restart_pioreactor_web_target() -> bool:
@@ -1779,75 +1928,18 @@ def write_config_and_sync(
             f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units) + flags)}`, {env=}'
         )
 
-        result = run(
+        run(
             (PIOS_EXECUTABLE, "sync-configs", "--units", units) + flags,
             capture_output=True,
             text=True,
             env=env,
             check=True,
         )
-        if result.returncode != 0:
-            raise Exception(result.stderr.strip())
-
         return (True, "")
 
     except Exception as e:
         logger.debug(str(e))
         return (False, "Could not sync configs to all Pioreactors.")
-
-
-@huey.task(priority=10)
-def post_into_unit(
-    unit: str,
-    endpoint: str,
-    json: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
-    timeout: float = 30.0,
-) -> tuple[str, Any]:
-    r: Response | None = None
-    address: str | None = None
-    try:
-        address = resolve_to_address(unit)
-        r = post_into(
-            address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, params=params, timeout=2.0
-        )
-        r.raise_for_status()
-
-        if r.content is None:
-            return unit, fanout_success(unit, None)
-
-        # delayed or immediate JSON response
-        return _process_delayed_json_response(
-            unit,
-            address,
-            r,
-            max_attempts=_delayed_result_max_attempts(timeout),
-            timeout=timeout,
-        )
-
-    except (HTTPErrorStatus, HTTPException) as e:
-        logger.debug(
-            f"Could not post to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
-            f"{_summarize_unit_api_error(r)}"
-        )
-        return unit, _fanout_failure_from_response(
-            unit,
-            r,
-            fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not POST to {unit}'s {endpoint}.",
-            retryable=r is None or r.status_code >= 500,
-        )
-    except DecodeError:
-        logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
-        )
-        return unit, fanout_failure(
-            unit,
-            "decode_error",
-            f"Could not decode response from {unit}'s {endpoint}.",
-            retryable=False,
-            status_code=r.status_code if r is not None else None,
-        )
 
 
 def _reduce_multicast_results(
@@ -1861,11 +1953,13 @@ def _reduce_multicast_results(
         # Chord callbacks receive Error/SKIPPED; individual result reads below
         # can still produce exceptions or None when a fanout times out.
         if isinstance(result, Error):
-            results_by_unit[unit] = fanout_failure(
-                unit,
-                "task_exception",
-                result.metadata["error"],
-                retryable=True,
+            results_by_unit[unit] = unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_exception",
+                    result.metadata["error"],
+                    retryable=False,
+                )
             )
             continue
 
@@ -1879,30 +1973,29 @@ def _reduce_multicast_results(
             continue
 
         if isinstance(result, Exception):
-            results_by_unit[unit] = fanout_failure(
-                unit,
-                "task_exception",
-                str(result) or result.__class__.__name__,
-                retryable=True,
+            results_by_unit[unit] = unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_exception",
+                    str(result) or result.__class__.__name__,
+                    retryable=False,
+                )
             )
             continue
 
         if result is None:
-            results_by_unit[unit] = fanout_failure(
-                unit,
-                "missing_result",
-                "No result returned for unit.",
-                retryable=True,
+            results_by_unit[unit] = unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "missing_result",
+                    "No result returned for unit.",
+                    retryable=False,
+                )
             )
             continue
 
         if isinstance(result, tuple) and len(result) == 2:
-            _, response = result
-            if fanout_result_succeeded(response) or fanout_result_failed(response):
-                results_by_unit[unit] = response
-            else:
-                results_by_unit[unit] = fanout_success(unit, response)
-            continue
+            _, result = result
 
         if fanout_result_succeeded(result) or fanout_result_failed(result):
             results_by_unit[unit] = result
@@ -1983,58 +2076,54 @@ def _response_body_for_logging(response: Response | None) -> str:
         return repr(response.body)
 
 
-def multicast_post(
+def _send_to_unit(
+    method: UnitApiMethod,
+    unit: str,
     endpoint: str,
-    units: list[str],
-    json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
-    params: dict[str, Any] | list[dict[str, Any] | None] | None = None,
-    timeout: float = 30.0,
-) -> Any:
-    assert endpoint.startswith("/unit_api")
-
-    if not isinstance(json, list):
-        json = [json] * len(units)
-
-    assert json is not None
-
-    if not isinstance(params, list):
-        params = [params] * len(units)
-
-    if not units:
-        return reduce_multicast_results(units, False, [], child_task_ids=[])
-
-    return _enqueue_multicast_chord(
-        [post_into_unit.s(units[i], endpoint, json[i], params[i], timeout) for i in range(len(units))],
-        units,
-        False,
-    )
+    *,
+    address: str,
+    json: dict[str, Any] | None,
+    params: dict[str, Any] | None,
+    timeout: float,
+) -> Response:
+    if method == "GET":
+        return get_from_unit(unit, endpoint, address=address, json=json, params=params, timeout=timeout)
+    elif method == "POST":
+        return post_into_unit(unit, endpoint, json=json, params=params, address=address, timeout=timeout)
+    elif method == "PATCH":
+        return patch_into_unit(unit, endpoint, json=json, params=params, address=address, timeout=timeout)
+    else:
+        return delete_from_unit(unit, endpoint, address=address, json=json, params=params, timeout=timeout)
 
 
-@huey.task(priority=10)
-def get_from_unit(
+def _request_unit(
+    method: UnitApiMethod,
     unit: str,
     endpoint: str,
     json: dict[str, Any] | None = None,
-    timeout: float = 5.0,
-    return_raw: bool = False,
-) -> tuple[str, Any]:
-    return _get_from_unit(unit, endpoint, json=json, timeout=timeout, return_raw=return_raw)
-
-
-def _get_from_unit(
-    unit: str,
-    endpoint: str,
-    json: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
     timeout: float = 5.0,
     return_raw: bool = False,
     max_attempts: int | None = None,
 ) -> tuple[str, Any]:
+    """
+    Send one request to a unit's /unit_api and wrap the outcome in a fanout envelope. A 202 delayed task result is
+    polled until it finishes or `timeout` seconds of polling have passed.
+    """
     r: Response | None = None
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-
-        r = get_from(address, endpoint, json=json, timeout=timeout)
+        # A mutation is accepted quickly (usually as a delayed task), so only a GET waits the full timeout up front.
+        r = _send_to_unit(
+            method,
+            unit,
+            endpoint,
+            address=address,
+            json=json,
+            params=params,
+            timeout=timeout if method == "GET" else 2.0,
+        )
         r.raise_for_status()
 
         if return_raw:
@@ -2042,7 +2131,9 @@ def _get_from_unit(
             # Callers that need bytes unwrap at the route edge after checking ok.
             return unit, fanout_success(unit, r.content or None)
 
-        # delayed or immediate JSON response
+        if not r.content:
+            return unit, fanout_success(unit, None)
+
         return _process_delayed_json_response(
             unit,
             address,
@@ -2053,27 +2144,97 @@ def _get_from_unit(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not get from {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}."
+            f"Could not {method} `{unit}`'s {address=}, {endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
-        return unit, _fanout_failure_from_response(
+        failure = _fanout_failure_from_response(
             unit,
             r,
             fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not GET from {unit}'s {endpoint}.",
-            retryable=r is None or r.status_code >= 500,
+            fallback_message=f"Could not {method} {unit}'s {endpoint}.",
+            retryable=method == "GET" and (r is None or r.status_code >= 500),
         )
+        if method != "GET" and (r is None or r.status_code >= 500):
+            failure = unknown_operation_result(failure)
+        return unit, failure
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
+            f"Could not decode response from `{unit}`'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
-        return unit, fanout_failure(
+        failure = fanout_failure(
             unit,
             "decode_error",
             f"Could not decode response from {unit}'s {endpoint}.",
             retryable=False,
             status_code=r.status_code if r is not None else None,
         )
+        return unit, unknown_operation_result(failure) if method != "GET" else failure
+
+
+@huey.task(priority=10)
+def request_unit_task(
+    method: UnitApiMethod,
+    unit: str,
+    endpoint: str,
+    json: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
+    timeout: float = 30.0,
+    return_raw: bool = False,
+) -> tuple[str, Any]:
+    return _request_unit(
+        method, unit, endpoint, json=json, params=params, timeout=timeout, return_raw=return_raw
+    )
+
+
+def _multicast_signatures(
+    method: UnitApiMethod,
+    endpoint: str,
+    units: list[str],
+    json: dict[str, Any] | list[dict[str, Any] | None] | None,
+    params: dict[str, Any] | list[dict[str, Any] | None] | None,
+    timeout: float | None,
+    return_raw: bool,
+) -> list[Any]:
+    assert endpoint.startswith("/unit_api")
+    if timeout is None:
+        timeout = 5.0 if method == "GET" else 30.0
+    jsons = json if isinstance(json, list) else [json] * len(units)
+    params_per_unit = params if isinstance(params, list) else [params] * len(units)
+    # PATCHes (job setting changes) jump ahead of queued reads and other mutations.
+    priority = 50 if method == "PATCH" else None
+    return [
+        request_unit_task.s(
+            method, unit, endpoint, unit_json, unit_params, timeout, return_raw, priority=priority
+        )
+        for unit, unit_json, unit_params in zip(units, jsons, params_per_unit)
+    ]
+
+
+def multicast(
+    method: UnitApiMethod,
+    endpoint: str,
+    units: list[str],
+    json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
+    params: dict[str, Any] | list[dict[str, Any] | None] | None = None,
+    timeout: float | None = None,
+    return_raw: bool = False,
+) -> Any:
+    """
+    Send a request to each unit's /unit_api in parallel. json and params can be one value for every unit, or a
+    list with one entry per unit. The Huey result maps each unit to a fanout envelope; GET results are sorted by unit.
+
+    timeout defaults to 5s for GET and 30s for mutations, which may wait on a delayed task result.
+    """
+    sort_results = method == "GET"
+
+    if not units:
+        return reduce_multicast_results(units, sort_results, [], child_task_ids=[])
+
+    return _enqueue_multicast_chord(
+        _multicast_signatures(method, endpoint, units, json, params, timeout, return_raw),
+        units,
+        sort_results,
+    )
 
 
 def _multicast_get_uncached(
@@ -2083,16 +2244,11 @@ def _multicast_get_uncached(
     timeout: float = 5.0,
     return_raw: bool = False,
 ) -> dict[str, Any]:
-    assert endpoint.startswith("/unit_api")
-
-    if not isinstance(json, list):
-        json = [json] * len(units)
-
     if not units:
         return {}
 
     result = _enqueue_multicast_chord(
-        [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
+        _multicast_signatures("GET", endpoint, units, json, None, timeout, return_raw),
         units,
         True,
     )
@@ -2100,7 +2256,9 @@ def _multicast_get_uncached(
         # Give the aggregate Huey result a small amount of headroom beyond the per-unit
         # request timeout so offline workers can resolve to `None` instead of turning
         # the whole fanout into a ResultTimeout.
-        unsorted_responses = result.get(blocking=True, timeout=timeout + 1.0)
+        # A request is waiting on this, so recheck every 20 ms: Huey's default first sleeps 50 ms
+        # and then backs off, which adds up to ~50 ms to a fanout that takes ~30 ms.
+        return result.get(blocking=True, timeout=timeout + 1.0, max_delay=0.02)
     except ResultTimeout:
         ordered_results: list[Any] = []
         for child_result in result.results:
@@ -2111,158 +2269,53 @@ def _multicast_get_uncached(
 
         return _reduce_multicast_results(units, True, ordered_results)
 
-    return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
+
+def finished_task_result(value: Any) -> "huey_api.Result[Any]":
+    """Store a value that is already known as a finished task's result, so routes keep the task contract."""
+    result: "huey_api.Result[Any]" = huey_api.Result(huey, huey_api.Task())
+    huey.put_result(result.id, value)
+    return result
 
 
-def multicast_get(
-    endpoint: str,
+@huey.task(priority=10)
+def reduce_and_cache_multicast_get_results(
     units: list[str],
-    json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
-    timeout: float = 5.0,
-    return_raw: bool = False,
-) -> Any:
-    assert endpoint.startswith("/unit_api")
-
-    if not isinstance(json, list):
-        json = [json] * len(units)
-
-    if not units:
-        return reduce_multicast_results(units, True, [], child_task_ids=[])
-
-    return _enqueue_multicast_chord(
-        [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
-        units,
-        True,
-    )
-
-
-@huey.task(priority=5)
-def multicast_get_with_leader_cache(
+    ordered_results: list[Any],
+    *,
+    child_task_ids: list[str],
     cache_namespace: str,
     endpoint: str,
-    units: list[str],
-    timeout: float = 5.0,
-    ttl_s: float = 10.0,
+    cached_results: dict[str, Any],
 ) -> dict[str, Any]:
     # Keep this import lazy so plugins can import the calibration action registry without importing web.app.
     from pioreactor.web import cache
 
-    return cache.multicast_get_with_leader_cache(
-        cache_namespace=cache_namespace,
-        endpoint=endpoint,
-        units=units,
-        timeout=timeout,
-        ttl_s=ttl_s,
+    fetched_results = reduce_multicast_results.call_local(
+        units, True, ordered_results, child_task_ids=child_task_ids
     )
+    return cache.merge_and_cache_fetched_results(cache_namespace, endpoint, cached_results, fetched_results)
 
 
-@huey.task(priority=50)
-def patch_into_unit(
-    unit: str, endpoint: str, json: dict[str, Any] | None = None, timeout: float = 30.0
-) -> tuple[str, Any]:
-    r: Response | None = None
-    address: str | None = None
-    try:
-        address = resolve_to_address(unit)
-        r = patch_into(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
-        r.raise_for_status()
-
-        if r.content is None:
-            return unit, fanout_success(unit, None)
-
-        # delayed or immediate JSON response
-        return _process_delayed_json_response(
-            unit,
-            address,
-            r,
-            max_attempts=_delayed_result_max_attempts(timeout),
-            timeout=timeout,
-        )
-
-    except (HTTPErrorStatus, HTTPException) as e:
-        logger.debug(
-            f"Could not PATCH to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
-            f"{_summarize_unit_api_error(r)}"
-        )
-        return unit, _fanout_failure_from_response(
-            unit,
-            r,
-            fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not PATCH to {unit}'s {endpoint}.",
-            retryable=r is None or r.status_code >= 500,
-        )
-    except DecodeError:
-        logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
-        )
-        return unit, fanout_failure(
-            unit,
-            "decode_error",
-            f"Could not decode response from {unit}'s {endpoint}.",
-            retryable=False,
-            status_code=r.status_code if r is not None else None,
-        )
-
-
-def multicast_patch(
-    endpoint: str, units: list[str], json: dict[str, Any] | None = None, timeout: float = 30.0
+def multicast_get_and_cache(
+    cache_namespace: str,
+    endpoint: str,
+    units: list[str],
+    cached_results: dict[str, Any],
+    timeout: float = 5.0,
 ) -> Any:
     assert endpoint.startswith("/unit_api")
+    assert units
 
-    if not units:
-        return reduce_multicast_results(units, False, [], child_task_ids=[])
-
-    return _enqueue_multicast_chord(
-        [patch_into_unit.s(unit, endpoint, json, timeout) for unit in units],
-        units,
-        False,
-    )
-
-
-@huey.task(priority=10)
-def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
-    r: Response | None = None
-    address: str | None = None
-    try:
-        address = resolve_to_address(unit)
-        r = delete_from(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
-        r.raise_for_status()
-        return unit, fanout_success(unit, r.json() if r.content else None)
-    except (HTTPErrorStatus, HTTPException) as e:
-        logger.debug(
-            f"Could not DELETE {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection?"
-            f"{_summarize_unit_api_error(r)}"
+    task_signatures = _multicast_signatures("GET", endpoint, units, None, None, timeout, False)
+    return huey.enqueue(
+        huey_chord(
+            task_signatures,
+            reduce_and_cache_multicast_get_results.s(
+                units,
+                child_task_ids=[task_signature.id for task_signature in task_signatures],
+                cache_namespace=cache_namespace,
+                endpoint=endpoint,
+                cached_results=cached_results,
+            ),
         )
-        return unit, _fanout_failure_from_response(
-            unit,
-            r,
-            fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not DELETE {unit}'s {endpoint} at {address}.",
-            retryable=r is None or r.status_code >= 500,
-        )
-    except DecodeError:
-        logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
-        )
-        return unit, fanout_failure(
-            unit,
-            "decode_error",
-            f"Could not decode response from {unit}'s {endpoint}.",
-            retryable=False,
-            status_code=r.status_code if r is not None else None,
-        )
-
-
-def multicast_delete(
-    endpoint: str, units: list[str], json: dict[str, Any] | None = None, timeout: float = 30.0
-) -> Any:
-    assert endpoint.startswith("/unit_api")
-
-    if not units:
-        return reduce_multicast_results(units, False, [], child_task_ids=[])
-
-    return _enqueue_multicast_chord(
-        [delete_from_unit.s(unit, endpoint, json) for unit in units],
-        units,
-        False,
     )

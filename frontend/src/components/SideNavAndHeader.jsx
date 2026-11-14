@@ -24,7 +24,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import MuiLink from '@mui/material/Link';
 import {Box, AppBar, Typography, Button} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
 //import Icon2x2Grid from './Icon2x2Grid';
@@ -38,13 +37,14 @@ import { Link, useLocation } from 'react-router';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
-import CalibrationIcon from './CalibrationIcon';
+import CalibrationsIcon from './CalibrationsIcon';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import ExperimentsIcon from './ExperimentsIcon';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import whiteLogo from '../assets/white_colour.png';
 import { disconnectedGrey } from '../utils/color';
+import DialogCloseButton from "./DialogCloseButton";
 
 const ExpIcon = PlayCircleOutlinedIcon
 
@@ -80,10 +80,10 @@ function getUsbNavColor(status) {
   switch (status) {
     case "mounted":
     case "mounted_readonly":
-      return "#2FBB39";
+      return uiColors.online;
     case "unsupported":
     case "multiple_present":
-      return "#2FBB39";
+      return uiColors.online;
     default:
       return disconnectedGrey;
   }
@@ -242,7 +242,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
 
 
 
-export default function SideNavAndHeader({ cameraUIEnabled = false }) {
+export default function SideNavAndHeader() {
   const location = useLocation()
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -458,15 +458,14 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 >
                 Profiles
               </MenuItem>
-              {cameraUIEnabled && (
-                <MenuItem
-                  icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
-                  component={<Link to="/cameras" className="link" />}
-                  active={isSelected("/cameras")}
-                  >
-                  Cameras
-                </MenuItem>
-              )}
+
+              <MenuItem
+                icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
+                component={<Link to="/cameras" className="link" />}
+                active={isSelected("/cameras")}
+                >
+                Cameras
+              </MenuItem>
 
 
             <Divider sx={{mt: "15px", mb: "15px"}} />
@@ -544,7 +543,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                     pathnameMatchesAnySubmenu(location.pathname, ["calibrations", "protocols", "estimators"]) ||
                     isSelected("/calibration-coverage")
                   }
-                  icon={<CalibrationIcon sx={{fontSize: "23px"}}/> }
+                  icon={<CalibrationsIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/calibrations" className="link" />}
                   active={isSelected("/calibrations") || isSelected("/estimators") || isSelected("/protocols") || isSelected("/calibration-coverage")}
 
@@ -574,15 +573,6 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                   Experiments
                 </MenuItem>
 
-                <MenuItem
-                  icon={<DownloadOutlinedIcon sx={{fontSize: "23px"}}/> }
-                  component={<Link to="/export-data" className="link" />}
-                  active={isSelected("/export-data")}
-
-                  >
-                  Export data
-                </MenuItem>
-
 
                 <MenuItem
                   icon={<PluginsIcon sx={{fontSize: "23px"}}/> }
@@ -591,6 +581,16 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
                   >
                   Plugins
+                </MenuItem>
+
+
+                <MenuItem
+                  icon={<DownloadOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  component={<Link to="/export-data" className="link" />}
+                  active={isSelected("/export-data")}
+
+                  >
+                  Export data
                 </MenuItem>
 
                 <MenuItem
@@ -639,7 +639,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
               }}>
                 { lap &&
                   <Button color="inherit" component={Link} to={{pathname: "/inventory"}}>
-                    <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
+                    <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: `0 0 2px ${uiColors.online}, inset 0 0 12px ${uiColors.online}`}}/> LAP online
                   </Button>
                 }
                 {shouldShowDiskSpaceWarning(diskSpace) &&
@@ -676,13 +676,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
       <Dialog open={helpDialogOpen} onClose={closeHelpDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ pr: 6 }}>
           Help
-          <IconButton
-            aria-label="Close"
-            onClick={closeHelpDialog}
-            sx={{ position: "absolute", right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={closeHelpDialog} />
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} divider={<Divider flexItem />} sx={{ pt: 1 }}>

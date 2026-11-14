@@ -4,6 +4,7 @@ data_source: alt_media_fractions # SQL table
 title: "Fraction of volume that is alternative media"
 data_source_column: alt_media_fraction
 mqtt_topic: bioreactor/alt_media_fraction
+payload_key: value
 source: app
 y_axis_label: Fraction
 interpolation: stepAfter

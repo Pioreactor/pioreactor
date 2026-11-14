@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import { Link, useNavigate } from "react-router";
@@ -24,6 +25,7 @@ import {
   deriveCalibrationCoverageMatrix,
 } from "./utils/calibration_coverage_matrix";
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
+import { textIcon } from "./theme";
 
 function coverageCellCopyValue(cell) {
   if (cell?.status === COVERAGE_STATUS.ACTIVE) {
@@ -51,7 +53,6 @@ const HIGHLIGHTABLE_CHIP_SX = {
     WebkitUserSelect: "text",
   },
 };
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function CoverageCell({ cell, onNavigate }) {
   const hasLink = Boolean(cell?.detailPath);
@@ -59,7 +60,7 @@ function CoverageCell({ cell, onNavigate }) {
   const status = cell?.status;
 
   return (
-    <TableCell align="left" data-copy-value={coverageCellCopyValue(cell)} sx={{ minWidth: 180 }}>
+    <TableCell align="left" data-copy-value={coverageCellCopyValue(cell)} sx={{ minWidth: 140 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", minHeight: 32 }}>
         {status === COVERAGE_STATUS.ACTIVE && hasCalibrationLink && (
           <Chip
@@ -104,9 +105,7 @@ function CalibrationCoverage(props) {
   const [matrix, setMatrix] = React.useState({ units: [], devices: [], cells: {} });
   const navigate = useNavigate();
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   React.useEffect(() => {
     const load = async () => {
@@ -172,14 +171,14 @@ function CalibrationCoverage(props) {
                 <TableRow>
                   <TableCell
                     sx={{
-                      minWidth: 180,
+                      minWidth: 120,
                       backgroundColor: (theme) => theme.palette.action.hover,
                     }}
                   >
                     Pioreactor
                   </TableCell>
                   {matrix.devices.map((device) => (
-                    <TableCell key={device} align="left" sx={{ minWidth: 180 }}>
+                    <TableCell key={device} align="left" sx={{ minWidth: 140 }}>
                       {device}
                     </TableCell>
                   ))}

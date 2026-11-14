@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any
 from typing import Callable
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 import zeroconf
@@ -15,7 +16,6 @@ from pioreactor import bioreactor
 from pioreactor import structs
 from pioreactor.background_jobs.monitor import button_controls_enabled_from_config
 from pioreactor.background_jobs.monitor import Monitor
-from pioreactor.background_jobs.monitor import self_check_interval_hours_from_config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
@@ -28,6 +28,34 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 def pause(n=1):
     time.sleep(n * 0.5)
+
+
+@pytest.mark.parametrize(("leader", "status"), [(True, False), (False, True), (False, None)])
+def test_clock_sync_check_is_quiet(
+    monkeypatch: pytest.MonkeyPatch, leader: bool, status: bool | None
+) -> None:
+    monitor = object.__new__(Monitor)
+    monitor.logger = Mock()
+    probe = Mock(return_value=status)
+    monkeypatch.setattr("pioreactor.background_jobs.monitor.whoami.am_I_leader", lambda: leader)
+    monkeypatch.setattr("pioreactor.background_jobs.monitor.is_clock_synchronized", probe)
+
+    monitor.check_clock_sync()
+
+    monitor.logger.warning.assert_not_called()
+    if leader:
+        probe.assert_not_called()
+
+
+def test_clock_sync_warns_when_unsynchronised(monkeypatch: pytest.MonkeyPatch) -> None:
+    monitor = object.__new__(Monitor)
+    monitor.logger = Mock()
+    monkeypatch.setattr("pioreactor.background_jobs.monitor.whoami.am_I_leader", lambda: False)
+    monkeypatch.setattr("pioreactor.background_jobs.monitor.is_clock_synchronized", lambda: False)
+
+    monitor.check_clock_sync()
+
+    monitor.logger.warning.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -70,45 +98,14 @@ def test_monitor_button_controls_enabled_defaults_to_enabled_for_invalid_config(
     ]
 
 
-@pytest.mark.parametrize(
-    ("config_value", "expected"),
-    [
-        ("24", 24.0),
-        ("0.5", 0.5),
-        ("0", 0.0),
-    ],
-)
-def test_self_check_interval_hours_from_config(config_value: str, expected: float) -> None:
-    assert self_check_interval_hours_from_config(config_value) == expected
-
-
-@pytest.mark.parametrize("config_value", ["-1", "nope"])
-def test_self_check_interval_hours_from_config_rejects_negative_values(config_value: str) -> None:
-    with pytest.raises(ValueError):
-        self_check_interval_hours_from_config(config_value)
-
-
-def test_monitor_self_check_interval_hours_defaults_for_invalid_config(monkeypatch) -> None:
-    monitor = object.__new__(Monitor)
-    warning_messages: list[str] = []
-
-    monkeypatch.setattr(
-        "pioreactor.background_jobs.monitor.config.get",
-        lambda *_args, **_kwargs: "nope",
-    )
-    monitor.logger = cast(Any, SimpleNamespace(warning=warning_messages.append))
-
-    assert monitor.self_check_interval_hours() == 12
-    assert warning_messages == [
-        "[monitor.config] self_check_interval_hours must be a non-negative number. Defaulting to 12 hours."
-    ]
-
-
 def test_monitor_self_check_interval_zero_runs_once_without_starting_timer(monkeypatch) -> None:
     monitor = object.__new__(Monitor)
     calls: list[str] = []
 
-    monkeypatch.setattr(monitor, "self_check_interval_hours", lambda: 0.0)
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.monitor.config.getfloat",
+        lambda *_args, **_kwargs: 0.0,
+    )
     monkeypatch.setattr(monitor, "self_checks", lambda: calls.append("self_checks"))
 
     assert monitor.start_self_check_thread() is None
@@ -237,7 +234,9 @@ def test_monitor_projects_dosing_events_into_bioreactor() -> None:
     )
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.5)
-    assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(1.5 / 15.5)
+    assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(
+        1.5 / 15.5, abs=0.0001
+    )
 
 
 def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:

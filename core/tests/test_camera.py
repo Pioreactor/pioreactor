@@ -152,7 +152,6 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: 
         line.split("=", 1) for line in profile.read_text().splitlines() if line and not line.startswith("#")
     )
     assert settings == {
-        "tuning-file": "ov5647_noir_200ms.json",
         "mode": "2592:1944:10:P",
         "width": "2592",
         "height": "1944",
@@ -168,8 +167,7 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: 
         "quality": "75",
     }
 
-    assert "--tuning-file" not in arguments
-    tuning_file = profile.parent / settings["tuning-file"]
+    assert arguments[arguments.index("--tuning-file") + 1] == str(tuning_file)
     tuning = json_decode(tuning_file.read_bytes())
     agc = next(algorithm["rpi.agc"] for algorithm in tuning["algorithms"] if "rpi.agc" in algorithm)
 
@@ -179,7 +177,49 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: 
     }
 
 
-def test_rpicam_arguments_allow_a_custom_profile_without_overriding_its_tuning(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "machine", ["Raspberry Pi 4 Model B", "Raspberry Pi 5 Model B", "Raspberry Pi Compute Module 5"]
+)
+@pytest.mark.parametrize(
+    "tuning", ["", "tuning-file=ov5647_noir_200ms.json\n", "tuning-file=/custom/tuning.json\n"]
+)
+def test_rpicam_default_tuning_matches_platform(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, machine: str, tuning: str
+) -> None:
+    monkeypatch.setattr("pioreactor.camera.rpi_version_info", machine)
+    profile = tmp_path / "camera" / "viewing.conf"
+    profile.parent.mkdir()
+    profile.write_text(f"{tuning}quality=90\n")
+    arguments = get_rpicam_still_arguments("rpicam-still", 0, tmp_path)
+    assert arguments[arguments.index("--config") + 1] == str(profile)
+    if "5" in machine:
+        assert arguments[arguments.index("--tuning-file") + 1] == str(
+            profile.parent / "ov5647_noir_200ms_pisp.json"
+        )
+    else:
+        assert arguments[arguments.index("--tuning-file") + 1] == str(
+            profile.parent / "ov5647_noir_200ms.json"
+        )
+
+
+def test_pisp_tuning_and_update_assets() -> None:
+    root = Path(__file__).resolve().parents[2]
+    assets = root / "packaging/shared-assets/pioreactor/camera"
+    tuning = json_decode((assets / "ov5647_noir_200ms_pisp.json").read_bytes())
+    legacy = json_decode((assets / "ov5647_noir_200ms.json").read_bytes())
+    assert tuning["target"] == "pisp"
+    agc = next(a["rpi.agc"] for a in tuning["algorithms"] if "rpi.agc" in a)
+    legacy_agc = next(a["rpi.agc"] for a in legacy["algorithms"] if "rpi.agc" in a)
+    assert agc["channels"][0]["exposure_modes"]["normal"] == legacy_agc["exposure_modes"]["normal"]
+    for suffix in ("json", "LICENSE"):
+        name = f"ov5647_noir_200ms_pisp.{suffix}"
+        assert (assets / name).read_bytes() == (root / "core/update_scripts/upcoming" / name).read_bytes()
+
+
+def test_rpicam_arguments_allow_a_custom_profile_without_overriding_its_tuning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("pioreactor.camera.rpi_version_info", "Raspberry Pi 5 Model B")
     profile = tmp_path / "inference.conf"
     profile.write_text("tuning-file=/custom/inference.json\nsaturation=1\n", encoding="utf-8")
 

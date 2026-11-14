@@ -52,6 +52,7 @@ class FedBatch(DosingAutomationJob):
             experiment=self.experiment,
             mqtt_client=self.pub_client,
             logger=self.logger,
+            cancel_event=self._stop_pumping_event,
         )
         if vol != self.dosing_volume_ml:
             self.logger.warning("Under-dosed!")

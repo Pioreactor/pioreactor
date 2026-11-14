@@ -90,7 +90,7 @@ def test_create_client_max_connection_attempts_logs_locally(mock_client) -> None
     client_instance.connect.side_effect = socket.gaierror("Unable to resolve broker")
 
     max_connection_attempts = 3
-    with patch("pioreactor.logging.create_logger") as create_logger:
+    with patch("pioreactor.pubsub.create_logger") as create_logger:
         client = create_client(
             hostname=hostname,
             client_id="test-client",

@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 import pioreactor.types as pt
 from pioreactor.config import config
-from pioreactor.whoami import is_testing_env
 
 if TYPE_CHECKING:
     from pioreactor.utils.adcs import _I2C_ADC as _MockADCBase
@@ -111,7 +110,9 @@ class Mock_ADC(_MockADCBase):
     def read_from_channel(self) -> float:
         from pioreactor.utils import local_intermittent_storage
 
-        samples_per_second = config.getfloat("od_reading.config", "samples_per_second")
+        seconds_between_readings = config.getfloat(
+            "od_reading.config", "seconds_between_readings", fallback=5.0
+        )
         oversampling_count = 40.0
 
         with local_intermittent_storage("leds") as leds:
@@ -127,8 +128,8 @@ class Mock_ADC(_MockADCBase):
             ref_voltage = self._reference_voltage + random.normalvariate(0.0, 0.00015)
             return self.from_voltage_to_raw(ref_voltage)
 
-        dt = 1.0 / samples_per_second / oversampling_count
-        elapsed_seconds = self._counter / samples_per_second
+        dt = seconds_between_readings / oversampling_count
+        elapsed_seconds = self._counter * seconds_between_readings
 
         self.state *= math.exp(self.growth_rate(elapsed_seconds, am_i_REF) * dt / 60 / 60)
         self._counter += 1.0 / oversampling_count
@@ -253,24 +254,3 @@ class MockRpmCalculator:
 
     def clean_up(self) -> None:
         pass
-
-
-if is_testing_env():
-
-    class MockHardwarePWM:
-        def __init__(self, pwm_channel: int, hz: float, _chip: int = 0) -> None:
-            self.pwm_channel = pwm_channel
-            self._hz = hz
-            self.pwm_dir = ""
-
-        def is_overlay_loaded(self) -> bool:
-            return True
-
-        def is_export_writable(self) -> bool:
-            return True
-
-        def does_pwmX_exists(self) -> bool:
-            return True
-
-        def echo(self, m: int, _fil: str) -> None:
-            pass

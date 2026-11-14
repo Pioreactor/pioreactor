@@ -16,18 +16,13 @@ from typing import TYPE_CHECKING
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import get_leader_hostname
-from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
-from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as st
 from pioreactor.utils.networking import resolve_to_address as resolve_to_address
-from pioreactor.utils.signal_handlers import append_signal_handler
 from pioreactor.utils.signal_handlers import append_signal_handlers as append_signal_handlers
-from pioreactor.utils.signal_handlers import callable_stack
-from pioreactor.utils.signal_handlers import remove_signal_handler
 from pioreactor.utils.signal_handlers import remove_signal_handlers as remove_signal_handlers
 from pioreactor.utils.sqlite_cache import cache as cache
 from pioreactor.utils.sqlite_cache import local_intermittent_storage as local_intermittent_storage
@@ -330,6 +325,29 @@ def get_running_pio_job_id(job_name: str) -> int | None:
         return jm.get_running_job_id(job_name)
 
 
+def is_lock_owner_alive(owner: object) -> bool:
+    """
+    Soft locks (PWM, LED) store their owner as "<pid>:<token>". A lock whose owning process
+    has died (OOM, kill -9) is stale and can be reclaimed.
+    """
+    # Legacy/unknown values and permission errors are not proof of a dead owner.
+    if not isinstance(owner, str):
+        return True
+    parts = owner.split(":")
+    if len(parts) != 2 or not all(part.isdecimal() for part in parts):
+        return True
+    pid = int(parts[0])
+    if pid <= 0:
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def get_cpu_temperature() -> float:
     if whoami.is_testing_env():
         return 22.0
@@ -387,19 +405,9 @@ class SummableDict(dict):
 
     """
 
-    def __init__(self, *arg: object, **kwargs: object) -> None:
-        dict.__init__(self, *arg, **kwargs)
-
     def __add__(self, other: "SummableDict") -> "SummableDict":
-        s = SummableDict()
-        for key, value in self.items():
-            s[key] = value
-        for key, value in other.items():
-            if key in s:
-                s[key] = s[key] + value
-            else:
-                s[key] = value
-
+        s = SummableDict(self)
+        s += other
         return s
 
     def __iadd__(self, other: "SummableDict") -> "SummableDict":
@@ -411,12 +419,9 @@ class SummableDict(dict):
 
         return self
 
-    def __getitem__(self, key: Any) -> Any:
-        if key not in self:
-            # Missing keys use the additive identity so independent quantities can be summed directly.
-            return 0.0
-        else:
-            return dict.__getitem__(self, key)
+    def __missing__(self, key: Any) -> float:
+        # Missing keys use the additive identity so independent quantities can be summed directly.
+        return 0.0
 
 
 def boolean_retry(
@@ -431,9 +436,10 @@ def boolean_retry(
 
     """
     call_kwargs = {} if kwargs is None else kwargs
-    for _ in range(retries):
+    for attempt in range(retries):
         res = func(*args, **call_kwargs)
         if res:
             return res
-        time.sleep(sleep_for)
+        if attempt < retries - 1:
+            time.sleep(sleep_for)
     return False

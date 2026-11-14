@@ -40,8 +40,8 @@ export function TimeWindowSwitch({ timeWindow, setTimeWindow }) {
       size="small"
     >
       <ToggleButton value={1000000}>All time</ToggleButton>
-      <ToggleButton value={12}>Past 12h</ToggleButton>
-      <ToggleButton value={1}>Past hour</ToggleButton>
+      <ToggleButton value={12}>12h</ToggleButton>
+      <ToggleButton value={1}>1h</ToggleButton>
       <ToggleButton value={0}>Now</ToggleButton>
     </ToggleButtonGroup>
   );

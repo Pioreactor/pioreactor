@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from collections.abc import Callable
+from contextlib import contextmanager
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -7,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from msgspec.json import encode
 from msgspec.yaml import decode
+from pioreactor.actions.leader import experiment_profile as experiment_profile_module
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import check_plugins
 from pioreactor.actions.leader.experiment_profile import evaluate_options
@@ -36,6 +39,7 @@ from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import ODReading
@@ -175,9 +179,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
-            "ACTIVE": "1",
         },
         "config_overrides": [],
     }
@@ -191,9 +192,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
-            "ACTIVE": "1",
         },
         "config_overrides": [],
     }
@@ -206,13 +204,45 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
-            "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [],
     }
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_hack_for_led_intensity_translates_actions_nested_in_when(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    action = When(
+        hours_elapsed=0.0,
+        condition_="1 == 1",
+        actions=[
+            Update(hours_elapsed=0.0, options={"A": 40}),
+            Stop(hours_elapsed=0.1 / 60 / 60),
+        ],
+    )
+
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={"unit1": PioreactorSpecificBlock(jobs={"led_intensity": Job(actions=[action])})},
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert [request.url for request in bucket] == [
+        "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity",
+        "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity",
+    ]
+    assert bucket[0].json["options"] == {"A": 40}
+    assert bucket[1].json["options"] == {"A": 0, "B": 0, "C": 0, "D": 0}
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -259,20 +289,18 @@ def test_execute_experiment_profile_start_failure_is_logged(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
     mock__load_experiment_profile.return_value = profile
 
     def fake_post_into(
-        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str]
+        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str], body: None
     ) -> Response:
         assert address == "unit1.local"
         assert headers == {"X-Pioreactor-Target": "unit1"}
-        assert endpoint == "/unit_api/jobs/run/job_name/circulate_alt_media"
+        assert endpoint == "/unit_api/jobs/run/job_name/add_alt_media"
         return Response(
             address + endpoint,
             202,
@@ -281,7 +309,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
         )
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: object
     ) -> Response:
         assert address == "unit1.local"
         assert endpoint == "/unit_api/task_results/task-1"
@@ -303,18 +331,18 @@ def test_execute_experiment_profile_start_failure_is_logged(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=fake_post_into,
         ),
         patch(
-            "pioreactor.actions.leader.experiment_profile.get_from",
+            "pioreactor.pubsub.get_from",
             side_effect=fake_get_from,
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert "Failed to start `circulate_alt_media` on unit1." in caplog.text
+    assert "Failed to start `add_alt_media` on `unit1`." in caplog.text
     assert "Command exited during startup grace window." in caplog.text
 
 
@@ -327,9 +355,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -337,9 +363,9 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             return_value=Response(
-                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                "unit1.local/unit_api/jobs/run/job_name/add_alt_media",
                 409,
                 {},
                 encode(
@@ -370,9 +396,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -380,7 +404,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=HTTPException("[Errno 101] Network is unreachable"),
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
@@ -389,7 +413,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
         execute_experiment_profile("profile.yaml", experiment)
 
     assert (
-        "Unable to submit start command for `circulate_alt_media` to unit1 at unit1.local after 3 attempts. Is it online?"
+        "Unable to submit start command for `add_alt_media` to `unit1` at unit1.local after 3 attempts. Is it online?"
         in caplog.text
     )
 
@@ -403,9 +427,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -413,22 +435,189 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=[
                 HTTPException("[Errno 111] Connection refused"),
                 Response(
-                    "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                    "unit1.local/unit_api/jobs/run/job_name/add_alt_media",
                     200,
                     {},
                     encode({"result": {"ok": True}}),
                 ),
             ],
         ) as mock_post_into,
-        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
     assert mock_post_into.call_count == 2
+
+
+@contextmanager
+def capture_profile_stopper():
+    # yields a function that stops the running profile, like a user clicking Stop in the UI.
+    managed_jobs = []
+    real_lifecycle = experiment_profile_module.long_running_managed_lifecycle
+
+    def _capture_lifecycle(*args, **kwargs):
+        managed_job = real_lifecycle(*args, **kwargs)
+        managed_jobs.append(managed_job)
+        return managed_job
+
+    with patch(
+        "pioreactor.actions.leader.experiment_profile.long_running_managed_lifecycle",
+        side_effect=_capture_lifecycle,
+    ):
+        yield lambda: managed_jobs[0].exit_event.set()
+
+
+@contextmanager
+def stop_profile_during_first_job_start():
+    with capture_profile_stopper() as stop_profile:
+
+        def _post_then_stop(*args, **kwargs):
+            response = post_into_unit(*args, **kwargs)
+            stop_profile()
+            return response
+
+        with patch(
+            "pioreactor.actions.leader.experiment_profile.post_into_unit",
+            side_effect=_post_then_stop,
+        ):
+            yield
+
+
+def _is_profile_cleanup(request) -> bool:
+    # under TESTING the profile's job_key carries a suffix, ex: experiment_profile/1
+    return request.path == "/unit_api/jobs/stop" and request.json.get("job_source", "").startswith(
+        "experiment_profile"
+    )
+
+
+def _job_starts(bucket, job_name: str) -> list:
+    return [request for request in bucket if request.path == f"/unit_api/jobs/run/job_name/{job_name}"]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_stopping_profile_skips_actions_that_are_already_due(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "add_media": Job(
+                        actions=[
+                            Start(t="0s", options={"ml": 1}),
+                            Start(t="0s", options={"ml": 2}),
+                            Repeat(
+                                t="0s",
+                                every="1s",
+                                max_time="1s",
+                                actions=[Start(t="0s", options={"ml": 3})],
+                            ),
+                        ]
+                    )
+                }
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket, stop_profile_during_first_job_start():
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert [request.json["options"] for request in _job_starts(bucket, "add_media")] == [{"ml": 1}]
+    # the job that did start is still cleaned up
+    assert any(_is_profile_cleanup(request) for request in bucket)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_stopping_profile_skips_remaining_workers_in_common_action(
+    mock__load_experiment_profile, active_workers_in_cluster
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        common=CommonBlock(jobs={"stirring": Job(actions=[Start(t="0s")])}),
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+    assert len(active_workers_in_cluster) > 1
+
+    with capture_requests() as bucket, stop_profile_during_first_job_start():
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert len(_job_starts(bucket, "stirring")) == 1
+    stopped_units = {
+        request.headers["X-Pioreactor-Target"] for request in bucket if _is_profile_cleanup(request)
+    }
+    assert stopped_units == set(active_workers_in_cluster)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_profile_skips_unit_moved_to_another_experiment_even_with_experiment_env(
+    mock__load_experiment_profile, monkeypatch, mocker
+) -> None:
+    # profiles launched from the leader's API inherit EXPERIMENT; membership must still come from the leader.
+    experiment = "_testing_experiment"
+    monkeypatch.setenv("EXPERIMENT", experiment)
+
+    def leader_says_unit1_moved(endpoint, *args, **kwargs):
+        assert endpoint == "/api/workers/unit1/experiment"
+        response = MagicMock()
+        response.json.return_value = {"experiment": "another_experiment"}
+        return response
+
+    leader_lookup = mocker.patch("pioreactor.pubsub.get_from_leader", side_effect=leader_says_unit1_moved)
+
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={"unit1": PioreactorSpecificBlock(jobs={"stirring": Job(actions=[Start(t="0s")])})},
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert _job_starts(bucket, "stirring") == []
+    assert leader_lookup.called
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_stopping_profile_does_not_retry_failed_start_submit(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_profile_stopper() as stop_profile:
+
+        def _stop_then_fail(address, endpoint, *args, **kwargs):
+            if endpoint.startswith("/unit_api/jobs/run/"):
+                submitted.append(endpoint)
+                stop_profile()
+            raise HTTPException("[Errno 111] Connection refused")
+
+        submitted: list[str] = []
+        with patch("pioreactor.pubsub.post_into", side_effect=_stop_then_fail):
+            execute_experiment_profile("profile.yaml", experiment)
+
+    assert submitted == ["/unit_api/jobs/run/job_name/add_alt_media"]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -440,9 +629,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -450,16 +637,16 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             return_value=Response(
-                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                "unit1.local/unit_api/jobs/run/job_name/add_alt_media",
                 202,
                 {},
                 encode({"result_url_path": "/unit_api/task_results/task-1"}),
             ),
         ) as mock_post_into,
         patch(
-            "pioreactor.actions.leader.experiment_profile.get_from",
+            "pioreactor.pubsub.get_from",
             side_effect=HTTPException("timed out"),
         ),
         caplog.at_level("ERROR"),
@@ -468,7 +655,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 
     assert mock_post_into.call_count == 1
     assert (
-        "Submitted start command for `circulate_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
+        "Submitted start command for `add_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
         in caplog.text
     )
 
@@ -535,6 +722,40 @@ def test_execute_experiment_log_actions(
     assert lookup_topics and set(lookup_topics) == {f"pioreactor/{unit}/{experiment}/{job_name}/target"}
 
 
+def test_log_action_evaluates_mqtt_message_once_for_request_and_debug_log() -> None:
+    logger = MagicMock()
+    parent_job = MagicMock(exit_event=Event(), job_key="experiment_profile/1")
+
+    with (
+        patch(
+            "pioreactor.experiment_profiles.parser.subscribe",
+            side_effect=[SimpleNamespace(payload=b"10.5"), SimpleNamespace(payload=b"20.5")],
+        ) as mock_subscribe,
+        patch("pioreactor.actions.leader.experiment_profile.post_into_leader") as mock_post,
+    ):
+        experiment_profile_module.log(
+            "unit1",
+            "_testing_experiment",
+            parent_job,
+            "stirring",
+            False,
+            True,
+            {},
+            logger,
+            experiment_profile_module.ActionMetrics(),
+            _LogOptions(message="target=${{unit1:stirring:target_rpm}}"),
+        )()
+
+    mock_subscribe.assert_called_once_with(
+        "pioreactor/unit1/_testing_experiment/stirring/target_rpm", timeout=2.0
+    )
+    mock_post.assert_called_once()
+    assert mock_post.call_args.args == ("/api/workers/unit1/experiments/_testing_experiment/logs",)
+    assert mock_post.call_args.kwargs["json"]["message"] == "target=10.5"
+    logger.debug.assert_called_once_with("1. Logging message `target=10.5`")
+    logger.error.assert_not_called()
+
+
 @pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_and_stop_automations(
@@ -597,7 +818,7 @@ def test_update_job_batches_settings_into_one_request(options: dict[str, object]
         update_job(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             False,
             True,
@@ -632,7 +853,7 @@ def test_update_job_evaluates_dry_run_settings_once_without_http() -> None:
         update_job(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             True,
             True,
@@ -644,8 +865,8 @@ def test_update_job_evaluates_dry_run_settings_once_without_http() -> None:
 
     mock_evaluate_options.assert_called_once()
     assert [call.args[0] for call in logger.info.call_args_list] == [
-        "1. Dry-run: Updating target_rpm to 500.0 in stirring on unit1.",
-        "1. Dry-run: Updating duration to 2.5 in stirring on unit1.",
+        "1. Dry-run: Updating target_rpm to 500.0 in stirring on `unit1`.",
+        "1. Dry-run: Updating duration to 2.5 in stirring on `unit1`.",
     ]
     mock_patch.assert_not_called()
 
@@ -666,7 +887,7 @@ def test_pause_and_resume_job_patch_state_directly(
         action(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             False,
             True,
@@ -698,7 +919,7 @@ def test_update_job_reports_one_error_for_batched_request() -> None:
         update_job(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             False,
             True,
@@ -991,9 +1212,6 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
             "JOB_SOURCE": "experiment_profile/1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
-            "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [],
@@ -1272,15 +1490,6 @@ def test_execute_experiment_profile_expression_in_common(
                 "JOB_SOURCE": "experiment_profile/1",
                 "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
                 "TESTING": "1",
-                "ACTIVE": "1",
-                "MODEL_NAME": (
-                    "pioreactor_20ml"
-                    if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1"
-                    else "pioreactor_40ml"
-                ),
-                "MODEL_VERSION": (
-                    "1.1" if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1" else "1.0"
-                ),
             },
             "options": {
                 "target": 11.0,
@@ -1334,15 +1543,6 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
                 "JOB_SOURCE": "experiment_profile/1",
                 "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
                 "TESTING": "1",
-                "ACTIVE": "1",
-                "MODEL_NAME": (
-                    "pioreactor_20ml"
-                    if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1"
-                    else "pioreactor_40ml"
-                ),
-                "MODEL_VERSION": (
-                    "1.1" if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1" else "1.0"
-                ),
             },
             "options": {
                 "target": 11.0,
@@ -1855,9 +2055,6 @@ def test_execute_experiment_profile_with_config_overrides(
             "JOB_SOURCE": "experiment_profile/1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
-            "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [
@@ -1866,3 +2063,28 @@ def test_execute_experiment_profile_with_config_overrides(
             ["jobbing.config", "option3", "100"],
         ],
     }
+
+
+def test_push_labels_to_ui_logs_failures_and_continues_to_remaining_labels() -> None:
+    from pioreactor.actions.leader.experiment_profile import push_labels_to_ui
+
+    error_response = Response(
+        "leader.local/api/experiments/exp/unit_labels",
+        500,
+        {},
+        encode({"status": 500, "error": "Database is locked."}),
+    )
+    ok_response = Response("leader.local/api/experiments/exp/unit_labels", 200, {}, b"{}")
+    logger = MagicMock()
+
+    with patch(
+        "pioreactor.actions.leader.experiment_profile.put_into_leader",
+        side_effect=[HTTPException("connection refused"), error_response, ok_response],
+    ) as mock_put:
+        push_labels_to_ui("exp", {"unit1": "a", "unit2": "b", "unit3": "c"}, logger)
+
+    assert [call.kwargs["json"]["unit"] for call in mock_put.call_args_list] == ["unit1", "unit2", "unit3"]
+    assert logger.warning.call_count == 2
+    first_warning, second_warning = (call.args[0] for call in logger.warning.call_args_list)
+    assert "unit1" in first_warning and "connection refused" in first_warning
+    assert "unit2" in second_warning and "Database is locked." in second_warning

@@ -5,7 +5,7 @@ import os
 # Append ".dev0" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "26.10.1.dev0"
+__version__ = "26.12.1.dev0"
 
 
 def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:
@@ -24,17 +24,6 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:
     except FileNotFoundError:
         # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written, or cable exists between HAT and Pi -> signal degradation.
         return None
-
-
-def get_product_from_id() -> str:
-    try:
-        # check version in /proc/device-tree/hat/
-        with open("/proc/device-tree/hat/product_id", "r") as f:
-            id_ = int(f.read().rstrip("\x00"), 16)
-            return {1: "Pioreactor HAT"}.get(id_, "Unknown")
-    except FileNotFoundError:
-        # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
-        return "Unknown"
 
 
 def get_serial_number() -> str:

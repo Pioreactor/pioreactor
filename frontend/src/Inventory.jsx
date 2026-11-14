@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useCallback} from "react";
@@ -22,10 +23,8 @@ import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
-import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import CheckIcon from '@mui/icons-material/Check';
@@ -39,6 +38,7 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
 import { getConfig } from "./utils/config";
+import { byUnit, compareNatural, sortNatural } from "./utils/naturalSort";
 import { disconnectedGrey, lostRed, inactiveGrey, readyGreen } from "./utils/color";
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import Snackbar from './components/Snackbar';
@@ -48,13 +48,15 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SelfTestDialog from "./components/SelfTestDialog";
-import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { checkTaskCallback, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { experimentPathSegment } from "./utils/url";
 import { getJobDescriptor } from "./utils/jobs";
 
 
 
 import { useExperiment } from './providers/ExperimentContext';
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
 function useSelfTestJobDefinition() {
   const [definition, setDefinition] = useState(null);
@@ -91,7 +93,6 @@ function parsePayloadToType(payloadString, typeOfSetting) {
   return payloadString;
 }
 
-const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 function Header(props) {
   const leaderHostname = props.config?.["cluster.topology"]?.leader_hostname ?? null;
@@ -214,28 +215,37 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
           'Content-Type': 'application/json'
         },
     })
-    .then(response => {
+    .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(formatWorkerSetupErrorMessage(data))
+        }
+        // Setup can take a few minutes: finding the worker, SSH, then the worker configures itself.
+        await checkTaskCallback(data.result_url_path, {maxRetries: 600, delayMs: 1000})
+    })
+    .then(() => {
+        setIsSuccess(true)
+        setName("")
+        setIpv4Address("")
+        setWorkers((prevWorkers) => [
+          ...prevWorkers,
+          {
+            pioreactor_unit: name,
+            is_active: true,
+            model_name: model[0],
+            model_version: model[1],
+            ipv4_address: requestBody.ipv4_address || null,
+          },
+        ].sort((a, b) => compareNatural(a.pioreactor_unit, b.pioreactor_unit)))
+        setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
+    })
+    .catch((err) => {
+        setIsError(true)
+        setErrorMsg(err.message)
+    })
+    .finally(() => {
         setIsRunning(false)
         setExpectedPathMsg("")
-        if(!response.ok){
-          setIsError(true)
-          response.json().then(data => setErrorMsg(formatWorkerSetupErrorMessage(data)))
-        } else {
-          setIsSuccess(true)
-          setName("")
-          setIpv4Address("")
-          setWorkers((prevWorkers) => [
-            ...prevWorkers,
-            {
-              pioreactor_unit: name,
-              is_active: true,
-              model_name: model[0],
-              model_version: model[1],
-              ipv4_address: requestBody.ipv4_address || null,
-            },
-          ].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
-          setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
-        }
     })
   }
 
@@ -259,18 +269,7 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
         Add a new Pioreactor to your cluster
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       </DialogTitle>
       <DialogContent>
         <p>First, follow the <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">worker setup instructions</a> to set up your new Pioreactor's worker software.</p>
@@ -539,10 +538,10 @@ function WorkerCard({
       return lostRed
     }
     else if (state === null){
-      return "#ececec"
+      return uiColors.noData
     }
     else {
-      return "#2FBB39"
+      return uiColors.online
     }
   }
 
@@ -859,7 +858,6 @@ function WorkerCard({
             label={null}
             selfTestState={selfTestJob ? selfTestJob.state : null}
             selfTestTests={selfTestJob}
-            cameraEnabled={config.camera?.enabled === "1"}
           />
           <Unassign
             unit={unit}
@@ -977,27 +975,29 @@ function InventoryDisplay({
                 />
               </Grid>
             )}
-            <Grid key="add-new" size={{ md: 6, xs: 12, sm: 12 }}>
-              <Card
-                variant="outlined"
-                onClick={() => document.getElementById('add-new-pioreactor-button')?.click()}
-                sx={{
-                  minWidth: 275,
-                  minHeight: 360,
-                  border: '2px dashed rgb(200, 200, 200)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}>
-                <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={uiColors.textSecondary}/>
-                  <Typography color="text.secondary" align="center">
-                    Add new Pioreactor
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            {workers.length < 4 && (
+              <Grid key="add-new" size={{ md: 6, xs: 12, sm: 12 }}>
+                <Card
+                  variant="outlined"
+                  onClick={() => document.getElementById('add-new-pioreactor-button')?.click()}
+                  sx={{
+                    minWidth: 275,
+                    minHeight: 360,
+                    border: `2px dashed ${uiColors.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}>
+                  <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={uiColors.textSecondary}/>
+                    <Typography color="text.secondary" align="center">
+                      Add new Pioreactor
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
           </>
         )}
     </Grid>
@@ -1013,9 +1013,7 @@ function Inventory({title}) {
   const [isLoading, setIsLoading] = useState(true);
   const locallyChangedAssignments = React.useRef(new Set());
 
-  useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   useEffect(() => {
     let isActive = true;
@@ -1034,7 +1032,7 @@ function Inventory({title}) {
         }
         const data = await response.json();
         if (isActive) {
-          setWorkers(data);
+          setWorkers(sortNatural(data, byUnit));
         }
       } catch (error) {
         console.error('Error fetching workers:', error);
@@ -1150,7 +1148,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
     }).catch(() => {});
   };
@@ -1162,7 +1161,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
     }).catch(() => {});
   };
@@ -1181,7 +1181,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -1222,7 +1222,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -1304,7 +1304,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -1317,12 +1317,13 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
 
   const handleRemove = () => {
     confirm({
-      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove its inventory record and shared configuration. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, remove shared configuration, and reboot. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       fetch(`/api/workers/${unit}`, {method: "DELETE"})
       .then((response) => {
         if (response.ok){

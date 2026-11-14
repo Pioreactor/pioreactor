@@ -2,6 +2,7 @@
 import configparser
 import os
 import re
+import tempfile
 from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
@@ -21,6 +22,15 @@ else:
 _FALLBACK_SENTINEL: Final = object()
 _CONFIGPARSER_UNSET: Final = getattr(configparser, "_UNSET")
 
+# (section, option) entries that are recreated from their replacements for backwards compatibility.
+_DEPRECATED_OPTIONS: Final = {
+    (
+        "od_reading.config",
+        "samples_per_second",
+    ): "`samples_per_second` in [od_reading.config] is deprecated and will be removed in a future version. Use `seconds_between_readings` instead (samples_per_second = 1 / seconds_between_readings).",
+}
+_warned_deprecated_options: set[tuple[str, str]] = set()
+
 
 def __getattr__(attr: str) -> Any:
     """
@@ -34,7 +44,14 @@ def __getattr__(attr: str) -> Any:
     elif attr == "mqtt_address":
         return _get_mqtt_address()
     else:
-        raise AttributeError
+        raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
+
+
+def normalize_ini_text(code: str) -> str:
+    # https://github.com/Pioreactor/pioreactor/issues/539
+    code = code.replace(chr(8211), chr(45))
+    code = code.replace(chr(8212), chr(45))
+    return code
 
 
 class ConfigParserMod(configparser.ConfigParser):
@@ -52,9 +69,7 @@ class ConfigParserMod(configparser.ConfigParser):
         """
         creates an inverted lookup from a config section. Useful to find LEDs and PWM.
         """
-        section_without_empties = {k: v for k, v in self[section].items() if v != ""}
-        reversed_section = {v: k for k, v in section_without_empties.items()}
-        return reversed_section
+        return {v: k for k, v in self[section].items() if v != ""}
 
     def _get_conv(  # type: ignore[override]
         self,
@@ -68,6 +83,9 @@ class ConfigParserMod(configparser.ConfigParser):
         **kwargs: Any,
     ) -> Any:
         fallback_provided = fallback is not _FALLBACK_SENTINEL and fallback is not _CONFIGPARSER_UNSET
+        if fallback_provided and vars is None and not self.has_option(section, option):
+            # configparser doesn't pass the fallback down to `get`, which would log the option as missing.
+            return fallback
 
         try:
             if not fallback_provided:
@@ -93,6 +111,9 @@ class ConfigParserMod(configparser.ConfigParser):
     ) -> Any:
         kwargs_for_super: dict[str, Any] = {"raw": raw, "vars": vars}
         fallback_provided = fallback is not _FALLBACK_SENTINEL
+        if isinstance(fallback, str) and fallback.lower() in self.BOOLEAN_STATES:
+            # configparser returns a fallback as-is, and a string like "false" is truthy.
+            fallback = self.BOOLEAN_STATES[fallback.lower()]
 
         try:
             if fallback_provided:
@@ -115,11 +136,17 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
 
-            logger.debug(msg)
+            logger.warning(msg)
             raise
 
     def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
         fallback = kwargs.get("fallback", _CONFIGPARSER_UNSET)
+
+        if (section, option) in _DEPRECATED_OPTIONS and (section, option) not in _warned_deprecated_options:
+            _warned_deprecated_options.add((section, option))
+            from pioreactor.logging import create_logger
+
+            create_logger("read config").debug(_DEPRECATED_OPTIONS[(section, option)])  # warning is too noisy
 
         try:
             return super().get(section, option, *args, **kwargs)
@@ -129,7 +156,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
             from pioreactor.logging import create_logger
 
-            create_logger("read config").debug(
+            create_logger("read config").warning(
                 f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
@@ -181,6 +208,52 @@ def replace_or_append_config_entry(
     return newline.join(new_lines) + newline
 
 
+def write_config_text(config_path: Path, config_text: str) -> None:
+    """Atomically replace a config file, after checking that the new text parses."""
+    ConfigParserMod(strict=False).read_string(config_text)
+
+    existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=config_path.parent,
+        delete=False,
+    ) as temporary_file:
+        temporary_file.write(config_text)
+        os.fchmod(temporary_file.fileno(), existing_mode)
+        temporary_path = Path(temporary_file.name)
+
+    temporary_path.replace(config_path)
+
+
+def remove_config_values_in_file(config_path: Path, entries: list[tuple[str, str]]) -> None:
+    """Remove (section, key) entries from a config file, keeping its comments and layout."""
+    # iniparse, unlike configparser, keeps comments and layout when written back.
+    from iniparse import INIConfig  # type: ignore[import-untyped]
+
+    if not config_path.is_file():
+        return
+
+    with config_path.open(encoding="utf-8") as file:
+        ini = INIConfig(file)
+    sections = list(ini)
+    present = [
+        (section, key) for section, key in entries if section in sections and key in list(ini[section])
+    ]
+    for section, key in present:
+        del ini[section][key]
+    if present:
+        write_config_text(config_path, str(ini))
+
+
+def set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
+    current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    write_config_text(
+        config_path, replace_or_append_config_entry(current_text, section_name, parameter_name, value)
+    )
+
+
 def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:
     if "leds" in config:
         config["leds_reverse"] = config.invert_section("leds")
@@ -192,6 +265,20 @@ def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:
         for channel, value in list(config["od_config.photodiode_channel"].items()):
             if value == "":
                 config.remove_option("od_config.photodiode_channel", channel)
+
+    # recreate the deprecated samples_per_second from seconds_between_readings, for plugins and scripts that still read it.
+    if (
+        "od_reading.config" in config
+        and config.has_option("od_reading.config", "seconds_between_readings")
+        and not config.has_option("od_reading.config", "samples_per_second")
+    ):
+        try:
+            seconds_between_readings = float(config["od_reading.config"]["seconds_between_readings"])
+        except ValueError:
+            pass
+        else:
+            if seconds_between_readings > 0:
+                config.set("od_reading.config", "samples_per_second", str(1 / seconds_between_readings))
 
     # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
     if "cluster.addresses" not in config:
@@ -249,7 +336,8 @@ def get_config() -> ConfigParserMod:
     Locally, `config.ini` configurations can be overwritten by `unit_config.ini` (hence the very
     specific order we use in `config.read`)
 
-    We also insert some **dynamic** config sections: PWM_reverse and leds_reverse. Ex: `PWM` is
+    We also insert some **dynamic** config sections: PWM_reverse and leds_reverse, and the deprecated
+    `samples_per_second` in [od_reading.config], derived from `seconds_between_readings`. Ex: `PWM` is
     designed for users to edit:
 
         [PWM]

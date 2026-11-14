@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { useState, useEffect, Fragment } from 'react';
 
 import Select from '@mui/material/Select';
@@ -16,6 +17,8 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';
 import PioreactorsIcon from './components/PioreactorsIcon';
 import { experimentPathSegment } from "./utils/url";
+import { byUnit, sortNatural } from "./utils/naturalSort";
+import { textIcon } from "./theme";
 
 function Logs(props) {
 
@@ -35,9 +38,7 @@ function Logs(props) {
   }, [logLevel]);
 
 
-  useEffect(() => {
-    document.title = props.title;
-  }, [props.title])
+  useDocumentTitle(props.title);
 
   useEffect(() => {
     async function fetchWorkers(experiment) {
@@ -45,7 +46,7 @@ function Logs(props) {
         const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/historical_worker_assignments`);
         if (response.ok) {
           const units = await response.json();
-          setAssignedUnits(units.map(u => u.pioreactor_unit));
+          setAssignedUnits(sortNatural(units.map(byUnit)));
         } else {
           console.error('Failed to fetch workers:', response.statusText);
         }
@@ -126,7 +127,6 @@ function Logs(props) {
                   variant="standard"
                   value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
                   onChange={onSelectionChange}
-
                   sx={{
                     "& .MuiSelect-select": {
                       paddingY: 0,
@@ -139,7 +139,7 @@ function Logs(props) {
                   {assignedUnits.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All assigned</MenuItem>
                 </Select>
               </Typography>
             </Box>
@@ -154,7 +154,7 @@ function Logs(props) {
                 onSubmit={handleSubmitDialog}
               />
               <Button to={exportLogsHref} component={Link} sx={{ mr: "0px"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export logs
+                <DownloadIcon fontSize="small" sx={textIcon}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>

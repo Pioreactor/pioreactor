@@ -593,12 +593,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.wait()
 
     def block_until_ready(self, timeout: float) -> bool:
-        if self.state == self.DISCONNECTED:
+        if self._shutdown_started or self.state == self.DISCONNECTED:
             return False
 
         deadline = time() + timeout
         while self.state != self.READY:
-            if self.state == self.DISCONNECTED:
+            if self._shutdown_started or self.state == self.DISCONNECTED:
                 return False
             if time() >= deadline:
                 self.logger.debug("Timed out waiting for READY.")
@@ -847,9 +847,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.clean_up()
             raise e
 
-        self._log_state(self.state)
-
     def ready(self) -> None:
+        starting = self.state != JobState.SLEEPING
         self.state = JobState.READY
 
         try:
@@ -859,7 +858,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_ready:")
             self.logger.debug(e, exc_info=True)
 
-        self._log_state(self.state)
+        if starting:
+            self.logger.info("Started.")
 
     def sleeping(self) -> None:
         self.state = JobState.SLEEPING
@@ -871,11 +871,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_sleeping:")
             self.logger.debug(e, exc_info=True)
 
-        self._log_state(self.state)
-
     def lost(self) -> None:
         self.state = JobState.LOST
-        self._log_state(self.state)
+        self.logger.debug("Lost.")
 
     def disconnected(self) -> None:
         # call job specific on_disconnected to clean up subjobs, etc.
@@ -892,7 +890,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
         self.state = JobState.DISCONNECTED
-        self._log_state(self.state)
+        self.logger.info("Stopped.")
 
         # we "set" the internal event, which will cause any event.waits to end blocking. This should happen last.
         self._blocking_event.set()
@@ -971,12 +969,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if hasattr(self, name):
                 self._publish_setting(name)
 
-    def _log_state(self, state: JobState) -> None:
-        if state in {JobState.READY, JobState.DISCONNECTED, JobState.LOST}:
-            self.logger.info(state.capitalize() + ".")
-        else:
-            self.logger.debug(state.capitalize() + ".")
-
     def _set_attr_from_message(self, message: pt.MQTTMessage) -> None:
         def get_attr_from_topic(topic: str) -> str:
             pieces = topic.split("/")
@@ -1014,6 +1006,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
             getattr(self, f"set_{attr}")(new_value)
         else:
             setattr(self, attr, new_value)
+
+        if attr == "state":
+            # pause/resume are logged only here, so programmatic sleep/ready toggles stay quiet.
+            if (previous_value, self.state) == (JobState.READY, JobState.SLEEPING):
+                self.logger.info("Paused.")
+            elif (previous_value, self.state) == (JobState.SLEEPING, JobState.READY):
+                self.logger.info("Resumed.")
+            return
 
         units = self.published_settings[attr].get("unit")
         self.logger.info(
@@ -1134,7 +1134,7 @@ class BackgroundJob(_BackgroundJob):
         # Current invariant: worker jobs cannot start on an inactive unit.
         if not is_active(unit):
             raise NotActiveWorkerError(
-                f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
+                f"{unit} is not active. Make it active from the leader's Inventory page, or run `pio active set 1` on {unit}."
             )
         super().__init__(unit, experiment, source="app")
 
@@ -1252,7 +1252,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # Current invariant: OD-dodging worker jobs cannot start on an inactive unit.
         if not is_active(unit):
             raise NotActiveWorkerError(
-                f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
+                f"{unit} is not active. Make it active from the leader's Inventory page, or run `pio active set 1` on {unit}."
             )
 
         super().__init__(unit, experiment, source=source)
@@ -1436,7 +1436,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
             self.logger.error(
-                f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1 / ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
+                f"Your {pre_delay=} or {post_delay=} is too high for the seconds_between_readings={ads_interval}. Either decrease pre_delay or post_delay, or increase seconds_between_readings"
             )
             self.clean_up()
             return

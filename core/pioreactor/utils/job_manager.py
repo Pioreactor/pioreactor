@@ -12,8 +12,7 @@ from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.exc import JobRequiredError
 from pioreactor.exc import RoleError
-from pioreactor.pubsub import post_into
-from pioreactor.utils.networking import resolve_to_address
+from pioreactor.pubsub import post_into_unit
 from pioreactor.utils.timing import catchtime
 
 
@@ -169,7 +168,10 @@ class JobManager:
                 )
 
         except sqlite3.IntegrityError:
-            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {setting=} and {value=}.")
+            import os
+
+            pid = os.getpid()
+            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {pid=}, {setting=} and {value=}.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW') WHERE job_id=(?)"
@@ -185,6 +187,14 @@ class JobManager:
 
     def is_job_running(self, job_name: str) -> bool:
         return self.get_running_job_id(job_name) is not None
+
+    def count_running_jobs(self, *, include_long_running_jobs: bool) -> int:
+        """Count running jobs, optionally excluding long-running services."""
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM pio_job_metadata WHERE is_running=1 AND (? OR is_long_running_job=0)",
+            (include_long_running_jobs,),
+        )
+        return int(self.cursor.fetchone()[0])
 
     def get_running_job_id(self, job_name: str) -> int | None:
         select_query = """
@@ -235,12 +245,12 @@ class JobManager:
                     pid,
                     job_id,
                     CASE
-                        WHEN job_name LIKE "%pump%" THEN 1
-                        WHEN job_name LIKE "%temperature%" THEN 1
-                        WHEN job_name LIKE "%heat%" THEN 1
-                        WHEN job_name LIKE "%pwm%" THEN 1
-                        WHEN job_name LIKE "%_automation" THEN 2
-                        WHEN job_name = "led_intensity" THEN 100
+                        WHEN job_name LIKE '%pump%' THEN 1
+                        WHEN job_name LIKE '%temperature%' THEN 1
+                        WHEN job_name LIKE '%heat%' THEN 1
+                        WHEN job_name LIKE '%pwm%' THEN 1
+                        WHEN job_name LIKE '%_automation' THEN 2
+                        WHEN job_name = 'led_intensity' THEN 100
                     END as priority
                 FROM pio_job_metadata
                 WHERE is_running=1
@@ -258,11 +268,11 @@ class JobManager:
                     pid,
                     job_id,
                     CASE
-                        WHEN job_name LIKE "%pump%" THEN 1
-                        WHEN job_name LIKE "%pwm%" THEN 1
-                        WHEN job_name LIKE "%temperature%" THEN 2
-                        WHEN job_name LIKE "%heat%" THEN 2
-                        WHEN job_name LIKE "%_automation" THEN 3
+                        WHEN job_name LIKE '%pump%' THEN 1
+                        WHEN job_name LIKE '%pwm%' THEN 1
+                        WHEN job_name LIKE '%temperature%' THEN 2
+                        WHEN job_name LIKE '%heat%' THEN 2
+                        WHEN job_name LIKE '%_automation' THEN 3
                         ELSE 5
                     END as priority
                  FROM pio_job_metadata WHERE is_running=1 AND is_long_running_job=0
@@ -407,9 +417,7 @@ class ClusterJobManager:
 
         def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), endpoint, headers={"X-Pioreactor-Target": unit}, json=body
-                )
+                r = post_into_unit(unit, endpoint, json=body)
                 r.raise_for_status()
                 return True, r.json()
             except Exception as e:

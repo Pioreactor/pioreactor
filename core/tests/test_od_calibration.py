@@ -38,25 +38,77 @@ def test_analyze() -> None:
     assert len(loaded_cal.curve_data_.coefficients) == 3
 
 
+@pytest.mark.parametrize("fit", ["poly", "spline"])
+def test_analyze_produces_reproducible_unanchored_calibration(fit: str) -> None:
+    # The zero-OD observation is an ordinary measurement, not an implicit constraint.
+    cal = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_data_=structs.PolyFitCoefficients(
+            coefficients=[
+                -0.009124890919507432,
+                0.05407609911685577,
+                0.018930870855710855,
+                0.0008976697259911073,
+            ]
+        ),
+        calibration_name=f"test_unanchored_{uuid4().hex}",
+        ir_led_intensity=80.0,
+        angle="90",
+        recorded_data={
+            "x": [0.035, 0.1575, 0.337, 0.599, 1.037, 1.58, 2.203, 4.112, 0.0],
+            "y": [
+                0.0014172847597772925,
+                0.0063852726292845385,
+                0.017265524020566546,
+                0.03447678457829678,
+                0.0633929056237781,
+                0.1268558919741471,
+                0.21046957853974058,
+                0.358428297140704,
+                0.00024270398714387712,
+            ],
+        },
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+    cal.save_to_disk_for_device("od90")
+    try:
+        result = CliRunner().invoke(
+            analyze_calibration,
+            ["--device", "od90", "--name", cal.calibration_name, "--fit", fit],
+            input="d\n3\ny\n" if fit == "poly" else "y\n",
+        )
+        assert result.exception is None, result.output
+        refitted = load_calibration("od90", cal.calibration_name)
+        assert isinstance(refitted, structs.OD600Calibration)
+        from pioreactor.calibrations.refit import refit_calibration
+
+        assert refitted.recorded_data == cal.recorded_data
+        recreated = refit_calibration(refitted, [True] * len(refitted.recorded_data["x"]))
+        for x in refitted.recorded_data["x"]:
+            assert recreated.x_to_y(x) == pytest.approx(refitted.x_to_y(x), abs=1e-10)
+    finally:
+        cal.path_on_disk_for_device("od90").unlink()
+
+
 @pytest.mark.slow
-def test_run_od_standards() -> None:
+@pytest.mark.parametrize("rpm", [0, 500])
+def test_run_od_standards(rpm: float) -> None:
     calibration_name = f"od-cal-{uuid4().hex}"
     input_ = "\n".join(
         [
             "",
             calibration_name,
-            "500",
+            "4",
+            str(rpm),
+            "",
+            "0.0",
             "",
             "1",
             "",
-            "",
             "0.5",
             "",
-            "",
             "0.1",
-            "continue to blank (media only)",
-            "",
-            "0.0",
             "y",
         ]
     )
@@ -68,7 +120,7 @@ def test_run_od_standards() -> None:
         assert cal.curve_data_.type == "spline"
         assert cal.x == "OD600"
         assert cal.y == "Voltage"
-        assert len(cal.recorded_data["x"]) == 4
+        assert cal.recorded_data["x"] == [0.0, 1.0, 0.5, 0.1]
 
     active_cal = load_active_calibration("od90")
     assert active_cal is not None

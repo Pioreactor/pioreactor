@@ -40,6 +40,7 @@ from pioreactor.states import JobState
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.sqlite_cache import cache as SqliteCache
+from pioreactor.version import rpi_version_info
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
@@ -153,10 +154,6 @@ def camera_should_be_kept_active() -> bool:
     )
 
 
-def camera_is_enabled() -> bool:
-    return config.getboolean("camera", "enabled", fallback=False)
-
-
 def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
     if backend == "v4l2":
         return shutil.which("fswebcam")
@@ -177,10 +174,11 @@ def get_rpicam_still_arguments(
 ) -> list[str]:
     """Build invocation arguments; run with cwd set to the returned config path's parent."""
     root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
+    use_default_profile = capture_profile is None
     if capture_profile is None:
         capture_profile = root / "camera" / "viewing.conf"
 
-    return [
+    arguments = [
         command,
         "--camera",
         str(camera_index),
@@ -188,6 +186,13 @@ def get_rpicam_still_arguments(
         "--config",
         capture_profile.absolute().as_posix(),
     ]
+    # The default OV5647 profile uses platform-specific bundled tuning.
+    # Explicit custom profiles own their tuning selection.
+    if use_default_profile:
+        uses_pisp = rpi_version_info.startswith(("Raspberry Pi 5", "Raspberry Pi Compute Module 5"))
+        filename = "ov5647_noir_200ms_pisp.json" if uses_pisp else "ov5647_noir_200ms.json"
+        arguments += ["--tuning-file", (root / "camera" / filename).absolute().as_posix()]
+    return arguments
 
 
 def camera_warmer_runtime_paths() -> tuple[Path, Path, Path, Path]:
@@ -518,6 +523,23 @@ def clear_camera_hardware_detection_cache() -> None:
     camera_hardware_detection_cache.clear()
 
 
+def get_camera_detection_status(dot_pioreactor: Path | None = None) -> CameraDetectionStatus:
+    """Detect the configured camera without capturing or storing an image."""
+    backend = get_camera_capture_backend()
+    camera_index = get_camera_index() if backend == "rpicam" else None
+    device_path = get_camera_device_path() if backend == "v4l2" else None
+    capture_command = find_camera_capture_command(backend)
+    if dev_camera_stills_are_available(dot_pioreactor):
+        return "detected"
+    if capture_command is None:
+        return "unknown"
+    if backend == "rpicam":
+        assert camera_index is not None
+        return get_cached_rpicam_camera_detection_status(capture_command, camera_index)
+    assert device_path is not None
+    return get_v4l2_camera_detection_status(device_path)
+
+
 def camera_auto_capture_is_enabled() -> bool:
     with local_persistent_storage(CAMERA_SETTINGS_CACHE_NAME) as storage:
         return storage.getboolean(AUTO_CAPTURE_ENABLED_KEY, fallback=True)
@@ -551,20 +573,9 @@ def get_camera_status(
     dot_pioreactor: Path | None = None,
 ) -> dict[str, object]:
     backend = get_camera_capture_backend()
-    camera_index = get_camera_index() if backend == "rpicam" else None
-    device_path = get_camera_device_path() if backend == "v4l2" else None
     capture_command = find_camera_capture_command(backend)
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
-    if dev_stills_available:
-        detection_status: CameraDetectionStatus = "detected"
-    elif capture_command is None:
-        detection_status = "unknown"
-    elif backend == "rpicam":
-        assert camera_index is not None
-        detection_status = get_cached_rpicam_camera_detection_status(capture_command, camera_index)
-    else:
-        assert device_path is not None
-        detection_status = get_v4l2_camera_detection_status(device_path)
+    detection_status = get_camera_detection_status(dot_pioreactor)
     latest_metadata = load_latest_camera_still_metadata(
         unit, experiment=experiment, dot_pioreactor=dot_pioreactor
     )
@@ -1041,15 +1052,9 @@ def rename_camera_still(
 
     source_image_path.rename(destination_image_path)
     try:
-        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
-            storage.cursor.execute("BEGIN IMMEDIATE")
-            try:
-                storage[new_image_id] = json_encode(renamed_metadata)
-                storage.pop(image_id)
-                storage.conn.commit()
-            except Exception:
-                storage.conn.rollback()
-                raise
+        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage, storage.transaction():
+            storage[new_image_id] = json_encode(renamed_metadata)
+            storage.pop(image_id)
     except Exception:
         destination_image_path.rename(source_image_path)
         raise

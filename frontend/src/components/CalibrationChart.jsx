@@ -11,7 +11,6 @@ import Checkbox from "@mui/material/Checkbox";
 import ListItemText from "@mui/material/ListItemText";
 import DownloadIcon from "@mui/icons-material/Download";
 import SettingsIcon from "@mui/icons-material/SettingsOutlined";
-import Typography from '@mui/material/Typography';
 import { Link } from 'react-router';
 
 import {
@@ -24,7 +23,8 @@ import {
   VictoryTooltip,
   LineSegment
 } from "victory";
-import { generateCurveData } from "../utils/curve_utils";
+import { generateCurveData, includedCalibrationPoints } from "../utils/curve_utils";
+import EmptyState from "./EmptyState";
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   const chartTheme = useChartTheme();
@@ -167,10 +167,10 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   };
 
   if (!deviceName){
-    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</Typography></Box>
+    return <EmptyState>No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</EmptyState>
   }
   else if (!calibrations || calibrations.length === 0) {
-    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}><Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography></Box>;
+    return <EmptyState>No calibrations to plot for {deviceName}.</EmptyState>;
   }
 
   // Assume the x and y fields match across all calibrations for a device
@@ -179,6 +179,8 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   const isHighlighted = (calibration) => {
     return (calibration.pioreactor_unit === highlightedModel.pioreactorUnit && calibration.calibration_name === highlightedModel.calibrationName);
   }
+  // While a row is hovered, fade the other calibrations so the highlighted one stands out.
+  const isDimmed = (calibration) => highlightedModel.calibrationName != null && !isHighlighted(calibration);
 
   const width = 1050
   return (
@@ -295,10 +297,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
         {calibrations.map((cal) => {
           // Convert recorded_data into an array of {x, y} for scatter
-          const scatterData = (cal.recorded_data?.x || []).map((xVal, i) => ({
-            x: xVal,
-            y: cal.recorded_data.y?.[i] ?? null,
-          }));
+          const scatterData = includedCalibrationPoints(cal);
           const filteredScatterData = filterDataForScale(scatterData);
 
           // Simple color selection (optional)
@@ -308,7 +307,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
               <VictoryScatter
                 key={cal.calibration_name}
                 data={filteredScatterData}
-                style={{ data: { fill: color, fillOpacity: 0.8, } }}
+                style={{ data: { fill: color, fillOpacity: isDimmed(cal) ? 0.2 : 0.8, } }}
                 size={isHighlighted(cal) ? 4 : 3}
               />
           );
@@ -334,7 +333,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                   data: {
                     stroke: color,
                     strokeWidth: isHighlighted(cal) ? 4 : baseLineWidth,
-                    opacity: lineOpacity,
+                    opacity: isDimmed(cal) ? 0.2 : lineOpacity,
                   },
                 }}
               />

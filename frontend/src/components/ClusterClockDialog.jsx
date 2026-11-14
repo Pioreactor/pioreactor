@@ -9,7 +9,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -17,10 +16,10 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
-import CloseIcon from "@mui/icons-material/Close";
 import { Link } from "react-router";
 import PioreactorIcon from "./PioreactorIcon";
 import { checkTaskCallback, getSuccessfulUnitTaskResults } from "../utils/tasks";
+import DialogCloseButton from "./DialogCloseButton";
 
 dayjs.extend(utc);
 
@@ -129,13 +128,7 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ pr: 6 }}>
         Cluster clocks
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
       </DialogTitle>
       <DialogContent>
         {loading && (

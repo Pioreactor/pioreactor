@@ -69,4 +69,6 @@ const theme = createTheme({
   },
 });
 
+export const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
+
 export default theme;

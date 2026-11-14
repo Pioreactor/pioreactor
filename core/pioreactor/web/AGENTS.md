@@ -1,5 +1,7 @@
 **web directory summary**
 
+`$experiment` (`UNIVERSAL_EXPERIMENT`) is an intentional virtual experiment for self-tests and system activity, not a missing user-created experiment. Telemetry, logs, and historical-worker queries may contain it without an `experiments` row. Keep named-experiment metadata/edit validation separate from these paths. Preserve virtual rows when joining optional experiment metadata; elapsed time is undefined without a start time. The MQTT writer deliberately permits these records, although `PRAGMA foreign_key_check` may report them. See the root `AGENTS.md` database guidance before changing enforcement or migration checks.
+
 This project is a Flask-based backend for the Pioreactor UI. The codebase exposes two main sets of REST endpoints: one for the leader node (`/api`) and one for individual workers (`/unit_api`). MQTT is used for logging and coordination, while Huey handles asynchronous tasks such as executing `pio` commands or propagating updates.
 
 Key modules:

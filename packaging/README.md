@@ -43,6 +43,25 @@ Wi-Fi recovery's script and systemd units live in `runtime-files/bash/pioreactor
 
 ## WIP Local HTTPS Support
 
-The runtime lighttpd assets include early, disabled support for serving the browser UI over local HTTPS. `runtime-files/lighttpd/10-pioreactor-https.conf` is copied into image and installer inputs, but it is not enabled by default. It expects a generated local certificate bundle at `/etc/pioreactor/tls/local-ui.lighttpd.pem` and proxies `/mqtt` to the existing Mosquitto websocket listener on `127.0.0.1:9001` so an HTTPS-loaded browser can use same-origin WSS.
+The runtime lighttpd assets include early, disabled support for serving the browser UI over local HTTPS. `runtime-files/lighttpd/10-pioreactor-https.conf` is copied into image and installer inputs, but it is not enabled by default. It expects a generated local certificate bundle at `/etc/pioreactor/tls/local-ui.lighttpd.pem` while the shared `50-pioreactorui.conf` proxies `/mqtt` to the existing Mosquitto WebSocket listener on `127.0.0.1:9001` for both HTTP and HTTPS.
 
 This is infrastructure for a future opt-in setup flow, not production HTTPS-by-default. Do not change `config.example.ini` to `wss` / `443`, enable the lighttpd HTTPS config, add HTTP-to-HTTPS redirects, or add HSTS until the local CA generation, browser trust onboarding, certificate regeneration, and rollback behavior are productized.
+
+## Browser MQTT
+
+The main browser UI connects to `/mqtt` on the page's own host and port, using
+WS for HTTP and WSS for HTTPS. The shared `50-pioreactorui.conf` excludes this
+path from SPA rewriting and proxies it to the local Mosquitto WebSocket listener
+at `127.0.0.1:9001`. Both image builds and the Linux installer consume this file;
+the upcoming release also patches existing installations.
+
+For an external broker or a customized WebSocket listener, set
+`[mqtt] ui_use_proxy=false`. The browser then uses the existing `broker_address`
+(semicolon-separated hosts), `broker_ws_port`, and `ws_protocol` settings.
+Pioreactor jobs continue using their existing broker configuration in either mode.
+Local Vite development proxies `/mqtt` to `127.0.0.1:9001`.
+
+Deploy the proxy configuration with the frontend. A wheel-only or frontend-only
+installation does not run the release migration and must provision the route
+separately. Existing external-broker installations should set `ui_use_proxy=false`
+before adopting the new frontend.

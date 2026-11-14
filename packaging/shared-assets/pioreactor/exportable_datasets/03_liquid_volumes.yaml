@@ -13,8 +13,8 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp when the leader stored the current-volume MQTT value.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   liquid_volume: Calculated current liquid volume in the Pioreactor vial.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   liquid_volume: mL

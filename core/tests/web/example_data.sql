@@ -1,8 +1,8 @@
-INSERT INTO experiments (experiment, created_at, description) VALUES
-('exp0', '2023-09-01T12:00:00Z', 'Demo experiment'),
-('exp1', '2023-10-01T12:00:00Z', 'First experiment'),
-('exp2', '2023-10-02T15:00:00Z', 'Second experiment'),
-('exp3', '2023-10-03T09:00:00Z', 'Third experiment');
+INSERT INTO experiments (experiment, created_at, started_at, description) VALUES
+('exp0', '2023-09-01T12:00:00Z', '2023-09-01T12:00:00Z', 'Demo experiment'),
+('exp1', '2023-10-01T12:00:00Z', '2023-10-01T12:00:00Z', 'First experiment'),
+('exp2', '2023-10-02T15:00:00Z', '2023-10-02T15:00:00Z', 'Second experiment'),
+('exp3', '2023-10-03T09:00:00Z', '2023-10-03T09:00:00Z', 'Third experiment');
 
 CREATE TABLE IF NOT EXISTS experiment_tags (
     experiment TEXT NOT NULL,

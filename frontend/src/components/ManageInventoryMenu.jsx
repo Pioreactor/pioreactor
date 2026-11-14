@@ -33,9 +33,10 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
 
-      }).then(() =>
-        fetch('/api/units/$broadcast/system/reboot', {method: "POST"})
-    );
+      }).then(({ confirmed }) => {
+        if (!confirmed) return;
+        return fetch('/api/units/$broadcast/system/reboot', {method: "POST"});
+      });
 
   };
 
@@ -47,9 +48,10 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
 
-      }).then(() =>
-        fetch('/api/units/$broadcast/system/shutdown', {method: "POST"})
-      )
+      }).then(({ confirmed }) => {
+        if (!confirmed) return;
+        return fetch('/api/units/$broadcast/system/shutdown', {method: "POST"});
+      })
   };
   const handleUnassign = () => {
     confirm({
@@ -59,9 +61,10 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
 
-      }).then(() =>
-        fetch('/api/workers/assignments', {method: "DELETE"})
-      ).then(() => navigate(0)).catch(() => {});
+      }).then(({ confirmed }) => {
+        if (!confirmed) return;
+        return fetch('/api/workers/assignments', {method: "DELETE"}).then(() => navigate(0));
+      }).catch(() => {});
 
   };
 

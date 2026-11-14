@@ -2,11 +2,14 @@
 #
 # Project-specific files
 #
-_DOC_CHECKER.md
+*.tar
+.agents/skills/**.zip
 .codex
 .envrc
 .pioreactor/
 .tickets/
+CLAUDE.md
+CLAUDE.local.md
 experiments/
 jupyter_notebooks/
 plugins_dev
@@ -133,6 +136,7 @@ __pypackages__/
 #
 # Tooling / editors
 #
+.DS_Store
 .ropeproject
 .spyderproject
 .spyproject

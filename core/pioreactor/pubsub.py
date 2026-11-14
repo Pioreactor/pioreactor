@@ -20,6 +20,7 @@ from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address
+from pioreactor.logging import create_logger
 
 if TYPE_CHECKING:
     from pioreactor import mureq
@@ -44,6 +45,16 @@ class Client(PahoClient):
 
     def __exit__(self, *args: object) -> None:
         self.shutdown()
+
+    def reconnect(self) -> MQTTErrorCode:
+        rc = super().reconnect()
+        # Without TCP_NODELAY, Nagle's algorithm holds a small packet until the broker ACKs the previous
+        # one, and delayed ACKs make that ~40ms: e.g. a job's `ready` arrives 40ms after its `init`.
+        sock = self.socket()
+        if isinstance(sock, socket.socket):  # includes TLS sockets; not websockets
+            with suppress(OSError):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        return rc
 
     def shutdown(self) -> None:
         self.loop_stop()
@@ -99,7 +110,6 @@ def create_client(
         client: Client, userdata: Any, flags: Any, rc: int, properties: Any = None
     ) -> None:
         if rc > 1:
-            from pioreactor.logging import create_logger
             from paho.mqtt.client import connack_string
 
             logger = create_logger("pubsub.create_client", to_mqtt=False)
@@ -118,7 +128,7 @@ def create_client(
     )
     # set a finite queue for QOS>0 messages, so that if we lose connection, we don't store an unlimited number of messages. When the network comes back on, we don't want
     # a storm of messages (it also causes problems when multiple triggers are sent to execute methods.)
-    client.max_queued_messages_set(100)
+    client.max_queued_messages_set(10_000)
 
     if tls:
         import ssl
@@ -147,7 +157,6 @@ def create_client(
             client.connect(hostname, port, keepalive=keepalive)
         except (socket.gaierror, OSError) as e:
             if retries == max_connection_attempts:
-                from pioreactor.logging import create_logger
 
                 create_logger("pubsub.create_client", to_mqtt=False).warning(
                     f"Unable to connect to MQTT broker at {hostname}:{port} after "
@@ -183,16 +192,17 @@ def publish(
             return
         except RuntimeError:
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            from pioreactor.logging import create_logger
 
             logger = create_logger("pubsub.publish", to_mqtt=False)
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to MQTT",
                 exc_info=True,
             )
-            sleep(3 * retry_count)  # linear backoff
+            if retry_count < retries - 1:
+                sleep(3 * retry_count)  # linear backoff
 
     else:
+
         logger = create_logger("pubsub.publish", to_mqtt=False)
         logger.error("Unable to connect to MQTT.")
         raise ConnectionRefusedError("Unable to connect to MQTT.")
@@ -312,7 +322,6 @@ def subscribe_and_callback(
                 return actual_callback(message)
 
             except Exception as e:
-                from pioreactor.logging import create_logger
 
                 logger = create_logger(userdata.get("name", "pioreactor"))
                 logger.error(e, exc_info=True)
@@ -527,3 +536,73 @@ def delete_from(address: str, endpoint: str, **kwargs: Any) -> "mureq.Response":
 
 def delete_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> "mureq.Response":
     return delete_from(leader_address, endpoint, timeout=timeout, **kwargs)
+
+
+# Use the *_unit helpers for every request to a unit's /unit_api. They name the intended unit in
+# this header, and the unit rejects mutations meant for another hostname (e.g. after an IP is reused).
+TARGET_UNIT_HEADER = "X-Pioreactor-Target"
+
+
+def _unit_address_and_kwargs(
+    unit: pt.Unit, address: str | None, kwargs: dict[str, Any]
+) -> tuple[str, dict[str, Any]]:
+    if address is None:
+        # Lazy import: pioreactor.utils imports this module.
+        from pioreactor.utils.networking import resolve_to_address
+
+        address = resolve_to_address(unit)
+    headers = (kwargs.pop("headers", None) or {}) | {TARGET_UNIT_HEADER: unit}
+    return address, kwargs | {"headers": headers}
+
+
+def get_from_unit(
+    unit: pt.Unit, endpoint: str, *, address: str | None = None, **kwargs: Any
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return get_from(address, endpoint, **kwargs)
+
+
+def put_into_unit(
+    unit: pt.Unit,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    *,
+    address: str | None = None,
+    **kwargs: Any,
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return put_into(address, endpoint, body=body, json=json, **kwargs)
+
+
+def patch_into_unit(
+    unit: pt.Unit,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    *,
+    address: str | None = None,
+    **kwargs: Any,
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return patch_into(address, endpoint, body=body, json=json, **kwargs)
+
+
+def post_into_unit(
+    unit: pt.Unit,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    *,
+    address: str | None = None,
+    **kwargs: Any,
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return post_into(address, endpoint, body=body, json=json, **kwargs)
+
+
+def delete_from_unit(
+    unit: pt.Unit, endpoint: str, *, address: str | None = None, **kwargs: Any
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return delete_from(address, endpoint, **kwargs)

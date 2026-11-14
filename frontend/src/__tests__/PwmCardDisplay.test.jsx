@@ -5,7 +5,7 @@ import { UnitSettingDisplay } from "../components/PioreactorCardShared";
 test("PWM card displays channel values and defaults omitted channels to zero", () => {
   const { container, getByText } = render(
     <UnitSettingDisplay
-      value={JSON.stringify({ 1: 15, 4: 55, 5: 23.49 })}
+      value={JSON.stringify({ timestamp: "2026-01-01T00:00:00.000Z", channels: { 1: 15, 4: 55, 5: 23.49 } })}
       isUnitActive
       displayKind="pwm_dc"
       config={{ PWM: { 1: "stirring", 4: "media" } }}

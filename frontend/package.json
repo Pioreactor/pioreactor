@@ -8,12 +8,11 @@
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@fontsource/roboto": "^5.3.0",
-    "@mui/icons-material": "9.4.0",
-    "@mui/material": "9.4.0",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@mui/icons-material": "9.5.0",
+    "@mui/material": "9.5.0",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
-    "boring-avatars": "^1.11.2",
     "dayjs": "^1.11.20",
     "js-yaml": "^4.3.1",
     "material-ui-confirm": "^4.0.0",
@@ -81,7 +80,38 @@
           "caughtErrorsIgnorePattern": "^(?:_.*|e|err|error)$"
         }
       ]
-    }
+    },
+    "overrides": [
+      {
+        "files": [
+          "src/kiosk/**/*.{js,jsx}"
+        ],
+        "rules": {
+          "no-restricted-imports": [
+            "error",
+            {
+              "patterns": [
+                {
+                  "group": [
+                    "@mui/*",
+                    "@emotion/*",
+                    "victory",
+                    "victory-*"
+                  ],
+                  "message": "The touchscreen UI stays free of MUI, emotion and Victory at runtime (render cost on WPE). Use plain CSS, plain SVG icons and canvas charts."
+                },
+                {
+                  "group": [
+                    "**/providers/MQTTContext"
+                  ],
+                  "message": "The touchscreen UI uses its own MQTT client, which reconnects forever."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
   },
   "browserslist": {
     "production": [
@@ -99,6 +129,7 @@
     ]
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
     "@babel/preset-env": "^7.28.5",
     "@babel/preset-react": "^7.28.5",
     "@vitejs/plugin-react": "^5.2.0",

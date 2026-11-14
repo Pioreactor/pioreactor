@@ -107,10 +107,12 @@ class GrowthRateCalculator(BackgroundJob):
         unit: pt.Unit,
         experiment: pt.Experiment,
     ):
-        samples_per_second = config.getfloat("od_reading.config", "samples_per_second")
-        if samples_per_second <= 0:
+        seconds_between_readings = config.getfloat(
+            "od_reading.config", "seconds_between_readings", fallback=5.0
+        )
+        if seconds_between_readings <= 0:
             raise ValueError(
-                f"Invalid [od_reading.config] samples_per_second={samples_per_second}. Expected a value > 0."
+                f"Invalid [od_reading.config] seconds_between_readings={seconds_between_readings}. Expected a value > 0."
             )
 
         samples_for_od_statistics = config.getint(
@@ -136,7 +138,7 @@ class GrowthRateCalculator(BackgroundJob):
         super().__init__(unit=unit, experiment=experiment)
 
         self.time_of_previous_observation: datetime | None = None
-        self.expected_dt = 1 / (60 * 60 * samples_per_second)  # in hours
+        self.expected_dt = seconds_between_readings / (60 * 60)  # in hours
         self.samples_for_od_statistics = samples_for_od_statistics
         self.ekf_outlier_std_threshold = ekf_outlier_std_threshold
         self._post_dose_observations_remaining = 0
@@ -180,6 +182,10 @@ class GrowthRateCalculator(BackgroundJob):
                 if message.topic != self._od_topic:
                     raise ValueError(f"Unexpected MQTT topic: {message.topic}")
 
+                # An empty payload clears the previous OD value; it is not an observation.
+                if not message.payload:
+                    continue
+
                 od_message_count += 1
                 if od_message_count <= INITIAL_OD_OBSERVATIONS_TO_SKIP:
                     continue
@@ -210,7 +216,6 @@ class GrowthRateCalculator(BackgroundJob):
         from grpredict import CultureGrowthEKF
         import numpy as np
 
-        self.logger.info("Initializing growth-rate filter from warmup observations.")
         observation_noise_covariance = self._create_obs_noise_covariance_from_warmup_observations(
             warmup_observations
         )
@@ -355,15 +360,17 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors = self._get_od_normalization_from_cache()
             if not od_normalization_factors:
                 raise KeyError("Empty cached normalization statistics.")
-            self.logger.debug("Loaded OD normalization factors from cache.")
+            # ex: the cache was built from raw `ods`, and this run reads fused OD (or the PD channels changed).
+            warmup_channels = {channel for event in warmup_events for channel in event.ods}
+            if warmup_channels and set(od_normalization_factors) != warmup_channels:
+                raise KeyError("Cached normalization statistics are for different PD channels.")
+            self.logger.debug("Loaded OD normalization metrics from cache.")
         except KeyError:
-            self.logger.info("OD normalization factors not found in cache. Computing them now.")
             od_normalization_factors, od_variances = self._compute_od_statistics_from_warmup_events(
                 warmup_events
             )
             with local_persistent_storage("od_normalization_mean") as cache:
                 cache[self.experiment] = dumps(od_normalization_factors)
-            self.logger.debug("Cached OD normalization factors computed from warmup observations.")
             if any(v == 0.0 for v in od_variances.values()):
                 self.logger.error(
                     "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
@@ -379,10 +386,9 @@ class GrowthRateCalculator(BackgroundJob):
         return tuple(sorted(self.od_normalization_factors, reverse=True))
 
     def scale_raw_observations(self, od_readings: structs.ODReadings) -> dict[pt.PdChannel, float]:
+        ordered_channels = self._ordered_pd_channels()
         zero_reference_channels = [
-            channel
-            for channel in self._ordered_pd_channels()
-            if self.od_normalization_factors[channel] <= 0.0
+            channel for channel in ordered_channels if self.od_normalization_factors[channel] <= 0.0
         ]
         if zero_reference_channels:
             raise ValueError(
@@ -391,7 +397,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         scaled_signals = {
             channel: od_readings.ods[channel].od / self.od_normalization_factors[channel]
-            for channel in self._ordered_pd_channels()
+            for channel in ordered_channels
         }
 
         if any(v <= 0.0 for v in scaled_signals.values()):
@@ -453,7 +459,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         if self.samples_for_od_statistics * self.expected_dt * 60 * 60 >= 600:
             self.logger.warning(
-                "Due to the low `samples_per_second`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
+                "Due to the high `seconds_between_readings`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
             )
 
         self.logger.info("Collecting warmup OD observations for growth-rate initialization.")
@@ -466,7 +472,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
 
         try:
-            self.logger.debug("Replaying warmup OD observations into the live stream.")
             warmup_observations = [self.scale_raw_observations(event) for event in warmup_events]
             self.logger.debug(f"Warmup OD observations: {warmup_observations}")
         except ValueError as error:

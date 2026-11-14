@@ -2,24 +2,182 @@
 
 #### Breaking changes
 
- - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. Payload keys now identify PWM channels instead of GPIO pins, for example `{"1": 15.0, "4": 55.0, "5": 23.49}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
- - Renamed the unit API endpoint `POST /unit_api/system/remove_from_inventory/<expected_hostname>` to `POST /unit_api/system/cleanup_after_inventory_removal`. API clients should send the intended hostname in the `X-Pioreactor-Target` header; requests with a mismatched hostname return HTTP `409` before stopping jobs or removing configuration.
+ - Removed the deprecated constants in `pioreactor.hardware`. Plugins must call the corresponding getter functions: `SDA` / `SCL` → `get_sda_pin()` / `get_scl_pin()`, `TEMP` / `TEMP_ADDRESS` → `get_temp_address()`, `PWM_TO_PIN` → `get_pwm_to_pin_map()`, and `HEATER_PWM_TO_PIN` → `get_heater_pwm_channel()`. Also removed `GPIOCHIP`, `PWM_CONTROLLER`, `PCB_LED_PIN`, `PCB_BUTTON_PIN`, `HALL_SENSOR_PIN`, `ADCs`, `DAC`, and `DAC_ADDRESS`; see the [hardware migration reference](https://docs.pioreactor.com/developer-guide/custom-hardware#migrating-plugins-from-hardware-constants) for their replacements. Update affected OLED, PiOLED, relay, and temperature-expansion plugins before upgrading core.
 
 #### Enhancements
 
- - Added automatic plugin installation from the SD card's boot partition. Place plugin `.whl` files and any required dependency wheels in `pioreactor/plugins/` (`/boot/firmware/pioreactor/plugins/` on the Pi), then reboot. Existing Raspberry Pi images gain this support after updating and rebooting; new workers retain staged wheels until they join a cluster and reboot. Successful installations remove the wheels, while failed or invalid wheels are saved in `failed/` with diagnostic logs. Wheels declaring direct URL dependencies are rejected, and installation attempts have time limits.
- - Added boot-partition imports for experiment profiles, custom bioreactor models, and hardware definitions on Raspberry Pi images, including existing images after updating and rebooting. Place `.yaml` or `.yml` files under `pioreactor/experiment_profiles/`, `pioreactor/models/`, or `pioreactor/hardware/` on the SD card's boot partition, then reboot. Profiles are imported on leaders only and are never started automatically; models and hardware definitions are imported on either role, preserving nested hardware paths. Imported files replace matching files without backups and are removed from the boot partition. Failed imports retain their input and an adjacent `.log` file for correction and retry on the next boot. Unconfigured workers defer imports until they join a cluster and reboot.
- - Added `.yml` support for HAT and model hardware definitions alongside `.yaml`; `.yaml` takes precedence when both files exist.
+ - Added **Edit** beside **Recorded data** on saved calibration pages. Correct either measurement column, exclude or restore individual points, and save to recalculate the curve. Excluded points remain available in the table but do not affect the curve, graphs, or calibration bounds. Invalid edits leave the saved calibration unchanged.
+ - Preserved measurements unchecked during new OD calibration reviews, so they can be restored later from the saved calibration page. Measurements discarded by older calibration saves cannot be recovered.
+ - Added MCP tools to read and edit shared `config.ini` and per-unit `unit_config.ini` files, using the same configuration validation and history as the UI.
+ - Sped up media-rate summaries for experiments with long dosing histories.
+ - Added a **Line colors** tab to the Overview's chart settings (the gear icon). Pick a color from the chart palette for any Pioreactor that has been in the experiment, and its line uses that color on every Overview chart. Choices are saved with the experiment, so everyone viewing it sees the same colors. Pioreactors left on Automatic keep their usual color unless it was picked for another Pioreactor, in which case they move to the next unused color. The colors are also available from `/api/experiments/<experiment>/chart_preferences` as `overview_unit_colors`.
 
 #### Bug fixes
 
- - Added destination hostname checks to leader HTTP commands and leader-local UI actions to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
- - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
- - Fixed configuration editing and saving being blocked when configuration history is slow or unavailable. History now loads independently, reports failures separately, preserves edits when it arrives, and ignores late responses from previously selected configuration targets.
- - Fixed circulation actions accepting empty, malformed, or negative durations.
- - Fixed event recording accepting invalid local timestamps or messages containing only whitespace.
- - Fixed the new-experiment form incorrectly rejecting unused names such as `constructor`, and improved its layout on narrow screens.
- - Fixed OD reader error reporting when an ADC fails to initialize.
+ - Fixed long, unbroken log messages stretching log tables beyond the page width.
+ - Corrected stirring RPM readings when the Hall sensor detects a recognizable extra-pulse pattern, preventing those extra pulses from inflating the RPM used for stirring control.
+ - Fixed repeated shutdown signals interrupting job cleanup during software updates or Huey restarts, which could leave stopped activities showing as ready or lost in MQTT and leave old automation names and settings in the UI.
+
+### 26.12.0
+
+#### Breaking changes
+
+##### Pumps and dosing automations
+
+ - Removed `circulate_media` and `circulate_alt_media` from the Python API and CLI, and removed the corresponding Cycle media controls from the UI. Existing scripts and experiment profiles using these actions must be updated manually.
+ - Changed the custom pump API for dosing automations: `DosingProgram` callables, including overrides of `add_media_to_bioreactor`, `add_alt_media_to_bioreactor`, `remove_waste_from_bioreactor`, and custom `add_<name>_to_bioreactor` functions, must now accept a keyword-only `cancel_event: threading.Event` argument. Forward `cancel_event=cancel_event` and the supplied `mqtt_client` to built-in pump actions, or observe the event and stop the hardware yourself. Cancellation ends that operation permanently, even if the automation is resumed. Functions with the old signature will fail when called by `execute_io_action`.
+
+##### OD reading configuration
+
+ - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
+ - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
+
+   ```
+   [od_reading.config]
+   seconds_between_readings=1800
+   ```
+
+   The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
+
+##### Stirring configuration
+
+ - Removed `target_rpm_outside_od_reading` from `[stirring.config]` and the `--target-rpm-outside-od-reading` option of `pio run stirring`. Between OD readings, stirring now always uses its target RPM, set by `initial_target_rpm` or `--target-rpm`, or changed live in the UI. The update moves an existing `target_rpm_outside_od_reading` value to `initial_target_rpm` where OD dodging is enabled, then removes the old setting.
+ - The maximum stirring target RPM is now 2000, the fastest the RPM sensor can reliably measure. Higher targets are reduced to 2000.
+
+##### CLI and exports
+
+ - Replaced the CSV export column `hours_since_experiment_created` with `hours_since_experiment_started`, measured from the editable experiment start time. Update analysis scripts that use the old column name.
+ - Removed the `ACTIVE` environment variable override. Use `pio active set 0` or `pio active set 1` to change whether the local Pioreactor is in service.
+ - Changed `pio model get`, `pio model set`, and `pio workers model get <worker>` to print a readable model name by default. Scripts that parse their output as JSON must add `--json`.
+ - Removed `--partition-by-experiment` from `pio run export_experiment_data` and `partition_by_experiment` from the Python export function, export API requests, and export manifest options. Each export already covers one experiment; use `--partition-by-unit` to split CSVs by Pioreactor.
+
+#### Enhancements
+
+##### Calibrations
+
+ - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
+ - Duration-based pump calibration now asks for the smallest and largest dose you want to cover, instead of a comma-separated list of volumes. Only the smallest and largest values in the list were ever used, so the list made it look like every volume would be measured. The step now also says what will run: 10 pump runs at three durations spread across that range.
+ - Added links from calibration names in log messages to their calibration pages when the message identifies the device.
+ - Calibration and estimator CLI listings now report unreadable or invalid files instead of silently omitting them.
+
+##### Stirring and dosing
+
+ - Changing the stirring target RPM while dodging OD readings now takes effect right away. It's only delayed when the change arrives during an OD reading, and then applies as soon as the reading ends.
+ - A non-zero `target_rpm_during_od_reading` no longer disturbs the duty cycle stirring has learned for its target RPM.
+ - Large doses are now split into the fewest equal sub-doses of at most `max_subdose` mL, for example 2.1 mL becomes 3 × 0.7 mL instead of 4 × 0.525 mL. This means fewer pump cycles and more accurate sub-doses.
+
+##### Cluster controls and UI
+
+ - Added an editable experiment start time in **Edit details**, including **Set to now**, so time zero can match inoculation. Historical charts and media-rate summaries exclude earlier readings, and elapsed-time displays use the new start. Existing experiments initially retain their original creation time as the start; changing it does not delete data.
+
+ - Added `pio active get` and `pio active set <0|1>` to inspect or change whether the local Pioreactor is in service, even without a running web server. Each Pioreactor now remembers its own active status across reboots and checks it locally before starting activities. Setting it inactive stops its activities.
+ - Made the Cameras page and per-Pioreactor camera panel available without setting `[camera] enabled=1` in the leader's config. A connected, supported camera is still required to capture images.
+ - Added upload progress when updating from a release ZIP in the UI. Closing the dialog during upload now cancels it.
+ - Added uploading and downloading of experiment profile `.yaml` files on the Experiment profiles page, so you can share profiles between clusters or back them up.
+ - Made activity start, stop, and pause messages in the logs quieter and clearer. Activities now log `Started.` and `Stopped.` instead of `Ready.` and `Disconnected.`, and pausing or resuming an activity from the UI or an experiment profile logs `Paused.` or `Resumed.` instead of `Updated state from ready to sleeping.`. Activities that pause and resume themselves, like stirring during a self-test, no longer fill the log with `Ready.` lines.
+
+##### Performance
+
+ - Improved `pio run` startup, cluster status requests, and `.local` hostname resolution, and reduced idle CPU use on the leader. Browser assets are now cached for faster repeat visits, while the UI page itself is refreshed so software updates do not leave browsers loading old assets.
+
+#### Bug fixes
+
+##### Pumps and dosing automations
+
+ - Fixed timed pump shutdown depending on MQTT publishing completing. Pump timing and cancellation now run independently of telemetry publishing.
+ - Pausing a dosing automation in the middle of a dose now cancels the rest of that dose. Previously the automation waited, and resuming it, even hours later, finished the old dose, which was based on outdated OD and volume readings.
+ - Fixed a dosing automation possibly pumping right after being resumed using a vial-volume check made before it was paused. The volume is now checked immediately before every pump.
+ - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
+ - Fixed pump volume estimates applying the calibration offset repeatedly during a continuous run. Interrupted doses now report the estimated volume for the time the pump actually ran, capped at the requested volume for volume-based doses.
+ - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
+ - The turbidostat no longer warns about multiple OD signal channels when its biomass signal is `od_fused` or `normalized_od`.
+
+##### OD readings, calibrations, and growth rate
+
+ - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
+ - Fixed OD calibrations from the UI sometimes fitting a straight line through clearly curved data, even though the fit was labelled a cubic spline. This happened when most standards were at low OD, which is typical for a dilution series. The automatic spline fit now also tries knots spread evenly across the measured range, so it can follow the curve at high OD. Redo any OD calibration whose fitted curve looks straight but whose points don't. Stirring calibrations use the same fit and may also fit more closely.
+ - OD reading now refuses to start when an active OD calibration was made at a different IR LED intensity, with an error naming the calibration and both intensities. Previously it started anyway and logged an error on every reading. If the active fusion estimator's IR LED intensity doesn't match, OD reading starts without `od_fused` and logs an error.
+ - Fixed OD reading failing to start when its active fusion estimator file was unreadable or invalid. It now logs the problem and continues without `od_fused`.
+ - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
+ - Fixed growth rate calculation crashing with a `KeyError` when its cached normalization statistics were for different photodiode channels, for example after switching between raw OD and fused OD. The statistics are now recomputed.
+ - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.
+
+##### Stirring
+
+ - Fixed stirring failing to recover its speed after each OD reading when dodging with `target_rpm_during_od_reading=0`. The learned duty cycle was reset at every reading, which was worse without a stirring calibration.
+ - Fixed stirring staying stopped when OD reading or dodging was stopped in the middle of an OD reading.
+ - Fixed OD dodging without RPM feedback (`use_rpm=0`) leaving the stirring fan off. It now stops for each OD reading and resumes afterwards.
+ - Fixed stirring possibly spinning up during an OD reading when it was resumed from paused while dodging.
+ - `pio run stirring --target-rpm 0` now targets 0 RPM, instead of using `initial_target_rpm`.
+
+##### Experiment profiles and LEDs
+
+ - Stopping an experiment profile now prevents any further actions from starting. Previously, actions due at the same time as the one in progress, including a common action on the remaining Pioreactors, still started before the profile's jobs were stopped, so a short dosing action like `add_media` could still pump after the profile was stopped.
+ - Fixed experiment profiles started from the leader's API or the MCP `run_experiment_profile` tool continuing to start and stop jobs on a Pioreactor after it was moved to a different experiment. Their conditions that read another Pioreactor's data, like `${{unit2:od_reading:od1.od > 1.0}}`, also read from the old experiment. Profiles started from the UI weren't affected.
+ - Fixed the `light_dark_cycle` LED automation no longer switching between light and dark after it was paused and resumed.
+ - Fixed `led_intensity` staying listed as a running job after all LEDs were turned off, which blocked changing a Pioreactor's model or removing it from the cluster with "Stop activities…".
+
+##### UI, CLI, and system
+
+ - Fixed a clock time set from the UI being lost if the Pioreactor restarted within about 15 minutes. The corrected time is now saved immediately, so it survives a power cycle on Pioreactors without a real-time clock.
+ - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
+ - Fixed the UI being unable to open, set active, or delete a calibration or estimator whose name contains `#`, `?` or `%`. Its page showed "Unable to find calibration data" even though the calibration was saved.
+ - Fixed camera operations failing for experiment names containing characters such as `#`, `?`, or `%`.
+ - Fixed camera snapshots and camera self-tests failing on Raspberry Pi 5 with a tuning-file compatibility error. Pioreactor now automatically selects the appropriate bundled tuning file for the Pi model.
+ - Fixed MCP tools failing to find an experiment whose name contains a space. The name was URL-encoded twice on its way to the leader.
+ - Fixed invalid or unreadable custom model files preventing other models from loading, and unreadable experiment profile or chart descriptor files preventing their lists from loading. The affected files are now skipped and logged.
+ - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
+ - Fixed software update archives piling up in `/tmp` on the leader and workers. On trixie, `/tmp` is held in RAM, so after several updates or retries it could fill up and make later updates fail with "No space left on device". Each update now removes its own archive, and any left behind by earlier updates. Updates started before this release can still leave archives behind; a reboot clears them.
+ - Fixed `pio mqtt` on workers connecting to a broker on the worker itself instead of the leader's.
+
+### 26.11.1
+
+#### Bug fixes
+
+ - Fixed cancelling or dismissing confirmation dialogs still stopping activities, rebooting or shutting down Pioreactors, removing or unassigning workers, or deleting profiles, calibrations, estimators and camera snapshots. These actions now require explicit confirmation. Cancelling the leader system archive import also leaves the file picker closed.
+
+### 26.11.0
+
+#### Breaking changes
+
+ - Replaced `pio workers update-model WORKER -m NAME -v VERSION` with `pio workers model set WORKER NAME VERSION`. Added `pio workers model get WORKER` to print the worker's model assignment as JSON.
+ - Adding a worker now requires it to run the same software version as the leader; an older worker is rejected with a message to update it first.
+ - Changing a Pioreactor's model now requires the unit to be reachable and its activities to be stopped. Update workers before changing their models through the leader.
+ - Bioreactor MQTT topics, `pioreactor/<unit>/<experiment>/bioreactor/<variable>`, now publish `{"timestamp": ..., "value": ...}` instead of a bare number. Experiment profile expressions that read these topics need `.value`, for example `${{ ::bioreactor:current_volume_ml.value }}`.
+ - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`, keyed by PWM channel instead of GPIO pin. Update any plugins or scripts that consume this topic. Upgrade the leader and all workers together, then reload browser tabs.
+
+#### Enhancements
+
+ - Added `pio cluster leave` to remove a worker from its cluster from the worker itself, for example before moving it to another lab. It keeps the worker's model, calibrations, estimators and `unit_config.ini`.
+ - Adding a worker is more reliable: a failed step can be retried, a wrong SSH password fails right away, and the UI no longer gives up after 90 seconds while setup is still running.
+ - Added automatic imports from the SD card's boot partition. Place files in these folders on the boot partition, then reboot:
+   - `pioreactor/plugins/`: plugin `.whl` files (and any dependency wheels) are installed.
+   - `pioreactor/experiment_profiles/` (leaders only), `pioreactor/models/`, `pioreactor/hardware/`: `.yaml` files are imported.
+
+   Successful imports are removed from the boot partition; failed ones are kept with a `.log` file explaining why.
+ - Each Pioreactor now stores its own model, so it survives reboots and is available when the leader is unreachable. Custom models defined only on a worker can now be assigned to it. New CLI commands to inspect or change the local model:
+
+   ```
+   pio model get
+   pio model set pioreactor_20ml 1.5
+   ```
+ - Jobs now buffer up to 10,000 MQTT messages (was 100) while the broker is unreachable, so a leader reboot or short Wi-Fi drop loses far fewer readings.
+ - Workers now log a warning at startup if the system clock isn't synchronised, since measurement timestamps may be wrong.
+ - Faster data exports and chart loading, and lower browser memory use for live charts and logs during long experiments.
+ - Added **Mount** and **Eject** buttons for USB drives on the Plugins page, with clearer guidance when a drive is missing, unmounted, or has no plugins.
+
+#### Bug fixes
+
+ - Fixed `pio workers add -p <password>` writing the worker's SSH password to the logs when setup failed.
+ - Fixed commands from the leader possibly running on the wrong Pioreactor when an address is stale or reused.
+ - Fixed dosing events being discarded when an addition would overfill the vial, which could stop dosing automations from pausing correctly.
+ - Fixed jobs failing immediately when the leader's web server is briefly unavailable, for example while restarting.
+ - Automation events, bioreactor values and PWM duty cycles are now stored with the time they were produced on the worker, not the time the leader received them.
+ - Fixed a re-added worker still pointing at its previous leader's MQTT broker.
+ - Fixed configuration editing being blocked when configuration history is slow or unavailable.
+ - Fixed the Plugins page hiding plugins on read-only USB drives.
+ - Fixed PWM duty-cycle history failing to save on a leader-only unit with no assigned model.
+ - Fixed the monitor's self-checks erroring when the leader is unreachable.
  - Fixed Akima calibration fitting with only two data points.
 
 ### 26.10.0

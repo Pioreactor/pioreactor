@@ -1,6 +1,5 @@
 import { fetchTaskResult } from "./tasks";
 import { experimentPathSegment } from "./url";
-import { unitTargetHeaders } from "./unitApi";
 
 let workerJobDescriptorsRequestCache = new Map();
 let jobDescriptorsRequestCache = null;
@@ -348,7 +347,7 @@ export function runPioreactorJob(
   );
 }
 
-export async function runPioreactorJobViaUnitAPI(unit, job, args = [], options = {}) {
+export async function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
   const taskPayload = await fetchTaskResult(
     `/unit_api/jobs/run/job_name/${job}`,
     {
@@ -356,7 +355,6 @@ export async function runPioreactorJobViaUnitAPI(unit, job, args = [], options =
         method: "POST",
         body: JSON.stringify({ args, options }),
         headers: {
-          ...unitTargetHeaders(unit),
           Accept: "application/json",
           "Content-Type": "application/json",
         },

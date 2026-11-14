@@ -133,6 +133,10 @@ CREATE TABLE IF NOT EXISTS led_change_events (
 CREATE INDEX IF NOT EXISTS dosing_events_ix
 ON dosing_events (experiment, pioreactor_unit);
 
+-- Limit media-rate calculations to the recent dosing window.
+CREATE INDEX IF NOT EXISTS dosing_events_exp_timestamp_ix
+ON dosing_events (experiment, timestamp);
+
 CREATE INDEX IF NOT EXISTS led_change_events_ix
 ON led_change_events (experiment, pioreactor_unit);
 
@@ -182,6 +186,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_level_timestamp_desc
 CREATE TABLE IF NOT EXISTS experiments (
     experiment TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
+    -- Scientific time zero, independently editable without changing creation order.
+    started_at TEXT NOT NULL,
     description TEXT
 );
 
@@ -200,8 +206,9 @@ CREATE VIEW IF NOT EXISTS latest_experiment AS
 SELECT
     experiment,
     created_at,
+    started_at,
     description,
-    round((strftime("%s", "now") - strftime("%s", created_at)) / 60 / 60, 0)
+    round((strftime("%s", "now") - strftime("%s", started_at)) / 60 / 60, 0)
         AS delta_hours
 FROM experiments
 ORDER BY rowid DESC
@@ -212,6 +219,17 @@ CREATE TABLE IF NOT EXISTS experiment_chart_preferences (
     experiment TEXT NOT NULL PRIMARY KEY,
     overview_chart_keys TEXT,
     pioreactor_chart_keys TEXT,
+    FOREIGN KEY (experiment) REFERENCES experiments (
+        experiment
+    ) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS experiment_unit_colors (
+    experiment TEXT NOT NULL,
+    pioreactor_unit TEXT NOT NULL,
+    color TEXT NOT NULL,
+    PRIMARY KEY (experiment, pioreactor_unit),
     FOREIGN KEY (experiment) REFERENCES experiments (
         experiment
     ) ON DELETE CASCADE

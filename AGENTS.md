@@ -27,6 +27,8 @@ Read the nearest `AGENTS.md` or `README.md` when working in a subtree.
 - `packaging/shared-assets/pioreactor/exportable_datasets/README.md`: built-in export dataset descriptor seed files.
 - `packaging/shared-assets/pioreactor/ui/README.md`: built-in UI descriptor seed assets.
 
+Look for skills in `.agents/`.
+
 ---
 
 ## Key components
@@ -85,6 +87,14 @@ Do not assume bare `python`, `pytest`, or `mypy` point at the correct interprete
 
 `DOT_PIOREACTOR` is the effective data root for much of the application. When debugging filesystem, calibration, profile, plugin, backup/restore, or config issues, confirm which `DOT_PIOREACTOR` root the process is using before changing code.
 
+The local development environment is defined in `.envrc` (gitignored; `.envrc.example` is the template) and loaded by direnv. direnv only loads it through a hook in an interactive shell, so agent and other non-interactive shells start without it: `DOT_PIOREACTOR`, `GLOBAL_CONFIG`, `HARDWARE`, `MODEL_NAME`, `PLUGINS_DEV`, and the rest are unset. Run commands through direnv to load it:
+
+```bash
+direnv exec . .venv/bin/pytest core/tests/test_cli.py
+```
+
+Symptoms of a missing environment include `HardwareNotFoundError: HAT not found`, "No Pioreactor model assigned", "Missing plugins", and `FileNotFoundError` for `/run/pioreactor/...`. If a test fails this way, rerun it under `direnv exec .` before treating the failure as a regression or as pre-existing.
+
 
 ## Tools & commands
 
@@ -97,14 +107,14 @@ Available commands are listed in the `Makefile`.
  - Use **pytest** for Python tests. Running all tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
 
   ```bash
-  .venv/bin/pytest core/tests/test_cli.py
+  direnv exec . .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
  - Reasons to delete a test include:
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.
- - Keep mypy green:
+ - Keep mypy green when production Python files change. For test-only changes, run the relevant tests; skip this production-package mypy command because it does not check core/tests:
 
   ```bash
   .venv/bin/mypy core/pioreactor --ignore-missing-imports
@@ -118,6 +128,7 @@ Available commands are listed in the `Makefile`.
 ## Logging
 
 * All logs are written to **`pioreactor.log`**.
+* Wrap entity names in log messages in backticks, and put the entity word directly before calibrations, estimators, and experiments: ``f"Saved calibration `{name}`"``, ``f"... on `{unit}` for experiment `{experiment}`"``. The UI renders these as Chips (see `frontend/src/components/LogMessage.jsx`); the raw log stays plain text.
 * To view recent logs:
 
   ```bash
@@ -221,6 +232,14 @@ When working on plugins:
 ---
 
 ## Database schema
+
+### Virtual experiment placeholder
+
+`UNIVERSAL_EXPERIMENT` (`$experiment`, defined in `core/pioreactor/whoami.py`) is the intentional placeholder for activity outside a named experiment, including self-tests, calibration, monitoring, and system logs. It is not an unexpanded shell variable and need not have a row in `experiments`.
+
+Telemetry and activity-rollup rows may therefore legitimately reference `$experiment` without a parent experiment. `PRAGMA foreign_key_check` can report these rows even in a healthy deployment. Inspect the referenced value before diagnosing corruption; this exception does not make arbitrary missing experiment names valid.
+
+Do not enable blanket foreign-key enforcement on MQTT ingestion, delete these rows as orphans, or create a fake user experiment to satisfy the constraint. Preserve virtual-experiment rows in queries (for example, use a left join for optional experiment metadata); they have no experiment start time. Migration checks must tolerate the known placeholder while still detecting newly broken relationships. See `core/tests/test_sqlite_worker.py::test_sqlite_worker_allows_pseudo_experiment_writes`.
 
 `./packaging/shared-assets/sql/create_tables.sql` and
 `./packaging/shared-assets/sql/create_triggers.sql`

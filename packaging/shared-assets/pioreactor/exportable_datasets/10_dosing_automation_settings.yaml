@@ -16,9 +16,9 @@ column_descriptions:
   started_at_localtime: Local-time rendering of started_at.
   ended_at: UTC timestamp when this automation settings interval ended; null if still current.
   ended_at_localtime: Local-time rendering of ended_at.
-  hours_since_experiment_created: Hours from experiment creation to started_at.
+  hours_since_experiment_started: Hours from experiment start to started_at.
   automation_name: Automation implementation name.
   settings: Raw stored automation settings payload.
   json_settings: Decoded JSON settings for settable published settings.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h

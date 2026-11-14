@@ -13,7 +13,10 @@ from pioreactor.utils.polys import poly_fit
 
 
 def calculate_poly_curve_of_best_fit(
-    x: list[float], y: list[float], degree: int, weights: list[float] | None = None
+    x: list[float],
+    y: list[float],
+    degree: int,
+    weights: list[float] | None = None,
 ) -> structs.PolyFitCoefficients:
     if weights is None:
         weights = [1.0] * len(x)
@@ -150,7 +153,8 @@ def crunch_data_and_confirm_with_user(
     initial_degree: int = 1,
     initial_knots: int = 4,
 ) -> Calb:
-    y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
+    recorded_data = calibration.included_recorded_data()
+    y, x = recorded_data["y"], recorded_data["x"]
     candidate_curve = calibration.curve_data_
     if calibration.curve_data_.type != fit:
         if fit == "poly":

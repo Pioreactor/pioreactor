@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 
@@ -10,6 +11,7 @@ import CameraPanel from "./components/CameraPanel";
 import useCameraResource from "./hooks/useCameraResource";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
+import EmptyState from "./components/EmptyState";
 
 
 function normalizeCameraResults(payload) {
@@ -48,9 +50,7 @@ export default function Cameras({ title }) {
     url: cameraUrl,
   });
 
-  React.useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   const updateCameraStatus = React.useCallback((unit, nextStatus) => {
     setCameraResults((currentResults = []) => currentResults.map((result) => (
@@ -88,11 +88,11 @@ export default function Cameras({ title }) {
           <CircularProgress />
         </Stack>
       ) : !error && cameraResults.length === 0 ? (
-        <Alert severity="info">No assigned Pioreactors were found.</Alert>
+        <EmptyState>No assigned Pioreactors were found.</EmptyState>
       ) : !error && visibleCameraResults.length === 0 ? (
-        <Alert severity="info">
+        <EmptyState>
           No camera-capable Pioreactors or stored camera snapshots were found.
-        </Alert>
+        </EmptyState>
       ) : null}
 
 
@@ -104,7 +104,7 @@ export default function Cameras({ title }) {
               status={result.status}
               onStatusChange={(nextStatus) => updateCameraStatus(result.unit, nextStatus)}
               experiment={experiment}
-              experimentStartTime={experimentMetadata?.created_at}
+              experimentStartTime={experimentMetadata?.started_at}
             />
           </Grid>
         ))}

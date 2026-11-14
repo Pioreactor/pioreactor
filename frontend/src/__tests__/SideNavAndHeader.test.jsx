@@ -29,10 +29,10 @@ const originalDocumentHidden = Object.getOwnPropertyDescriptor(document, "hidden
 
 let documentIsHidden = false;
 
-function renderSideNavAndHeader(cameraUIEnabled = false) {
+function renderSideNavAndHeader() {
   return render(
     <MemoryRouter initialEntries={["/overview"]}>
-      <SideNavAndHeader cameraUIEnabled={cameraUIEnabled} />
+      <SideNavAndHeader />
     </MemoryRouter>,
   );
 }
@@ -74,14 +74,8 @@ describe("pathnameMatchesAnySubmenu", () => {
     expect(pathnameMatchesAnySubmenu("/plugins", ["calibrations", "protocols", "estimators"])).toBe(false);
   });
 
-  test("hides camera navigation when the camera UI is disabled", () => {
-    renderSideNavAndHeader(false);
-
-    expect(screen.queryByText("Cameras")).not.toBeInTheDocument();
-  });
-
-  test("shows camera navigation when the camera UI is enabled", () => {
-    renderSideNavAndHeader(true);
+  test("shows camera navigation", () => {
+    renderSideNavAndHeader();
 
     expect(screen.getAllByText("Cameras").length).toBeGreaterThan(0);
   });

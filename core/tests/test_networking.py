@@ -200,3 +200,18 @@ def test_discovery_cleans_up_process_and_thread(terminate: bool, monkeypatch: py
         discovery.close()
         for thread in threads:
             thread.join(timeout=2)
+
+
+@pytest.mark.parametrize(
+    ("detach", "expected_command"),
+    [(True, "nohup pio version > /dev/null 2>&1 &"), (False, "pio version")],
+)
+def test_ssh_detaches_only_when_asked(monkeypatch, detach: bool, expected_command: str) -> None:
+    def fail_run(args: list[str], **_kwargs: object) -> None:
+        assert args[-1] == expected_command
+        raise subprocess.CalledProcessError(1, args, stderr="Error: boom\n")
+
+    monkeypatch.setattr(networking.subprocess, "run", fail_run)
+
+    with pytest.raises(networking.SSHError, match="^SSH command failed: Error: boom$"):
+        networking.ssh("worker.local", "pio version", detach=detach)

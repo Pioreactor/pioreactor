@@ -15,7 +15,7 @@ Actions performed:
  - Print a pre-filled GitHub Releases URL and the matching update scripts folder
 
 Usage examples:
-  python3 scripts/create_rc.py                 # use the current YY.M series and next rcN
+  python3 scripts/create_rc.py                 # use version.py's YY.M series and next rcN
   python3 scripts/create_rc.py --rc 1          # create rc1 for the same release
   python3 scripts/create_rc.py --series 26.3   # create an RC in an explicit YY.M series
   python3 scripts/create_rc.py --dry-run       # show actions only
@@ -24,7 +24,6 @@ Usage examples:
 Note: this script invokes git. Run it manually when you are ready.
 """
 import argparse
-import datetime as _dt
 import re
 import shutil
 import subprocess
@@ -180,8 +179,7 @@ def compute_series(series_override: str | None = None) -> str:
             raise ValueError("--series must be in format YY.M, e.g., 26.3")
         return series_override
 
-    today = _dt.date.today()
-    return f"{today.year % 100}.{today.month}"
+    return get_version_series(read_version_value())
 
 
 def get_existing_tag_versions() -> list[str]:
@@ -389,7 +387,9 @@ def build_github_release_url(version: str, branch: str) -> str:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Create a release candidate branch and bump version.")
     parser.add_argument("--rc", type=int, default=None, help="rc index override, e.g. --rc 1 -> rc1")
-    parser.add_argument("--series", type=str, default=None, help="Override YY.M series, e.g. 26.3")
+    parser.add_argument(
+        "--series", type=str, default=None, help="Override YY.M series (default: version.py), e.g. 26.3"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print actions without executing")
     parser.add_argument("--force", action="store_true", help="Skip branch and clean-tree checks")
     args = parser.parse_args(argv)

@@ -14,14 +14,19 @@ from unittest.mock import Mock
 
 import pytest
 from flask.testing import FlaskClient
+from huey import SqliteHuey
 from huey.exceptions import TaskException
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import store_camera_still
+from pioreactor.config import ConfigParserMod
+from pioreactor.structs import OD600Calibration
+from pioreactor.structs import ODFusionEstimator
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.sqlite_cache import cache as SqliteCache
 from pioreactor.web import unit_api
 from pioreactor.web.app import HOSTNAME
 
@@ -48,6 +53,76 @@ def _build_valid_calibration_yaml(calibration_name: str) -> str:
     return yaml_encode(calibration).decode()
 
 
+@pytest.mark.parametrize("kind", ["calibrations", "estimators"])
+@pytest.mark.parametrize("initial_active", ["a", None])
+def test_artifact_listing_reads_active_selection_once_per_device(
+    client: FlaskClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    kind: str,
+    initial_active: str | None,
+) -> None:
+    monkeypatch.setattr(
+        unit_api, "CALIBRATION_PATH" if kind == "calibrations" else "ESTIMATOR_PATH", tmp_path
+    )
+    for device in ("device1", "device2"):
+        directory = tmp_path / device
+        directory.mkdir()
+        (directory / "0_broken.yaml").write_text("[invalid", encoding="utf-8")
+        for name in ("a", "b"):
+            if kind == "calibrations":
+                content = _build_valid_calibration_yaml(name)
+            else:
+                content = yaml_encode(
+                    ODFusionEstimator(
+                        estimator_name=name,
+                        calibrated_on_pioreactor_unit="unit1",
+                        created_at=datetime.now(UTC),
+                        ir_led_intensity=80.0,
+                        angles=[],
+                        mu_splines={},
+                        sigma_splines_log={},
+                        min_logc=-2.0,
+                        max_logc=2.0,
+                        sigma_floor=0.01,
+                        recorded_data={},
+                    )
+                ).decode()
+            (directory / f"{name}.yaml").write_text(content, encoding="utf-8")
+
+    table = f"active_{kind}"
+    with local_persistent_storage(table) as storage:
+        for device in ("device1", "device2"):
+            if initial_active is not None:
+                storage[device] = initial_active
+
+    reads: list[object] = []
+    original_get = SqliteCache.get
+
+    def get_and_switch(self: SqliteCache, key: object, default: object = None) -> object:
+        value = original_get(self, key, default)
+        if self.table_name == f"cache_{table}":
+            reads.append(key)
+            # A separate connection activates b after this request's first read.
+            with local_persistent_storage(table) as writer:
+                writer[key] = "b"
+        return value
+
+    monkeypatch.setattr(SqliteCache, "get", get_and_switch)
+    name_key = "calibration_name" if kind == "calibrations" else "estimator_name"
+    for expected_active in (initial_active, "b"):
+        reads.clear()
+        response = client.get(f"/unit_api/{kind}")
+        assert response.status_code == 200
+        assert reads == ["device1", "device2"]
+        payload = response.get_json()
+        for device in ("device1", "device2"):
+            assert {row[name_key]: row["is_active"] for row in payload[device]} == {
+                "a": expected_active == "a",
+                "b": expected_active == "b",
+            }
+
+
 def test_task_results_pending(client) -> None:
     """GET on non-existent task should return pending status."""
     resp = client.get("/unit_api/task_results/does_not_exist")
@@ -65,21 +140,16 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
 
 
-def test_cleanup_after_inventory_removal_rejects_different_hostname(
+def test_leave_cluster_rejects_different_hostname(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    stop_jobs = Mock()
-    remove_config = Mock()
-    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
-    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
 
-    response = client.post(
-        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": "nightlytest"}
-    )
+    response = client.post("/unit_api/cluster/leave", headers={"X-Pioreactor-Target": "nightlytest"})
 
     assert response.status_code == 409
-    stop_jobs.assert_not_called()
-    remove_config.assert_not_called()
+    leave.assert_not_called()
 
 
 @pytest.mark.parametrize("target", ["another-worker", ""])
@@ -91,6 +161,7 @@ def test_cleanup_after_inventory_removal_rejects_different_hostname(
         ("POST", "/unit_api/jobs/run/job_name/stirring"),
         ("POST", "/unit_api/system/reboot"),
         ("POST", "/unit_api/system/shutdown"),
+        ("POST", "/unit_api/cluster/leave"),
         ("POST", "/unit_api/system/remove_file"),
         ("PUT", "/unit_api/config/specific"),
         ("DELETE", "/unit_api/calibrations/stirring/example"),
@@ -133,44 +204,66 @@ def test_read_requests_are_not_subject_to_mutation_target_check(client: FlaskCli
 
 
 @pytest.mark.parametrize("target", [None, HOSTNAME])
-def test_cleanup_after_inventory_removal_cleans_up_matching_or_unspecified_worker(
-    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str | None
+@pytest.mark.parametrize(
+    "body, running, status, queued_with",
+    [
+        (None, False, 202, False),
+        ({"stop_activities": True}, True, 202, True),
+        (None, True, 409, None),
+    ],
+)
+def test_leave_cluster_queues_leave_unless_activities_are_running(
+    client: FlaskClient,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str | None,
+    body: dict | None,
+    running: bool,
+    status: int,
+    queued_with: bool | None,
 ) -> None:
-    dot_pioreactor = tmp_path / ".pioreactor"
-    dot_pioreactor.mkdir()
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    stop_jobs = Mock()
-    remove_config = Mock()
-    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
-    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+    leave = Mock(return_value=SimpleNamespace(id="leave-task"))
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
+    monkeypatch.setattr("pioreactor.cluster_membership.activities_are_running", lambda: running)
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", ConfigParserMod)
 
     headers = {} if target is None else {"X-Pioreactor-Target": target}
-    response = client.post("/unit_api/system/cleanup_after_inventory_removal", headers=headers)
+    response = client.post("/unit_api/cluster/leave", headers=headers, json=body)
 
-    assert response.status_code == 202
-    stop_jobs.assert_called_once_with(all_jobs=True)
-    remove_config.assert_called_once_with(str(dot_pioreactor / "config.ini"))
+    assert response.status_code == status
+    if queued_with is None:
+        leave.assert_not_called()
+    else:
+        leave.assert_called_once_with(queued_with)
 
 
-def test_cleanup_after_inventory_removal_respects_file_system_lock(
+def test_leave_cluster_refuses_on_the_leader(client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
+    shared_config = ConfigParserMod()
+    shared_config.read_dict({"cluster.topology": {"leader_hostname": HOSTNAME}})
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", lambda: shared_config)
+
+    response = client.post("/unit_api/cluster/leave", json={"stop_activities": True})
+
+    assert response.status_code == 409
+    assert "leader" in response.get_json()["error"]
+    leave.assert_not_called()
+
+
+def test_leave_cluster_respects_file_system_lock(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
     (dot_pioreactor / "DISALLOW_UI_FILE_SYSTEM").touch()
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    stop_jobs = Mock()
-    remove_config = Mock()
-    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
-    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
 
-    response = client.post(
-        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": HOSTNAME}
-    )
+    response = client.post("/unit_api/cluster/leave", headers={"X-Pioreactor-Target": HOSTNAME})
 
     assert response.status_code == 403
-    stop_jobs.assert_not_called()
-    remove_config.assert_not_called()
+    leave.assert_not_called()
 
 
 def test_unscoped_camera_status_route_is_not_available(client) -> None:
@@ -588,6 +681,35 @@ def test_task_results_failed_when_taskexception_contains_plain_error(client, mon
     assert data["error"] == "Command exited during startup grace window. Exit code 2. No such command."
 
 
+def test_task_rate_limit_rejection_is_terminal_and_readable(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    queue = SqliteHuey(filename=tmp_path / "rate-limit.db")
+    monkeypatch.setattr(unit_api, "huey", queue)
+
+    @queue.task()
+    @queue.rate_limit("power-actions", limit=1, per=15, retry=False)
+    def limited_operation() -> bool:
+        return True
+
+    first = limited_operation()
+    queue.execute(queue.dequeue())
+    assert first.get() is True
+
+    rejected = limited_operation()
+    queue.execute(queue.dequeue())
+    response = client.get(f"/unit_api/task_results/{rejected.id}")
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "failed"
+    assert response.get_json()["error"] == (
+        "Too many requests for this operation. Wait a moment, then try again."
+    )
+    assert queue.pending_count() == 0
+    assert queue.scheduled_count() == 0
+    queue.storage.close()
+
+
 @pytest.mark.parametrize("lock_name", ["delete-experiment-lock", "plugins-lock"])
 def test_task_lock_rejection_is_terminal(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, lock_name: str
@@ -857,13 +979,16 @@ def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: 
     assert captured == {"wait": 5}
 
 
-def test_get_clock_time_success(client) -> None:
+@pytest.mark.parametrize("synchronized", [True, False, None])
+def test_get_clock_time_success(client, monkeypatch: pytest.MonkeyPatch, synchronized: bool | None) -> None:
     """GET clock time returns success and a timestamp."""
+    monkeypatch.setattr("pioreactor.web.unit_api.is_clock_synchronized", lambda: synchronized)
     resp = client.get("/unit_api/system/utc_clock")
     assert resp.status_code == 200
     data = resp.get_json()
     assert data.get("status") == "success"
     assert "clock_time" in data
+    assert data["synchronized"] is synchronized
 
 
 def test_get_disk_space(client, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1112,6 +1237,9 @@ def test_update_bioreactor_values_endpoint_rejects_out_of_range_values(client, m
 
 
 def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, monkeypatch) -> None:
+    from pioreactor.unit_model import save_local_model
+
+    save_local_model("pioreactor_20ml", "1.5")
     import pioreactor.web.unit_api as mod
 
     set_bioreactor_value("exp1", "current_volume_ml", 12.0)
@@ -1127,7 +1255,7 @@ def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, 
         json={
             "args": [],
             "options": {"ml": 6.0},
-            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "env": {"EXPERIMENT": "exp1"},
             "config_overrides": [],
         },
     )
@@ -1158,6 +1286,9 @@ def test_run_job_rejects_unknown_request_fields(client, monkeypatch) -> None:
 
 
 def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypatch) -> None:
+    from pioreactor.unit_model import save_local_model
+
+    save_local_model("pioreactor_20ml", "1.5")
     import pioreactor.web.unit_api as mod
 
     class DummyTask:
@@ -1172,7 +1303,7 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
         json={
             "args": [],
             "options": {"ml": 5.9},
-            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "env": {"EXPERIMENT": "exp1"},
             "config_overrides": [],
         },
     )
@@ -1180,34 +1311,23 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
     assert response.status_code == 202
 
 
-def test_run_job_rejects_manual_add_media_for_unknown_model(client, monkeypatch) -> None:
-    import pioreactor.web.unit_api as mod
+def test_manual_dosing_ignores_stale_request_model(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.unit_model import save_local_model
 
-    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
-    monkeypatch.setattr(
-        mod.tasks,
-        "pio_run",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
-    )
-
+    save_local_model("pioreactor_20ml", "1.5")
+    set_bioreactor_value("exp1", "current_volume_ml", 17.0)
+    monkeypatch.setattr(unit_api, "is_rate_limited", lambda _job_name: False)
     response = client.post(
         "/unit_api/jobs/run/job_name/add_media",
         json={
             "args": [],
-            "options": {"ml": 1.0},
-            "env": {
-                "EXPERIMENT": "exp1",
-                "MODEL_NAME": "unknown_model",
-                "MODEL_VERSION": "1.0",
-            },
+            "options": {"ml": 2.0},
+            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_40ml", "MODEL_VERSION": "1.5"},
             "config_overrides": [],
         },
     )
-
     assert response.status_code == 400
-    data = response.get_json()
-    assert data["error"] == "Unknown Pioreactor model."
-    assert data["cause"] == "Unknown model 'unknown_model' with version '1.0'."
+    assert "safety threshold" in response.get_json()["error"]
 
 
 def test_hardware_check_requires_model_payload(client) -> None:
@@ -1476,6 +1596,75 @@ def test_get_running_jobs_endpoint_filters_results(client) -> None:
     rows = response.get_json()
     assert isinstance(rows, list)
     assert [row["job_id"] for row in rows] == [running_job_id]
+
+
+@pytest.mark.parametrize("device", ["od", "od45", "media_pump"])
+def test_upload_od_calibration_rejects_wrong_device(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, device: str
+) -> None:
+    from pioreactor import calibrations
+
+    monkeypatch.setattr(calibrations, "CALIBRATION_PATH", tmp_path / "calibrations")
+    save_file = Mock()
+    monkeypatch.setattr(unit_api.tasks, "save_file", save_file)
+    calibration = OD600Calibration(
+        calibration_name="wrong_device",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=PolyFitCoefficients(coefficients=[0.0, 1.0]),
+        recorded_data={"x": [0.0, 1.0], "y": [0.0, 1.0]},
+        ir_led_intensity=80,
+        angle="90",
+        pd_channel="2",
+    )
+    response = client.post(
+        f"/unit_api/calibrations/{device}",
+        json={"calibration_data": yaml_encode(calibration).decode(), "set_as_active": True},
+    )
+
+    assert response.status_code == 400
+    assert "Use device `od90`" in response.get_json()["error"]
+    save_file.assert_not_called()
+    assert not (tmp_path / "calibrations").exists()
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache.get(device) != "wrong_device"
+
+
+def test_upload_od_calibration_saves_to_matching_device(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from pioreactor import calibrations
+    from pioreactor.web import tasks
+
+    calibration_root = tmp_path / "calibrations"
+    (calibration_root / "od90").mkdir(parents=True)
+    monkeypatch.setattr(calibrations, "CALIBRATION_PATH", calibration_root)
+    save_file = tasks.save_file.call_local
+
+    def execute_save(path: str, content: str) -> FakeTaskResult:
+        return FakeTaskResult(save_file(path, content))
+
+    monkeypatch.setattr(tasks, "save_file", execute_save)
+    calibration = OD600Calibration(
+        calibration_name="copied_od90",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=PolyFitCoefficients(coefficients=[0.0, 1.0]),
+        recorded_data={"x": [0.0, 1.0], "y": [0.0, 1.0]},
+        ir_led_intensity=80,
+        angle="90",
+        pd_channel="2",
+    )
+    raw_yaml = yaml_encode(calibration).decode()
+    response = client.post(
+        "/unit_api/calibrations/od90",
+        json={"calibration_data": raw_yaml, "set_as_active": True},
+    )
+
+    assert response.status_code == 201
+    assert (calibration_root / "od90" / "copied_od90.yaml").read_text() == raw_yaml
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache["od90"] == "copied_od90"
 
 
 def test_create_calibration_sets_active_when_requested(client, monkeypatch) -> None:

@@ -1147,46 +1147,6 @@ def test_interval_is_empty() -> None:
         od.on_sleeping_to_ready()
 
 
-def test_determine_best_ir_led_intensity_values() -> None:
-    _determine_best_ir_led_intensity = PhotodiodeODDevice._determine_best_ir_led_intensity
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.05, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
-        )
-        == 85.0
-    )
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
-        )
-        == 62.5
-    )
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.5, "2")},  # on
-        )
-        == 50  # 6.0
-    )
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.0, "1"), "2": structs.RawPDReading(0.0, "2")},
-        )
-        == 85.0
-    )
-
-
 def test_calibration_not_requested() -> None:
     with start_photodiode_od_reading(
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
@@ -1493,7 +1453,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"x": [0, 2], "y": [0, 1]},
+        recorded_data={"x": [0, 2], "y": [0, 4]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
@@ -1519,8 +1479,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
             voltage = 10.0
             assert od.device.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
-            assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
-            assert any("Signal above" in log["message"] for log in bucket)
+            assert wait_for(lambda: any("Signal above" in log["message"] for log in bucket), timeout=3.0)
 
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
@@ -1631,13 +1590,23 @@ def test_calibration_multi_modal() -> None:
             print(voltage)
 
 
-def test_calibration_errors_when_ir_led_differs() -> None:
+FIXED_INTENSITY_CASES = [("90", None), ("80", 90.0)]
+
+
+@pytest.mark.parametrize("calibration_source", ["active", "explicit", "list"])
+@pytest.mark.parametrize("configured_intensity,intensity_override", FIXED_INTENSITY_CASES)
+def test_calibration_errors_when_ir_led_differs(
+    monkeypatch: pytest.MonkeyPatch,
+    calibration_source: str,
+    configured_intensity: str,
+    intensity_override: float | None,
+) -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_data_=_poly_curve([1.0, 0, -0.1]),
-        calibration_name="quad_test",
+        calibration_name="startup_intensity_mismatch",
         ir_led_intensity=50.0,  # here!
         angle="90",
         recorded_data={"x": [0, 1], "y": [0, 2]},
@@ -1646,17 +1615,124 @@ def test_calibration_errors_when_ir_led_differs() -> None:
     )
 
     cal.set_as_active_calibration_for_device("od90")
-    with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
+    calibration = {"active": True, "explicit": cal, "list": [cal]}[calibration_source]
+
+    def fail_if_constructed(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Mismatched calibration must fail before ADCReader construction.")
+
+    monkeypatch.setattr(od_reading_module, "ADCReader", fail_if_constructed)
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", configured_intensity):
+        with pytest.raises(
+            exc.CalibrationError,
+            match=r"calibration `startup_intensity_mismatch`.*50\.0.*90\.0",
+        ):
+            start_photodiode_od_reading(
+                make_channels("REF", "90"),
+                interval=1,
+                fake_data=True,
+                experiment=experiment,
+                calibration=calibration,
+                estimator=False,
+                ir_led_intensity=intensity_override,
+            )
+
+
+@pytest.mark.parametrize("active", [False, True])
+@pytest.mark.parametrize("configured_intensity,intensity_override", FIXED_INTENSITY_CASES)
+def test_estimator_intensity_mismatch_skips_od_fused_but_starts(
+    active: bool,
+    configured_intensity: str,
+    intensity_override: float | None,
+) -> None:
+    experiment = "test_estimator_intensity_mismatch_skips_od_fused_but_starts"
+    estimator = _build_fusion_estimator()
+    if active:
+        estimator.set_as_active_calibration_for_device(pt.OD_FUSED_DEVICE)
+
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", configured_intensity):
         with start_photodiode_od_reading(
-            make_channels("REF", "90"),
-            interval=1,
+            {"1": "45", "2": "90", "3": "135"},
+            interval=None,
             fake_data=True,
             experiment=experiment,
-            calibration=cal,
-            ir_led_intensity=90.0,  # here!
-        ):
-            pass
-        assert "LED intensity" in bucket[0]["message"]
+            calibration=False,
+            estimator=True if active else estimator,
+            ir_led_intensity=intensity_override,
+        ) as od:
+            assert od.device.estimator_transformer.estimator is None
+            assert od.record() is not None
+
+
+@pytest.mark.parametrize("contents", [None, "estimator_name: [\n"])
+def test_unreadable_active_estimator_skips_od_fused_but_starts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, contents: str | None
+) -> None:
+    from pioreactor import estimators as estimators_module
+
+    monkeypatch.setattr(estimators_module, "ESTIMATOR_PATH", tmp_path)
+    if contents is not None:
+        (tmp_path / pt.OD_FUSED_DEVICE).mkdir()
+        (tmp_path / pt.OD_FUSED_DEVICE / "broken.yaml").write_text(contents, encoding="utf-8")
+
+    with local_persistent_storage("active_estimators") as c:
+        previous = c.get(pt.OD_FUSED_DEVICE)
+        c[pt.OD_FUSED_DEVICE] = "broken"
+    try:
+        with start_photodiode_od_reading(
+            {"1": "45", "2": "90", "3": "135"},
+            interval=None,
+            fake_data=True,
+            experiment="test_unreadable_active_estimator_skips_od_fused_but_starts",
+            calibration=False,
+            estimator=True,
+        ) as od:
+            assert od.device.estimator_transformer.estimator is None
+            assert od.record() is not None
+    finally:
+        with local_persistent_storage("active_estimators") as c:
+            if previous is None:
+                c.pop(pt.OD_FUSED_DEVICE)
+            else:
+                c[pt.OD_FUSED_DEVICE] = previous
+
+
+def test_non_numeric_ir_led_intensity_errors_before_hardware_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_if_constructed(*args: object, **kwargs: object) -> None:
+        raise AssertionError("A non-numeric IR LED intensity must fail before ADCReader construction.")
+
+    monkeypatch.setattr(od_reading_module, "ADCReader", fail_if_constructed)
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
+        with pytest.raises(ValueError, match=r"ir_led_intensity must be a number.*`auto`"):
+            start_photodiode_od_reading(
+                make_channels("REF", "90"), interval=None, fake_data=True, calibration=False
+            )
+
+
+@pytest.mark.parametrize("use_estimator", [False, True])
+@pytest.mark.parametrize("configured_intensity", ["90", "50"])
+def test_matching_intensity_override_allows_od_startup(
+    use_estimator: bool, configured_intensity: str
+) -> None:
+    calibration = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_data_=_poly_curve([1.0, 0.0]),
+        calibration_name="matching_intensity_override",
+        ir_led_intensity=80.0,
+        angle="90",
+        recorded_data={"x": [0, 1], "y": [0, 1]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", configured_intensity):
+        with start_photodiode_od_reading(
+            {"1": "45", "2": "90", "3": "135"},
+            interval=None,
+            fake_data=True,
+            calibration=False if use_estimator else calibration,
+            estimator=_build_fusion_estimator() if use_estimator else False,
+            ir_led_intensity=80.0,
+        ) as od:
+            assert od.ir_led_intensity == 80.0
 
 
 def test_calibration_with_irl_data1() -> None:
@@ -2054,41 +2130,6 @@ def test_calibration_data_from_user2() -> None:
             od_0 = od_1
 
 
-def test_auto_ir_led_intensity_REF_and_90() -> None:
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        experiment = "test_auto_ir_led_intensity"
-
-        with start_photodiode_od_reading(
-            make_channels("REF", "90"),
-            interval=None,
-            fake_data=True,
-            experiment=experiment,
-            calibration=False,
-            estimator=False,
-        ) as od:
-            assert abs(od.ir_led_intensity - 85.0) < 0.01
-
-
-def test_auto_ir_led_intensity_90_only() -> None:
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        experiment = "test_auto_ir_led_intensity"
-
-        with start_photodiode_od_reading(
-            make_channels(None, "90"), interval=None, fake_data=True, experiment=experiment, calibration=False
-        ) as od:
-            assert od.ir_led_intensity == 85.0
-
-
-def test_auto_ir_led_intensity_90_and_90() -> None:
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        experiment = "test_auto_ir_led_intensity"
-
-        with start_photodiode_od_reading(
-            make_channels("90", "90"), interval=None, fake_data=True, experiment=experiment
-        ) as od:
-            assert od.ir_led_intensity == 85.0
-
-
 def test_at_least_one_channel() -> None:
     experiment = "test_at_least_one_channel"
 
@@ -2119,9 +2160,9 @@ def test_only_one_ref_channel_allowed() -> None:
             pass
 
 
-def test_click_od_reading_errors_cleanly_when_samples_per_second_is_zero() -> None:
-    with temporary_config_change(config, "od_reading.config", "samples_per_second", "0"):
-        with pytest.raises(ValueError, match=r"samples_per_second=0\.0.*> 0"):
+def test_click_od_reading_errors_cleanly_when_seconds_between_readings_is_zero() -> None:
+    with temporary_config_change(config, "od_reading.config", "seconds_between_readings", "0"):
+        with pytest.raises(ValueError, match=r"seconds_between_readings=0\.0.*> 0"):
             click_od_reading.callback(
                 fake_data=True,
                 interval=None,
@@ -2912,6 +2953,59 @@ def test_average_over_od_readings_uses_per_channel_counts() -> None:
 
     assert averaged.ods["1"].od == pytest.approx(3.0)
     assert averaged.ods["2"].od == pytest.approx(3.0)
+
+
+def _linear_od90_calibration(pd_channel: pt.PdChannel) -> structs.OD600Calibration:
+    return structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_data_=_poly_curve([2.0, 0.0]),
+        calibration_name="linear",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel=pd_channel,
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+
+def test_start_od_reading_rejects_calibration_for_a_channel_now_at_another_angle() -> None:
+    # calibrated at 90° on channel 2, but channel 2 has since been configured as 45°.
+    with pytest.raises(exc.CalibrationError, match="now configured as 45"):
+        start_photodiode_od_reading(
+            make_channels("REF", "45"),
+            interval=None,
+            fake_data=True,
+            experiment="test_start_od_reading_rejects_calibration_for_a_channel_now_at_another_angle",
+            unit=get_unit_name(),
+            calibration=_linear_od90_calibration("2"),
+            estimator=False,
+            ir_led_intensity=90.0,
+        )
+
+
+def test_start_od_reading_with_two_channels_at_the_same_angle_loads_calibration_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loaded_devices: list[str] = []
+
+    def fake_load_active_calibration(device: str) -> structs.OD600Calibration:
+        loaded_devices.append(device)
+        return _linear_od90_calibration("1")
+
+    monkeypatch.setattr("pioreactor.calibrations.load_active_calibration", fake_load_active_calibration)
+
+    with start_photodiode_od_reading(
+        make_channels("90", "90"),
+        interval=None,
+        fake_data=True,
+        experiment="test_start_od_reading_with_two_channels_at_the_same_angle_loads_calibration_once",
+        unit=get_unit_name(),
+        calibration=True,
+        estimator=False,
+        ir_led_intensity=90.0,
+    ) as od:
+        assert loaded_devices == ["od90"]
+        assert list(od.device.calibration_transformer.models) == ["1"]
 
 
 def test_photodiode_led_operations_reuse_job_mqtt_client(monkeypatch: pytest.MonkeyPatch) -> None:

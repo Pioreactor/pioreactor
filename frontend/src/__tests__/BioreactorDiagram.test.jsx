@@ -178,7 +178,7 @@ describe("BioreactorDiagram SVG", () => {
     const stirBar = svg.querySelector('[data-part="stir-bar"]');
     const initialWidth = stirBar.getAttribute("width");
     const initialX = stirBar.getAttribute("x");
-    sendTelemetry("pwms/channel_dc", {1: 10});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {1: 10}});
     advanceFrame(0);
     advanceFrame(100);
     expect(Number(stirBar.getAttribute("width"))).toBeLessThan(Number(initialWidth));
@@ -193,7 +193,7 @@ describe("BioreactorDiagram SVG", () => {
     expect(window.requestAnimationFrame).toHaveBeenCalledTimes(scheduledFrames);
     expect(window.cancelAnimationFrame).not.toHaveBeenCalled();
 
-    sendTelemetry("pwms/channel_dc", {1: 0});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {1: 0}});
     expect(stirBar).toHaveAttribute("width", initialWidth);
     expect(stirBar).toHaveAttribute("x", initialX);
     expect(frames.size).toBe(0);
@@ -202,7 +202,7 @@ describe("BioreactorDiagram SVG", () => {
 
   test("cancels the animation and unsubscribes on unmount", () => {
     const diagram = renderDiagram();
-    sendTelemetry("pwms/channel_dc", {1: 10});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {1: 10}});
     advanceFrame(0);
     diagram.unmount();
     expect(frames.size).toBe(0);
@@ -212,8 +212,8 @@ describe("BioreactorDiagram SVG", () => {
     );
   });
 
-  test("updates idle telemetry, liquid volume, and the liquid-pump warning without animation", () => {
-    const diagram = renderDiagram();
+  test.each([20, 40])("updates the %i mL telemetry and shows the pump warning outside the SVG", (size) => {
+    const diagram = renderDiagram({size});
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
     const led = svg.querySelector('[data-led="A"] rect');
     const heater = svg.querySelector('[data-part="heater"] rect');
@@ -222,25 +222,28 @@ describe("BioreactorDiagram SVG", () => {
     sendTelemetry("leds/intensity", {A: 30, B: 0, C: 0, D: 0});
     sendTelemetry("temperature_automation/temperature", {temperature: 31});
     sendTelemetry("growth_rate_calculating/od_filtered", {od_filtered: 0.8});
-    sendTelemetry("pwms/channel_dc", {2: 25, 5: 50});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {2: 25, 5: 50}});
     expect(diagram.getByText("Temp: 31°C")).toBeInTheDocument();
     expect(diagram.getByText("nOD: 0.8")).toBeInTheDocument();
-    expect(diagram.getByText(/diagram above may not be an accurate/)).toBeInTheDocument();
+    const warning = diagram.getByRole("alert");
+    expect(warning).toBeVisible();
+    expect(svg.contains(warning)).toBe(false);
+    expect(svg.nextElementSibling).toBe(warning);
     [led, heater, mediaTube].forEach((element, index) => {
       expect(element.getAttribute("fill")).not.toBe(initialFills[index]);
     });
     diagram.rerender(
-      <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={20} liquidVolume={15} />,
+      <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={size} liquidVolume={15} />,
     );
     expect(diagram.getByText("15 mL")).toBeInTheDocument();
-    sendTelemetry("pwms/channel_dc", {});
-    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {}});
+    expect(diagram.getByText(/diagram above may not be an accurate/i)).not.toBeVisible();
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
   test("does not animate a non-finite RPM estimate", () => {
     renderDiagram();
-    sendTelemetry("pwms/channel_dc", {1: "not-a-number"});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {1: "not-a-number"}});
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
@@ -249,7 +252,7 @@ describe("BioreactorDiagram SVG", () => {
       matches: true, media: query, addEventListener: jest.fn(), removeEventListener: jest.fn(),
     }));
     const diagram = renderDiagram();
-    sendTelemetry("pwms/channel_dc", {1: 10});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {1: 10}});
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
     expect(diagram.getByRole("img").querySelector("desc")).toHaveTextContent("Stirring on");
   });
@@ -259,11 +262,11 @@ describe("BioreactorDiagram SVG", () => {
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
     const airStone = svg.querySelector('[data-tube="air"] rect:last-child');
     const initialFill = airStone.getAttribute("fill");
-    sendTelemetry("pwms/channel_dc", {4: 35});
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {4: 35}});
     expect(airStone.getAttribute("fill")).not.toBe(initialFill);
-    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
-    sendTelemetry("pwms/channel_dc", {});
+    expect(diagram.getByText(/diagram above may not be an accurate/i)).not.toBeVisible();
+    sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {}});
     expect(airStone).toHaveAttribute("fill", initialFill);
-    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
+    expect(diagram.getByText(/diagram above may not be an accurate/i)).not.toBeVisible();
   });
 });

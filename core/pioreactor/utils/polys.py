@@ -7,6 +7,7 @@ from typing import Literal
 from typing import Sequence
 
 from pioreactor import structs
+from pioreactor.utils.math_helpers import aicc_score
 
 
 def poly_fit(
@@ -15,6 +16,7 @@ def poly_fit(
     degree: int | Literal["auto"] | None = "auto",
     weights: Sequence[float] | None = None,
 ) -> structs.PolyFitCoefficients:
+    """Fit a polynomial to the observed data."""
     import numpy as np
 
     x_values = np.asarray(x, dtype=float)
@@ -78,16 +80,6 @@ def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
     return sorted([float(np.real(r)) for r in roots_ if (abs(np.imag(r)) <= 1e-10 * (abs(np.real(r)) + 1.0))])
 
 
-def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
-    import numpy as np
-
-    if n_obs <= n_params + 1:
-        return float("inf")
-    sse = max(weighted_sse, np.finfo(float).tiny)
-    correction = (2 * n_params * (n_params + 1)) / (n_obs - n_params - 1)
-    return n_obs * np.log(sse / n_obs) + 2 * n_params + correction
-
-
 def _normalize_degree(
     degree: int | Literal["auto"] | None,
     x_values: Any,
@@ -130,7 +122,7 @@ def _auto_select_degree(
         y_pred = np.polyval(coefs, x_values)
         residual = y_values - y_pred
         weighted_sse = float(np.sum(weight_values * residual**2))
-        score = _aicc_score(weighted_sse, n_obs, degree + 1)
+        score = aicc_score(weighted_sse, n_obs, degree + 1)
         if score < best_score:
             best_score = score
             best_degree = degree

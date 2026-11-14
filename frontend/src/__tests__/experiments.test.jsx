@@ -25,6 +25,7 @@ const experiments = [
   {
     experiment: "exp1",
     created_at: "2026-03-01T12:00:00Z",
+    started_at: "2026-03-01T12:00:00Z",
     description: "Alpha description",
     delta_hours: 10,
     worker_count: 2,
@@ -33,6 +34,7 @@ const experiments = [
   {
     experiment: "exp2",
     created_at: "2026-03-02T12:00:00Z",
+    started_at: "2026-03-02T12:00:00Z",
     description: "Beta condition",
     delta_hours: 5,
     worker_count: 0,
@@ -116,7 +118,7 @@ describe("Experiments page", () => {
     });
 
     render(<MemoryRouter><Experiments title="Experiments" /></MemoryRouter>);
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/experiments"));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/experiments", { cache: "no-cache" }));
     fireEvent.click(screen.getByRole("button", { name: "More actions for exp1" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete experiment" }));
 
@@ -140,6 +142,46 @@ describe("Experiments page", () => {
     fireEvent.click(chip);
 
     expect(selectExperiment).toHaveBeenCalledWith("exp1");
+  });
+
+  test("editing the start time sends UTC and updates shared metadata", async () => {
+    const { updateExperiment } = mockExperimentContext();
+    const startedAt = new Date("2026-03-01T15:45:00").toISOString();
+    const saved = { ...experiments[0], started_at: startedAt };
+    global.fetch.mockImplementation(async (_url, options) => ({
+      ok: true,
+      json: async () => options?.method === "PATCH" ? saved : experiments,
+    }));
+    render(<MemoryRouter><Experiments title="Experiments" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "More actions for exp1" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit details" }));
+    fireEvent.change(screen.getByLabelText(/Experiment start \(local time\)/), {
+      target: { value: "2026-03-01T15:45:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateExperiment).toHaveBeenCalledWith(saved));
+    const [, options] = global.fetch.mock.calls.find(([, options]) => options?.method === "PATCH");
+    expect(JSON.parse(options.body)).toEqual({
+      description: experiments[0].description,
+      tags: experiments[0].tags,
+      started_at: startedAt,
+    });
+  });
+
+  test("a failed start-time save keeps the draft for retry", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    global.fetch.mockImplementation(async (_url, options) => options?.method === "PATCH"
+      ? { ok: false, json: async () => ({ error: "Could not save start time" }) }
+      : { ok: true, json: async () => experiments });
+    render(<MemoryRouter><Experiments title="Experiments" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "More actions for exp1" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit details" }));
+    const input = screen.getByLabelText(/Experiment start \(local time\)/);
+    fireEvent.change(input, { target: { value: "2026-03-01T15:45" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save start time");
+    expect(input.value).toBe("2026-03-01T15:45");
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
   test("search filters the experiment list", async () => {
@@ -168,6 +210,7 @@ describe("Experiments page", () => {
             {
               experiment: "exp3",
               created_at: "2026-03-03T12:00:00Z",
+              started_at: "2026-03-03T12:00:00Z",
               description: "Gamma condition",
               delta_hours: 1,
               worker_count: 1,
@@ -186,7 +229,7 @@ describe("Experiments page", () => {
     );
 
     expect(screen.queryByText("Gamma condition")).toBeNull();
-    expect(global.fetch).toHaveBeenCalledWith("/api/experiments");
+    expect(global.fetch).toHaveBeenCalledWith("/api/experiments", { cache: "no-cache" });
 
     expect(await screen.findByText("Gamma condition")).toBeTruthy();
   });

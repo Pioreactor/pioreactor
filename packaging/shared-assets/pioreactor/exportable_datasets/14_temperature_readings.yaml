@@ -13,8 +13,8 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp from the published temperature reading.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   temperature_c: Inferred vial temperature.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   temperature_c: degC

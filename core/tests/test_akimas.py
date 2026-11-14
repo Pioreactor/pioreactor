@@ -5,6 +5,9 @@ from typing import cast
 
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 from pioreactor import structs
 from pioreactor.utils.akimas import akima_eval
 from pioreactor.utils.akimas import akima_eval_derivative
@@ -30,6 +33,50 @@ def test_akima_matches_scipy() -> None:
     theirs = scipy_akima(x_grid)
 
     assert np.allclose(ours, theirs, rtol=1e-10, atol=1e-10)
+
+
+@settings(max_examples=100)
+@given(
+    points=st.lists(
+        st.tuples(st.integers(1, 20), st.floats(-100, 100, allow_nan=False, allow_infinity=False)),
+        min_size=5,
+        max_size=15,
+    )
+)
+def test_property_akima_matches_scipy(points: list[tuple[int, float]]) -> None:
+    # Positive gaps generate irregular, separated knots without filtering examples.
+    x = np.cumsum([gap for gap, _ in points]).astype(float)
+    y = [value for _, value in points]
+    curve = akima_fit(x.tolist(), y)
+    reference = Akima1DInterpolator(x, y)
+    probes = np.sort(np.concatenate([x, (x[:-1] + x[1:]) / 2]))
+
+    actual = [akima_eval(curve, float(probe)) for probe in probes]
+    assert actual == pytest.approx(reference(probes).tolist(), rel=1e-10, abs=1e-10)
+
+
+@settings(max_examples=100)
+@given(
+    points=st.lists(
+        st.tuples(
+            st.integers(1, 20),
+            st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+            st.floats(-100, 100, allow_nan=False, allow_infinity=False),
+        ),
+        min_size=2,
+        max_size=15,
+    )
+)
+def test_property_akima_interpolates_duplicate_knot_means(points: list[tuple[int, float, float]]) -> None:
+    knots = np.cumsum([gap for gap, _, _ in points]).astype(float).tolist()
+    x = [knot for knot in knots for _ in range(2)]
+    y = [value for _, first, second in points for value in (first, second)]
+    # Reverse the observations to also exercise sorting before duplicate aggregation.
+    curve = akima_fit(x[::-1], y[::-1])
+
+    assert curve.knots == knots
+    expected = [(first + second) / 2 for _, first, second in points]
+    assert [akima_eval(curve, knot) for knot in knots] == pytest.approx(expected, rel=1e-10, abs=1e-10)
 
 
 def test_akima_solve_linear() -> None:

@@ -128,13 +128,13 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
             if backup_unit == unit:
                 continue
 
-            logger.debug(f"Attempting backing up database to {backup_unit}.")
+            logger.debug(f"Attempting backing up database to `{backup_unit}`.")
             available_on_remote = _remote_available_space(
                 resolve_to_address(backup_unit), str(Path(output_file).parent)
             )
             if available_on_remote is not None and available_on_remote < Path(output_file).stat().st_size:
-                logger.debug(f"Skipping backup to {backup_unit}. Not enough disk space.")
-                logger.warning(f"Unable to backup database to {backup_unit}. Not enough disk space.")
+                logger.debug(f"Skipping backup to `{backup_unit}`. Not enough disk space.")
+                logger.warning(f"Unable to backup database to `{backup_unit}`. Not enough disk space.")
                 continue
             try:
                 rsync(
@@ -146,10 +146,10 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 )
             except RsyncError:
                 logger.debug(
-                    f"Unable to backup database to {backup_unit}.",
+                    f"Unable to backup database to `{backup_unit}`.",
                     exc_info=True,
                 )
-                logger.warning(f"Unable to backup database to {backup_unit}.")
+                logger.warning(f"Unable to backup database to `{backup_unit}`.")
             else:
                 logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1

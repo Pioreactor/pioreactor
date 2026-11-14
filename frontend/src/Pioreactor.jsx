@@ -1,9 +1,12 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
+import useCameraResource from "./hooks/useCameraResource";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
 import Grid from '@mui/material/Grid';
 import { useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 import Chip from '@mui/material/Chip';
 import Card from '@mui/material/Card';
@@ -41,7 +44,6 @@ import FlareIcon from '@mui/icons-material/Flare';
 import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import ControlIcon from './components/ControlIcon';
 import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -53,16 +55,17 @@ import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsD
 import AdvancedConfigButton from "./components/AdvancedConfigDialog"
 import AutomationAdvancedConfigButton from "./components/AutomationAdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
-import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
+import PluginChip from "./components/PluginChip"
 import RequirementsAlert from "./components/RequirementsAlert";
 import BioreactorDiagramPanel from "./components/BioreactorDiagramPanel";
 import Chart from "./components/Chart";
 import ChartPreferencesControl from "./components/ChartPreferencesControl";
 import LogTableByUnit from "./components/LogTableByUnit";
 import CameraPanel from "./components/CameraPanel";
+import UnitLabelEditor from "./components/UnitLabelEditor";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
@@ -70,7 +73,7 @@ import {
   buildBioreactorSettingsCollection,
   getBioreactorConfirmedValue,
   mergeSettingsCollections,
-  parseNumericValue,
+  parseBioreactorPayload,
 } from "./utils/bioreactor";
 import { getRelabelMap } from "./utils/config";
 import {
@@ -91,7 +94,7 @@ import {
   readyGreen,
   disabledColor,
 } from "./utils/color";
-import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import ChartControlsRow from "./components/ChartControlsRow";
 import useExperimentChartPreferences from "./hooks/useExperimentChartPreferences";
 import {
   canQuickEditCardSetting,
@@ -120,9 +123,10 @@ import {
   getPioreactorCardMonitorTopics,
   getPioreactorCardPublishedSettingsTopics,
   parsePayloadToType,
-  textIcon,
   updateBioreactorSettingAndMirrorState,
 } from "./components/PioreactorCardShared";
+import { textIcon } from "./theme";
+import DialogCloseButton from "./components/DialogCloseButton";
 
 function ShieldCheckOutlineIcon(props) {
   return (
@@ -142,7 +146,62 @@ function ShieldAlertOutlineIcon(props) {
 
 
 
-function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
+async function fetchWorkerAssignment(unit) {
+  const response = await fetch(`/api/workers/${unit}`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error);
+  }
+  return response.json();
+}
+
+
+export function PastExperimentNotice({unit, experiment, assignedExperiment, selectExperiment, onAssigned}) {
+  const [assigning, setAssigning] = useState(false)
+  const [assignError, setAssignError] = useState(null)
+
+  const experimentChip = (name) => (
+    <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={name} data-experiment-name={name} />
+  )
+
+  const assignToExperiment = () => {
+    setAssigning(true)
+    setAssignError(null)
+    fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pioreactor_unit: unit }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          return response.json().then((errorData) => { throw new Error(errorData.error) })
+        }
+        onAssigned()
+      })
+      .catch((error) => setAssignError(`Could not assign this Pioreactor. ${error.message || "Please try again."}`))
+      .finally(() => setAssigning(false))
+  }
+
+  const action = assignedExperiment
+    ? <Button color="inherit" size="small" onClick={() => selectExperiment(assignedExperiment)}>Switch experiment</Button>
+    : <Button color="inherit" size="small" disabled={assigning} onClick={assignToExperiment}>Assign to this experiment</Button>
+
+  return (
+    <Box sx={{mb: '10px', mt: '10px'}}>
+      <Alert severity="info" action={action}>
+        {assignedExperiment
+          ? <>This Pioreactor is now assigned to experiment {experimentChip(assignedExperiment)}. </>
+          : <>This Pioreactor isn't assigned to an experiment. </>
+        }
+        Showing its data from {experimentChip(experiment)} read-only, with controls turned off.
+      </Alert>
+      {assignError && <Alert severity="error" sx={{mt: 1}}>{assignError}</Alert>}
+    </Box>
+  )
+}
+
+
+function PioreactorHeader({assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
   }
@@ -156,36 +215,35 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
           </Button>
         )}
       />
-
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-          {unit}
-        </Typography>
         <Box sx={{mb: 0, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
-            <Box sx={{display:"inline"}}>
+            <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
-                <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
-                <Chip icon={<PlayCircleOutlinedIcon/>} size="small" sx={{ mb: "2px" }} label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
+                <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
+                {assignedExperiment
+                  ? <Chip icon={<PlayCircleOutlinedIcon/>} size="small" sx={{ mb: "2px" }} label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
+                  : "None"
+                }
               </Box>
             </Box>
-            <Box sx={{display:"inline"}}>
+            <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 {isActive
                   ? <ShieldCheckOutlineIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/>
                   : <ShieldAlertOutlineIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/>
                 } Availability:&nbsp;
               </Box>
-              <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
+              <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
                 {isActive ? "Active" : "Inactive"}
               </Box>
             </Box>
-            <Box sx={{display:"inline"}}>
+            <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 <PioreactorIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Model:&nbsp;
               </Box>
-              <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
+              <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
                 {modelDisplayName}
               </Box>
             </Box>
@@ -213,6 +271,11 @@ function SettingsActionsDialog(props) {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestExperiment = "$experiment";
   const selfTestSettings = props.jobs?.self_test?.publishedSettings || null;
+  const { data: cameraStatus, error: cameraStatusError } = useCameraResource({
+    url: open && tabValue === 4
+      ? `/api/workers/${encodeURIComponent(props.unit)}/camera/experiments/${experimentPathSegment(selfTestExperiment)}/status`
+      : null,
+  });
   const selfTestSettingTypes = useMemo(() => {
     if (!selfTestSettings) {
       return {};
@@ -223,8 +286,8 @@ function SettingsActionsDialog(props) {
     }, {});
   }, [selfTestSettings]);
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, props.config?.camera?.enabled === "1"),
-    [selfTestSettings, props.config?.camera?.enabled]
+    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraStatus?.detection_status === "detected"),
+    [selfTestSettings, cameraStatus]
   );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(props.settingsCollections || {}).filter(job => job.metadata.display)
@@ -262,7 +325,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job, setting, value) {
     if (job === "bioreactor") {
-      // Mirror the confirmed save locally so the Settings dialog updates immediately.
+      // Mirror the confirmed save locally so the Parameters dialog updates immediately.
       // The retained MQTT echo will still arrive, but it can lag the HTTP response.
       return updateBioreactorSettingAndMirrorState(
         props.unit,
@@ -588,18 +651,7 @@ function SettingsActionsDialog(props) {
           <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {props.label ? `${props.label} / ${props.unit}` : `${props.unit}`} </span>
         </Typography>
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       <Tabs
         value={tabValue}
         onChange={handleTabChange}
@@ -610,7 +662,7 @@ function SettingsActionsDialog(props) {
         allowScrollButtonsMobile
         >
         <Tab label="Activities"/>
-        <Tab label="Settings"/>
+        <Tab label="Parameters"/>
         <Tab label="Dosing"/>
         <Tab label="LEDs"/>
         <Tab label="Self-test"/>
@@ -639,9 +691,12 @@ function SettingsActionsDialog(props) {
                 </Typography>
                 <StateTypography state={job.state}/>
               </Box>
-              <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
-                {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
-              </Typography>
+              {job.metadata.source !== "app" && (
+                <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
+                  Installed by{" "}
+                  {job.metadata.source ? <PluginChip name={job.metadata.source} unit={props.unit} /> : "an unknown plugin"}
+                </Typography>
+              )}
               <Typography variant="body2" component="div" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>
@@ -944,28 +999,6 @@ function SettingsActionsDialog(props) {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <Typography  gutterBottom>
-            Cycle Media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media periodically and waste pump continuously.
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_media} />
-
-          <ControlDivider/>
-
-          <Typography  gutterBottom>
-            Cycle alternative media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media periodically and waste pump continuously.
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_alt_media} />
-
-          <ControlDivider/>
-
           <Alert severity="warning" sx={{mb: '10px', mt: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
           <Typography  gutterBottom>
@@ -1067,6 +1100,9 @@ function SettingsActionsDialog(props) {
           <ControlDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
+          {cameraStatusError && (
+            <Alert severity="warning">Could not check camera availability. Reopen this tab to retry.</Alert>
+          )}
           <Typography gutterBottom>
             Self-test
           </Typography>
@@ -1448,7 +1484,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     const topicName = topic.toString()
     const parts = topicName.split("/");
     const variableName = parts[4];
-    const parsedValue = parseNumericValue(message.toString());
+    const parsedValue = parseBioreactorPayload(message);
 
     if (!variableName || parsedValue === null) {
       return;
@@ -1664,10 +1700,10 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       return lostRed
     }
     else if (state === null){
-      return "#ececec"
+      return uiColors.noData
     }
     else {
-      return "#2FBB39"
+      return uiColors.online
     }
   }
 
@@ -1715,15 +1751,18 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
           })}>
             <Box sx={{display: "flex", justifyContent: "left"}}>
               <PioreactorIconWithModel badgeContent={modelBadgeContent} />
-              <Typography sx={{
+              <UnitLabelEditor
+                unit={unit}
+                experiment={experiment}
+                label={label}
+                onLabelChange={setLabel}
+                titleSx={{
                   fontSize: 20,
                   color: uiColors.text,
                   fontWeight: 500,
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
-                gutterBottom>
-                {(label ) ? label : unit }
-              </Typography>
+              />
               <Tooltip title={indicatorLabel} placement="right">
                 <div>
                   <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
@@ -1872,7 +1911,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         <Box sx={{width: "100px", mt: "10px"}}>
           <Typography variant="body2">
             <Box component="span" sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
-              Settings:
+              Parameters:
             </Box>
           </Typography>
         </Box>
@@ -1997,7 +2036,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                 <Typography variant="subtitle2">
                   {quickSetting.label}
                 </Typography>
-                <IconButton aria-label="Close setting editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
+                <IconButton aria-label="Close parameter editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>
@@ -2096,7 +2135,7 @@ function Charts(props) {
                   yAxisLabel={chart.y_axis_label}
                   experiment={experiment}
                   deltaHours={props.experimentMetadata.delta_hours}
-                  experimentStartTime={props.experimentMetadata.created_at}
+                  experimentStartTime={props.experimentMetadata.started_at}
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
@@ -2124,7 +2163,7 @@ function Charts(props) {
 
 
 
-function Pioreactor({title, cameraUIEnabled = false}) {
+function Pioreactor({title}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
   const [unitConfig, setUnitConfig] = useState({})
   const [unitConfigReady, setUnitConfigReady] = useState(false)
@@ -2139,22 +2178,37 @@ function Pioreactor({title, cameraUIEnabled = false}) {
     configReady: unitConfigReady,
     experiment: experimentMetadata.experiment,
   });
+  const theme = useTheme();
+  const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true });
+  const chartControls = (
+    <ChartControlsRow
+      timeWindow={timeWindow}
+      setTimeWindow={setTimeWindow}
+      timeScale={timeScale}
+      setTimeScale={setTimeScale}
+      settingsControl={
+        <ChartPreferencesControl
+          chartPageLabel="Pioreactor"
+          chartPreferences={chartPreferences}
+          experiment={experimentMetadata.experiment}
+        />
+      }
+    />
+  );
 
   const {pioreactorUnit} = useParams();
   const unit = pioreactorUnit
   const [assignedExperiment, setAssignedExperiment] = useState(null)
+  const [assignmentLoaded, setAssignmentLoaded] = useState(false)
+  const [assignmentVersion, setAssignmentVersion] = useState(0)
   const [bioreactorValues, setBioreactorValues] = useState({})
   const [isActive, setIsActive] = useState(true)
   const [modelDetails, setModelDetails] = useState({})
   const [error, setError] = useState(null)
+  // Charts refetch their history when this identity changes, so keep it stable across MQTT-driven rerenders.
+  const unitsColorMap = useMemo(() => ({[unit]: colors[0]}), [unit])
 
-  const onExperimentClick = () => {
-    selectExperiment(assignedExperiment);
-  }
-
-  useEffect(() => {
-    document.title = title;
-  }, [title]);
+  useDocumentTitle(title);
 
   useEffect(() => {
     fetch(`/api/config/units/${unit}`).then((response) => {
@@ -2174,30 +2228,19 @@ function Pioreactor({title, cameraUIEnabled = false}) {
   }, [unit]);
 
   useEffect(() => {
-    function getWorkerAssignment() {
-      fetch(`/api/workers/${unit}/experiment`)
-        .then((response) => {
-          if (!response.ok) {
-            return response.json().then((errorData) => {
-              console.log(errorData)
-              throw new Error(errorData.error);
-            });
-          }
-          return response.json();
-        })
-        .then((json) => {
+    let cancelled = false;
+    fetchWorkerAssignment(unit)
+      .then((json) => {
+        if (cancelled) return;
         setAssignedExperiment(json['experiment'])
         setIsActive(json['is_active'])
+        setAssignmentLoaded(true)
       })
       .catch((error) => {
-        setError(error.message);
+        if (!cancelled) setError(error.message);
       });
-    }
-
-    if (experimentMetadata){
-      getWorkerAssignment()
-    }
-  }, [experimentMetadata, unit])
+    return () => { cancelled = true };
+  }, [experimentMetadata, unit, assignmentVersion])
 
   useEffect(() => {
     function getModelDetails() {
@@ -2224,6 +2267,10 @@ function Pioreactor({title, cameraUIEnabled = false}) {
 
 
 
+  const isViewingPastExperiment = assignmentLoaded
+    && Boolean(experimentMetadata.experiment)
+    && experimentMetadata.experiment !== assignedExperiment
+
   if (error) {
     return (
       <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
@@ -2241,12 +2288,16 @@ function Pioreactor({title, cameraUIEnabled = false}) {
               md: 12,
               xs: 12
             }}>
-            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
-            {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
-            <Box>
-            <Alert severity="info" sx={{mb: '10px', mt: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment}/> to control this worker.</Alert>
-            </Box>
-          }
+            <PioreactorHeader assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
+            {isViewingPastExperiment &&
+              <PastExperimentNotice
+                unit={unit}
+                experiment={experimentMetadata.experiment}
+                assignedExperiment={assignedExperiment}
+                selectExperiment={selectExperiment}
+                onAssigned={() => setAssignmentVersion((version) => version + 1)}
+              />
+            }
           </Grid>
           <Grid
             size={{
@@ -2270,7 +2321,9 @@ function Pioreactor({title, cameraUIEnabled = false}) {
               lg: 4,
               md: 12,
               xs: 12
-            }}>
+            }}
+            // Below lg the diagram gets its own row; cap it so it doesn't dominate the page.
+            sx={{ "& svg[aria-label='Bioreactor diagram']": { maxHeight: { xs: 380, lg: "none" } } }}>
             <BioreactorDiagramPanel
               unit={unit}
               experiment={experimentMetadata.experiment}
@@ -2281,15 +2334,16 @@ function Pioreactor({title, cameraUIEnabled = false}) {
             />
           </Grid>
 
+          {!isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
           <Grid
             container
             spacing={1}
             sx={{height: "100%", justifyContent: "flex-start"}}
             size={{
               xs: 12,
-              md: 7
+              lg: 7
             }}>
-            <Charts chartPreferences={chartPreferences} unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
+            <Charts chartPreferences={chartPreferences} unit={unit} unitsColorMap={unitsColorMap} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
           </Grid>
           <Grid
             container
@@ -2297,55 +2351,23 @@ function Pioreactor({title, cameraUIEnabled = false}) {
             sx={{height: "100%", justifyContent: "flex-end"}}
             size={{
               xs: 12,
-              md: 5
+              lg: 5
             }}>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 7,
-                md: 7
-              }}>
-              <Stack direction="row" sx={{ justifyContent: "start" }}>
-                <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-              </Stack>
-            </Grid>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 4,
-                md: 4
-              }}>
-              <Stack direction="row" spacing={0.5} sx={{ justifyContent: "end", alignItems: "center" }}>
-                <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-              </Stack>
-            </Grid>
-            <Grid
-              size={{
-                xs: 1,
-                sm: 1,
-                md: 1
-              }}>
-              <ChartPreferencesControl
-                chartPageLabel="Pioreactor"
-                chartPreferences={chartPreferences}
-                experiment={experimentMetadata.experiment}
-              />
+            {isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
+            <Grid size={12}>
+              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.started_at}/>
             </Grid>
             <Grid size={12}>
-              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.created_at}/>
+              <Box sx={{ mt: 1, mb: 1 }}>
+                <CameraPanel
+                  key={`${unit}:${experimentMetadata.experiment}`}
+                  unit={unit}
+                  experiment={experimentMetadata.experiment}
+                  experimentStartTime={experimentMetadata.started_at}
+                  controlsDisabled={isViewingPastExperiment}
+                />
+              </Box>
             </Grid>
-            {cameraUIEnabled && (
-              <Grid size={12}>
-                <Box sx={{ mt: 1, mb: 1 }}>
-                  <CameraPanel
-                    key={`${unit}:${experimentMetadata.experiment}`}
-                    unit={unit}
-                    experiment={experimentMetadata.experiment}
-                    experimentStartTime={experimentMetadata.created_at}
-                  />
-                </Box>
-              </Grid>
-            )}
           </Grid>
         </Grid>
       </>

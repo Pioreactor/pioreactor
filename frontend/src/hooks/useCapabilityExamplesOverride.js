@@ -26,8 +26,6 @@ export default function useCapabilityExamplesOverride() {
     'add_alt_media': {start: {ml: 1}},
     'remove_waste': {start: {duration: 60}},
     'pumps': {start: {media: 1, waste: 2, media_: 1.5, waste_: 2}},
-    'circulate_alt_media': {start: {duration: 30}},
-    'circulate_media': {start: {duration: 30}},
     'led_intensity': {start: {A: 30, B: 40}},
   };
   return overrides;

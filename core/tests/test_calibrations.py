@@ -225,6 +225,27 @@ def test_ipredict_solution_above_domain(calibration) -> None:
         calibration.y_to_x(y, enforce_bounds=True)
 
 
+def test_ipredict_multiple_solutions_above_domain_raises_above_error(calibration) -> None:
+    calibration.curve_data_ = _poly_curve([1, 0, -6])  # x^2 - 6, solutions for y=0 are +- 2.45
+    calibration.recorded_data = {"x": [0, 1], "y": [0, 1]}
+    with pytest.raises(exc.SolutionAboveDomainError, match="above domain"):
+        calibration.y_to_x(0, enforce_bounds=True)
+
+
+def test_ipredict_multiple_solutions_below_domain_raises_below_error(calibration) -> None:
+    calibration.curve_data_ = _poly_curve([1, 0, -6])  # x^2 - 6, solutions for y=0 are +- 2.45
+    calibration.recorded_data = {"x": [-1, 0], "y": [0, 1]}
+    with pytest.raises(exc.SolutionBelowDomainError, match="below domain"):
+        calibration.y_to_x(0, enforce_bounds=True)
+
+
+def test_ipredict_multiple_solutions_within_tolerance_of_domain_are_clamped(calibration) -> None:
+    # x^2 - 5x - 5e-14 has roots near -1e-14 and 5: floating-point noise around a true zero root.
+    calibration.curve_data_ = _poly_curve([1, -5, -5e-14])
+    calibration.recorded_data = {"x": [0, 3], "y": [0, 9]}
+    assert calibration.y_to_x(0, enforce_bounds=True) == 0.0
+
+
 def test_ipredict_zero_solution_in_domain_for_od45_reference_calibration() -> None:
     calibration_data = ODCalibration(
         calibration_name="od45-optical-reference-standard-2026-01-08",

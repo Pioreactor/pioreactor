@@ -5,9 +5,21 @@ import { TextDecoder, TextEncoder } from "util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// jsdom doesn't implement Blob.text(), which browsers do
+Blob.prototype.text ??= function text() {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsText(this);
+  });
+};
+
 const { MemoryRouter, Route, Routes, useLocation } = require("react-router");
 
 const mockStartProfile = jest.fn();
+const mockStopProfile = jest.fn();
+const mockConfirm = jest.fn();
+let mockRunningProfiles = [];
 
 jest.mock("../providers/ExperimentContext", () => ({
   useExperiment: () => ({
@@ -21,15 +33,15 @@ jest.mock("../providers/ExperimentContext", () => ({
 jest.mock("../providers/RunningProfilesContext", () => ({
   RunningProfilesProvider: ({ children }) => <>{children}</>,
   useRunningProfiles: () => ({
-    runningProfiles: [],
+    runningProfiles: mockRunningProfiles,
     loading: false,
-    stopProfile: jest.fn(),
+    stopProfile: mockStopProfile,
     startProfile: mockStartProfile,
   }),
 }));
 
 jest.mock("material-ui-confirm", () => ({
-  useConfirm: () => jest.fn(() => Promise.resolve()),
+  useConfirm: () => mockConfirm,
 }));
 
 jest.mock("../components/ManageExperimentMenu", () => () => <div data-testid="manage-experiment-menu" />);
@@ -90,6 +102,8 @@ const profilesResponse = [
 ];
 
 let recentRunsResponse = [];
+let uploadResponse = null;
+let listedProfiles = profilesResponse;
 
 function NewProfileLocationState() {
   const location = useLocation();
@@ -107,6 +121,13 @@ function renderProfiles(initialEntry = "/experiment-profiles/profile-a.yaml") {
   );
 }
 
+async function chooseProfileAction(name) {
+  fireEvent.click(screen.getByRole("button", { name: /more actions for/i }));
+  const item = await screen.findByRole("menuitem", { name });
+  await waitFor(() => expect(item).not.toHaveAttribute("aria-disabled"));
+  fireEvent.click(item);
+}
+
 function countFetches(url) {
   return global.fetch.mock.calls.filter(([calledUrl]) => calledUrl === url).length;
 }
@@ -114,12 +135,21 @@ function countFetches(url) {
 describe("Profiles", () => {
   beforeEach(() => {
     mockStartProfile.mockReset();
+    mockStopProfile.mockReset();
+    mockConfirm.mockReset().mockResolvedValue({ confirmed: true, reason: "confirm" });
+    mockRunningProfiles = [];
     recentRunsResponse = [];
+    uploadResponse = { ok: true };
+    listedProfiles = profilesResponse;
     global.fetch = jest.fn((url, options = {}) => {
+      if (url === "/api/experiment_profiles" && options.method === "POST") {
+        return Promise.resolve(uploadResponse);
+      }
+
       if (url === "/api/experiment_profiles") {
         return Promise.resolve({
           ok: true,
-          json: async () => profilesResponse,
+          json: async () => listedProfiles,
         });
       }
 
@@ -171,7 +201,7 @@ describe("Profiles", () => {
     await screen.findByText(/experiment_profile_name: Profile A/);
     expect(countFetches("/api/experiment_profiles/profile-a.yaml")).toBe(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /duplicate/i }));
+    await chooseProfileAction("Duplicate");
 
     const duplicatedState = JSON.parse((await screen.findByTestId("new-profile-state")).textContent);
     expect(duplicatedState).toEqual({
@@ -197,6 +227,40 @@ describe("Profiles", () => {
     expect(countFetches("/api/experiment_profiles/profile-a.yaml")).toBe(1);
   });
 
+  test.each(["cancel", "natural", "unmount"])("does not delete a profile on %s", async (reason) => {
+    mockConfirm.mockResolvedValue({ confirmed: false, reason });
+    renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
+    await screen.findByText("Preview: Profile With Space");
+
+    await chooseProfileAction("Delete");
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+    expect(global.fetch.mock.calls.some(([, options]) => options?.method === "DELETE")).toBe(false);
+  });
+
+  test.each([
+    [false, "cancel"], [false, "natural"], [false, "unmount"], [true, "confirm"],
+  ])("stopping a profile requires confirmation: %s / %s", async (confirmed, reason) => {
+    mockConfirm.mockResolvedValue({ confirmed, reason });
+    mockRunningProfiles = [{
+      job_id: 42,
+      settings: {
+        experiment_profile_name: "Running profile",
+        profile_filename: "profile-a.yaml",
+        start_time_utc: "2026-10-20T12:00:00Z",
+      },
+    }];
+    renderProfiles();
+    await screen.findByText("Preview: Profile A");
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+    if (confirmed) {
+      expect(mockStopProfile).toHaveBeenCalledWith(42);
+    } else {
+      expect(mockStopProfile).not.toHaveBeenCalled();
+    }
+  });
+
   test("encodes profile filenames when viewing and duplicating profiles", async () => {
     renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
 
@@ -206,7 +270,7 @@ describe("Profiles", () => {
     fireEvent.click(screen.getByRole("button", { name: /view source/i }));
     await screen.findByText(/experiment_profile_name: Profile With Space/);
 
-    fireEvent.click(screen.getByRole("button", { name: /duplicate/i }));
+    await chooseProfileAction("Duplicate");
 
     const duplicatedState = JSON.parse((await screen.findByTestId("new-profile-state")).textContent);
     expect(duplicatedState).toEqual({
@@ -220,7 +284,7 @@ describe("Profiles", () => {
     renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
 
     await screen.findByText("Preview: Profile With Space");
-    fireEvent.click(screen.getByRole("button", { name: /delete profile/i }));
+    await chooseProfileAction("Delete");
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -228,6 +292,86 @@ describe("Profiles", () => {
         { method: "DELETE" },
       );
     });
+  });
+
+  test("downloads the loaded profile source under its filename", async () => {
+    let downloadedBlob = null;
+    let downloadedName = null;
+    window.URL.createObjectURL = jest.fn((blob) => {
+      downloadedBlob = blob;
+      return "blob:profile";
+    });
+    window.URL.revokeObjectURL = jest.fn();
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function click() {
+      downloadedName = this.getAttribute("download");
+    });
+
+    renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
+    await screen.findByText("Preview: Profile With Space");
+    await chooseProfileAction("Download");
+
+    expect(downloadedName).toBe("profile with space.yaml");
+    expect(await downloadedBlob.text()).toBe(profileSources["profile with space.yaml"]);
+    expect(countFetches("/api/experiment_profiles/profile%20with%20space.yaml")).toBe(1);
+    clickSpy.mockRestore();
+  });
+
+  test("uploads a YAML file as a new profile and selects it", async () => {
+    const uploadedSource = `version: "1.0"
+experiment_profile_name: Uploaded
+`;
+    profileSources["uploaded.yaml"] = uploadedSource;
+    renderProfiles();
+    await screen.findByText("Preview: Profile A");
+
+    listedProfiles = [
+      {
+        file: "uploaded.yaml",
+        fullpath: "/tmp/uploaded.yaml",
+        experimentProfile: { version: "1.0", experiment_profile_name: "Uploaded" },
+      },
+      ...profilesResponse,
+    ];
+    const fetchMock = global.fetch;
+    global.fetch = jest.fn((url, options) => (
+      url === "/api/experiment_profiles/uploaded.yaml"
+        ? Promise.resolve({ ok: true, text: async () => uploadedSource })
+        : fetchMock(url, options)
+    ));
+
+    fireEvent.change(screen.getByLabelText(/upload profile/i), {
+      target: { files: [new File([uploadedSource], "uploaded.yml", { type: "application/x-yaml" })] },
+    });
+
+    await screen.findByText("Preview: Uploaded");
+    const [, uploadOptions] = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(JSON.parse(uploadOptions.body)).toEqual({ body: uploadedSource, filename: "uploaded.yaml" });
+    delete profileSources["uploaded.yaml"];
+  });
+
+  test("shows upload validation errors and can open the upload in the editor", async () => {
+    const uploadedSource = "experiment_profile_name: Broken\n";
+    uploadResponse = {
+      ok: false,
+      headers: { get: () => "application/json" },
+      json: async () => ({
+        error: "Validation error.",
+        diagnostics: [{ severity: "error", message: "Unknown job `foo`.", path: "common.jobs.foo" }],
+      }),
+    };
+    renderProfiles();
+    await screen.findByText("Preview: Profile A");
+
+    fireEvent.change(screen.getByLabelText(/upload profile/i), {
+      target: { files: [new File([uploadedSource], "broken.yaml")] },
+    });
+
+    await screen.findByText("Validation error. Unknown job `foo`. (common.jobs.foo)");
+
+    fireEvent.click(screen.getByRole("button", { name: /open in editor/i }));
+
+    const editorState = JSON.parse((await screen.findByTestId("new-profile-state")).textContent);
+    expect(editorState).toEqual({ initialCode: uploadedSource, initialFilename: "broken" });
   });
 
   test("re-enables the run button when profile start fails", async () => {

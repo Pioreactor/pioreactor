@@ -13,7 +13,6 @@ import pytest
 from flask import Flask
 from flask import g
 from flask.testing import FlaskClient
-from huey.exceptions import TaskException
 from pioreactor import structs
 from pioreactor.web.config import huey
 from pytest import MonkeyPatch
@@ -145,16 +144,24 @@ def test_get_workers_includes_literal_ipv4_addresses(
     assert data["unit2"]["ipv4_address"] is None
 
 
-def test_delete_worker_queues_hostname_guarded_cleanup(client: FlaskClient) -> None:
+def test_delete_worker_asks_it_to_leave_and_forgets_its_address(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    shared_config = dot_pioreactor / "config.ini"
+    shared_config.write_text("[cluster.addresses]\n# keep\nunit1=10.0.0.5\nunit2=10.0.0.6\n")
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
     with capture_requests() as requests:
         response = client.delete("/api/workers/unit1")
 
     assert response.status_code == 202
     assert client.get("/api/workers/unit1").status_code == 404
-    assert [(request.method, request.path) for request in requests] == [
-        ("POST", "/unit_api/system/cleanup_after_inventory_removal"),
-    ]
+    assert [(request.method, request.path) for request in requests] == [("POST", "/unit_api/cluster/leave")]
     assert requests[0].headers["X-Pioreactor-Target"] == "unit1"
+    assert requests[0].json == {"stop_activities": True}
+    assert shared_config.read_text() == "[cluster.addresses]\n# keep\nunit2=10.0.0.6\n"
 
 
 @pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "unknown-worker"])
@@ -165,7 +172,7 @@ def test_system_fanout_rejects_unregistered_unit_targets(
     def fail_multicast_post(*_args, **_kwargs) -> None:
         raise AssertionError("invalid unit target should not enqueue multicast work")
 
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fail_multicast_post)
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fail_multicast_post)
 
     response = client.post(f"/api/units/{pioreactor_unit}/system/{action}")
 
@@ -178,18 +185,74 @@ def test_system_fanout_allows_registered_unit_target(client: FlaskClient, monkey
 
     captured: dict[str, object] = {}
 
-    def fake_multicast_post(endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+    def fake_multicast_post(method: str, endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+        assert method == "POST"
         captured["endpoint"] = endpoint
         captured["units"] = units
         return FakeHueyTask()
 
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fake_multicast_post)
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast_post)
 
     response = client.post("/api/units/unit1/system/reboot")
 
     assert response.status_code == 202
     assert captured["endpoint"] == "/unit_api/system/reboot"
     assert captured["units"] == ["unit1"]
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "calibrations/od90"),
+        ("DELETE", "calibrations/od90"),
+        ("PATCH", "active_calibrations/od90"),
+        ("GET", "estimators/od_fused"),
+        ("DELETE", "estimators/od_fused"),
+        ("PATCH", "active_estimators/od_fused"),
+    ],
+)
+def test_artifact_names_stay_encoded_when_forwarded_to_the_worker(
+    client: FlaskClient, monkeypatch: MonkeyPatch, method: str, path: str
+) -> None:
+    # Names may contain #, ? and %, which would cut or corrupt the worker URL if sent unencoded.
+    class FakeHueyTask:
+        id = "fake-task-id"
+
+    captured: dict[str, object] = {}
+
+    def fake_multicast(method_: str, endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+        captured["endpoint"] = endpoint
+        return FakeHueyTask()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast)
+
+    response = client.open(f"/api/workers/unit1/{path}/OD600%20%232%3F%25", method=method)
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == f"/unit_api/{path}/OD600%20%232%3F%25"
+
+
+def test_experiment_names_stay_encoded_when_forwarded_to_the_worker(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    class FakeHueyTask:
+        id = "fake-task-id"
+
+    captured: dict[str, object] = {}
+
+    def fake_multicast(method: str, endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+        captured["endpoint"] = endpoint
+        return FakeHueyTask()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast)
+
+    response = client.patch(
+        "/api/workers/unit1/bioreactor/update/experiments/batch%201%C2%B0C",
+        json={"values": {"current_volume_ml": 12.5}},
+    )
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/bioreactor/experiments/batch%201%C2%B0C"
 
 
 def test_system_fanout_task_result_returns_unit_envelope(
@@ -209,7 +272,7 @@ def test_system_fanout_task_result_returns_unit_envelope(
             return {"success": True}
 
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
-    monkeypatch.setattr(tasks, "post_into", lambda *_args, **_kwargs: DummyUnitResponse())
+    monkeypatch.setattr("pioreactor.pubsub.post_into", lambda *_args, **_kwargs: DummyUnitResponse())
 
     response = client.post("/api/units/unit1/system/reboot")
 
@@ -229,7 +292,7 @@ def test_config_proxy_rejects_unregistered_unit_target(client: FlaskClient, monk
     def fail_get_from(*_args, **_kwargs) -> None:
         raise AssertionError("invalid unit target should not be proxied")
 
-    monkeypatch.setattr("pioreactor.web.api.get_from", fail_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fail_get_from)
 
     response = client.get("/api/config/units/203.0.113.10/specific")
 
@@ -242,7 +305,7 @@ def test_calibration_session_proxy_rejects_unregistered_worker_target(
     def fail_post_into(*_args, **_kwargs) -> None:
         raise AssertionError("invalid worker target should not be proxied")
 
-    monkeypatch.setattr("pioreactor.web.api.post_into", fail_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fail_post_into)
 
     response = client.post(
         "/api/workers/203.0.113.10/calibrations/sessions",
@@ -322,18 +385,16 @@ def test_discover_workers_endpoint(client, monkeypatch) -> None:
     assert "unit1" not in units
 
 
-def test_setup_worker_passes_optional_ipv4_address(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
-    captured: dict[str, object] = {}
+def test_setup_worker_returns_a_task_to_poll(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    from types import SimpleNamespace
 
-    class FakeAddWorkerResult:
-        def __call__(self, blocking: bool, timeout: float) -> bool:
-            return True
+    captured: dict[str, object] = {}
 
     def fake_add_new_pioreactor(
         name: str, version: str, model: str, address: str | None = None
-    ) -> FakeAddWorkerResult:
+    ) -> SimpleNamespace:
         captured["address"] = address
-        return FakeAddWorkerResult()
+        return SimpleNamespace(id="setup-task")
 
     monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
 
@@ -347,36 +408,9 @@ def test_setup_worker_passes_optional_ipv4_address(client: FlaskClient, monkeypa
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
+    assert response.get_json()["result_url_path"] == "/unit_api/task_results/setup-task"
     assert captured["address"] == "192.168.1.22"
-
-
-def test_setup_worker_reports_task_failure_details(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
-    class FakeAddWorkerResult:
-        def __call__(self, blocking: bool, timeout: float) -> bool:
-            raise TaskException({"error": "ssh connection refused"})
-
-    def fake_add_new_pioreactor(
-        name: str, version: str, model: str, address: str | None = None
-    ) -> FakeAddWorkerResult:
-        return FakeAddWorkerResult()
-
-    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
-
-    response = client.post(
-        "/api/workers/setup",
-        json={
-            "name": "new-unit",
-            "version": "1.5",
-            "model": "pioreactor_40ml",
-        },
-    )
-    body = response.get_json()
-
-    assert response.status_code == 404
-    assert body["error"] == "Failed to add worker new-unit."
-    assert body["cause"] == "ssh connection refused"
-    assert body["remediation"] == "Check the Pioreactor logs for the full worker setup command output."
 
 
 @pytest.mark.parametrize("ipv4_address", ["999.1.1.1", "not-an-ip", "2001:db8::1"])
@@ -408,6 +442,18 @@ def test_get_worker(client) -> None:
     assert data["pioreactor_unit"] == "unit1"
     assert data["is_active"] == 1
     assert data["added_at"] == "2023-10-01T10:00:00Z"
+    assert data["experiment"] == "exp1"
+
+
+def test_get_worker_reports_unassigned_and_unknown_workers(client) -> None:
+    with capture_requests():
+        assert client.delete("/api/experiments/exp1/workers/unit2").status_code == 200
+
+    response = client.get("/api/workers/unit2")
+    assert response.status_code == 200
+    assert response.get_json()["experiment"] is None
+
+    assert client.get("/api/workers/not-a-unit").status_code == 404
 
 
 def test_get_experiment_assignment_for_worker(client) -> None:
@@ -497,7 +543,7 @@ def test_retry_assignment_to_same_experiment_is_a_noop(client: FlaskClient, monk
         raise AssertionError("An idempotent assignment retry should not emit side effects.")
 
     monkeypatch.setattr("pioreactor.web.api.publish_worker_experiment_assignment", fail_on_side_effect)
-    monkeypatch.setattr("pioreactor.web.api.multicast_post_to_worker", fail_on_side_effect)
+    monkeypatch.setattr("pioreactor.web.api.multicast_to_worker", fail_on_side_effect)
     monkeypatch.setattr("pioreactor.web.api.publish_to_experiment_log", fail_on_side_effect)
 
     response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit2"})
@@ -522,6 +568,7 @@ def test_reassign_worker_to_experiment_stops_jobs_from_previous_experiment(
     captured: dict[str, object] = {}
 
     def fake_multicast_post(
+        method: str,
         endpoint: str,
         units: list[str],
         json: dict[str, object] | list[dict[str, object] | None] | None = None,
@@ -532,7 +579,7 @@ def test_reassign_worker_to_experiment_stops_jobs_from_previous_experiment(
         captured["json"] = json
         return {}
 
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fake_multicast_post)
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast_post)
 
     response = client.put("/api/experiments/exp2/workers", json={"pioreactor_unit": "unit2"})
     assert response.status_code == 200
@@ -642,46 +689,6 @@ def test_change_worker_status(client) -> None:
     assert data["is_active"] == 0
 
 
-def test_change_worker_model_triggers_hardware_check_for_v1_5(client, monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    def fake_post_into_unit(unit: str, endpoint: str, json: dict | None = None) -> None:
-        captured["unit"] = unit
-        captured["endpoint"] = endpoint
-        captured["json"] = json
-
-    monkeypatch.setattr("pioreactor.web.api.tasks.post_into_unit", fake_post_into_unit)
-
-    response = client.put(
-        "/api/workers/unit1/model",
-        json={"model_name": "pioreactor_20ml", "model_version": "1.5"},
-    )
-    assert response.status_code == 200
-    assert captured["unit"] == "unit1"
-    assert captured["endpoint"] == "/unit_api/hardware/check"
-    assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.5"}
-
-
-def test_change_worker_model_triggers_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    def fake_post_into_unit(unit: str, endpoint: str, json: dict | None = None) -> None:
-        captured["unit"] = unit
-        captured["endpoint"] = endpoint
-        captured["json"] = json
-
-    monkeypatch.setattr("pioreactor.web.api.tasks.post_into_unit", fake_post_into_unit)
-
-    response = client.put(
-        "/api/workers/unit1/model",
-        json={"model_name": "pioreactor_20ml", "model_version": "1.1"},
-    )
-    assert response.status_code == 200
-    assert captured["unit"] == "unit1"
-    assert captured["endpoint"] == "/unit_api/hardware/check"
-    assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.1"}
-
-
 def test_get_unit_labels(client) -> None:
     response = client.get("/api/experiments/exp1/unit_labels")
     assert response.status_code == 200
@@ -703,6 +710,18 @@ def test_upsert_unit_labels(client) -> None:
     response = client.get("/api/experiments/exp1/unit_labels")
     data = response.get_json()
     assert data["unit1"] == "Updated Reactor 1"
+
+
+def test_upsert_unit_labels_rejects_label_used_by_another_unit(client) -> None:
+    response = client.put(
+        "/api/experiments/exp1/unit_labels",
+        json={"unit": "unit1", "label": "Reactor 2"},
+    )
+    assert response.status_code == 409
+    assert "unit2" in response.get_json()["error"]
+
+    response = client.get("/api/experiments/exp1/unit_labels")
+    assert response.get_json()["unit1"] == "Reactor 1"
 
 
 def test_get_logs_for_unit_and_experiment(client) -> None:
@@ -974,10 +993,97 @@ def test_time_series_accepts_frontend_raw_point_limit(client: FlaskClient) -> No
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize(
+    "started_at, expected_media_rate",
+    [("2025-12-31T22:00:00.000Z", 2.0), ("2025-12-31T20:00:00.000Z", 12.0)],
+)
+def test_media_rates_respect_experiment_start_and_three_hour_window(
+    client: FlaskClient, monkeypatch: MonkeyPatch, started_at: str, expected_media_rate: float
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr("pioreactor.web.api.current_utc_datetime", lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    experiment = "media-rate-cutoff-test"
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, started_at) VALUES (?, '2025-12-30T00:00:00.000Z', ?)",
+        (experiment, started_at),
+    )
+    for timestamp, event, volume in [
+        ("2025-12-31T20:30:00.000Z", "add_media", 300.0),
+        ("2025-12-31T21:30:00.000Z", "add_media", 30.0),
+        ("2025-12-31T22:30:00.000Z", "add_media", 6.0),
+        ("2025-12-31T23:00:00.000Z", "add_alt_media", 3.0),
+    ]:
+        modify_app_db(
+            "INSERT INTO dosing_events (experiment, pioreactor_unit, timestamp, event, volume_change_ml) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (experiment, "unit-a", timestamp, event, volume),
+        )
+
+    response = client.get(f"/api/experiments/{experiment}/media_rates")
+    assert response.status_code == 200
+    expected = {"mediaRate": expected_media_rate, "altMediaRate": 1.0}
+    assert response.get_json() == {"unit-a": expected, "all": expected}
+
+
 def test_time_series_accepts_zero_lookback(client: FlaskClient) -> None:
     response = client.get("/api/experiments/no-data/time_series/growth_rates?lookback=0")
 
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("prefix", ["/api", "/api/workers/unit-a"])
+@pytest.mark.parametrize("source", ["growth_rates", "growth_rates/rate"])
+@pytest.mark.parametrize("target_points", [1, 3, 10])
+@pytest.mark.parametrize("lookback", [1, 4])
+def test_time_series_excludes_readings_at_or_before_experiment_start(
+    client: FlaskClient,
+    monkeypatch: MonkeyPatch,
+    prefix: str,
+    source: str,
+    target_points: int,
+    lookback: int,
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    experiment = "creation-cutoff-test"
+    started_at = "2025-12-31T22:00:00.000Z"
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, started_at) VALUES (?, '2025-12-30T00:00:00.000Z', ?)",
+        (experiment, started_at),
+    )
+    timestamps = [
+        "2025-12-31T21:00:00.000Z",
+        started_at,
+        "2025-12-31T22:30:00.000Z",
+        "2025-12-31T23:00:00.000Z",
+        "2025-12-31T23:15:00.000Z",
+        "2025-12-31T23:30:00.000Z",
+        "2025-12-31T23:45:00.000Z",
+    ]
+    for timestamp in timestamps:
+        modify_app_db(
+            "INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate) VALUES (?, ?, ?, ?)",
+            (experiment, "unit-a", timestamp, 0.1),
+        )
+
+    response = client.get(
+        f"{prefix}/experiments/{experiment}/time_series/{source}"
+        f"?lookback={lookback}&target_points={target_points}"
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["series"] == ["unit-a"]
+    points = payload["data"][0]
+    cutoff = "2025-12-31T23:00:00.000Z" if lookback == 1 else started_at
+    assert 0 < len(points) <= target_points
+    assert all(point["x"] > cutoff for point in points)
+    if target_points == 10:
+        assert [point["x"] for point in points] == [ts for ts in timestamps if ts > cutoff]
 
 
 def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
@@ -988,7 +1094,7 @@ def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkey
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
         ("time-series-bounds-test", "2025-12-31T22:00:00.000Z", ""),
     )
 
@@ -1021,6 +1127,55 @@ def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkey
     }
 
 
+def test_time_series_returns_all_rows_at_target_points_and_downsamples_above(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
+        ("time-series-boundary", "2025-12-31T12:00:00.000Z", ""),
+    )
+
+    # channel 1 has exactly target_points rows; channel 2 has one more.
+    for channel, n_rows in ((1, 4), (2, 5)):
+        for minute in range(n_rows):
+            modify_app_db(
+                """
+                INSERT INTO od_readings (experiment, pioreactor_unit, timestamp, od_reading, angle, channel)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "time-series-boundary",
+                    "unit-a",
+                    f"2025-12-31T23:{minute * 10:02}:00.000Z",
+                    minute + 0.123456789,
+                    90,
+                    channel,
+                ),
+            )
+
+    response = client.get(
+        "/api/experiments/time-series-boundary/time_series/od_readings?lookback=2&target_points=4"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["series"] == ["unit-a-1", "unit-a-2"]
+    assert data["data"][0] == [
+        {"x": f"2025-12-31T23:{minute * 10:02}:00.000Z", "y": round(minute + 0.123456789, 12), "angle": 90}
+        for minute in range(4)
+    ]
+    downsampled = data["data"][1]
+    assert len(downsampled) == 4
+    assert downsampled[0] == {"x": "2025-12-31T23:00:00.000Z", "y": 0.123456789, "angle": 90}
+    assert downsampled[-1] == {"x": "2025-12-31T23:40:00.000Z", "y": 4.123456789, "angle": 90}
+
+
 def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
@@ -1031,8 +1186,8 @@ def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
-        ("time-series-test", "2025-12-31T12:00:00.000Z", ""),
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
+        ("time-series-test", "2025-12-31T11:00:00.000Z", ""),
     )
 
     for hour in range(12, 23):
@@ -1126,8 +1281,8 @@ def test_time_series_partitions_channel_sources(client: FlaskClient, monkeypatch
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
-        ("time-series-od-test", "2025-12-31T12:00:00.000Z", ""),
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
+        ("time-series-od-test", "2025-12-31T11:00:00.000Z", ""),
     )
 
     for channel in (1, 2):
@@ -1260,7 +1415,7 @@ def test_built_in_time_series_source_configuration(
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
         ("source-test", "2025-12-31T12:00:00.000Z", ""),
     )
     modify_app_db(insert_statement, insert_args)
@@ -1302,6 +1457,7 @@ def test_create_experiment(client) -> None:
     assert response.status_code == 201  # Created
     data = response.get_json()
     assert data["tags"] == ["seed", "project-x"]
+    assert data["started_at"] == data["created_at"]
 
     # Verify the experiment exists
     response = client.get("/api/experiments/exp4")
@@ -1400,6 +1556,42 @@ def test_update_experiment(client) -> None:
     assert data["tags"] == ["project-beta", "follow-up"]
 
 
+def test_update_start_time_preserves_creation_order_and_normalizes_timezone(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    log = Mock()
+    monkeypatch.setattr("pioreactor.web.api.publish_to_experiment_log", log)
+    original = client.get("/api/experiments/exp1").get_json()
+    order = [row["experiment"] for row in client.get("/api/experiments").get_json()]
+    response = client.patch("/api/experiments/exp1", json={"started_at": "2026-10-31T09:30:00-04:00"})
+    assert response.status_code == 200
+    updated = response.get_json()
+    assert updated["started_at"] == "2026-10-31T13:30:00.000Z"
+    assert updated["created_at"] == original["created_at"]
+    assert updated["description"] == original["description"]
+    assert updated["tags"] == original["tags"]
+    assert updated["delta_hours"] != original["delta_hours"]
+    assert client.get("/api/experiments/exp1").get_json() == updated
+    assert [row["experiment"] for row in client.get("/api/experiments").get_json()] == order
+    assert client.get("/api/experiments/latest").get_json()["experiment"] == "exp3"
+    log.assert_called_once()
+    assert original["started_at"] in log.call_args.args[0]
+    # Moving the start backward restores access to earlier readings without rewriting creation.
+    response = client.patch("/api/experiments/exp1", json={"started_at": original["started_at"]})
+    assert response.status_code == 200
+    assert response.get_json()["created_at"] == original["created_at"]
+
+
+@pytest.mark.parametrize("started_at", [None, "", "not-a-date", "2026-10-31T09:30:00"])
+def test_update_experiment_rejects_invalid_start_time(client: FlaskClient, started_at: str | None) -> None:
+    original = client.get("/api/experiments/exp1").get_json()
+    response = client.patch(
+        "/api/experiments/exp1", json={"started_at": started_at, "description": "must not be saved"}
+    )
+    assert response.status_code == 400
+    assert client.get("/api/experiments/exp1").get_json() == original
+
+
 def test_get_experiments_includes_tags_and_worker_count(client) -> None:
     response = client.get("/api/experiments")
 
@@ -1463,7 +1655,7 @@ def test_update_experiment_requires_a_supported_field(client) -> None:
     response = client.patch("/api/experiments/exp1", json={})
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Missing description or tags"
+    assert response.get_json()["error"] == "Missing description, tags or started_at"
 
 
 def test_experiment_chart_preferences_default_to_config(client) -> None:
@@ -1473,6 +1665,7 @@ def test_experiment_chart_preferences_default_to_config(client) -> None:
     assert response.get_json() == {
         "overview_chart_keys": None,
         "pioreactor_chart_keys": None,
+        "overview_unit_colors": {},
     }
 
 
@@ -1511,6 +1704,7 @@ def test_update_experiment_chart_preferences(client, monkeypatch: MonkeyPatch) -
     assert response.get_json() == {
         "overview_chart_keys": ["optical_density", "temperature"],
         "pioreactor_chart_keys": [],
+        "overview_unit_colors": {},
     }
     assert client.get("/api/experiments/exp1/chart_preferences").get_json() == response.get_json()
 
@@ -1543,6 +1737,23 @@ def test_reset_experiment_chart_preferences_to_config(client, monkeypatch: Monke
     assert response.get_json()["overview_chart_keys"] is None
 
 
+def test_overview_unit_colors_replace_previous_choices(client) -> None:
+    response = client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={"overview_unit_colors": {"unit1": "#58502F", "unit2": "#CC3311"}},
+    )
+    assert response.status_code == 200
+    assert response.get_json()["overview_unit_colors"] == {"unit1": "#58502F", "unit2": "#CC3311"}
+
+    response = client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={"overview_unit_colors": {"unit2": "#0077BB"}},
+    )
+    assert response.get_json()["overview_unit_colors"] == {"unit2": "#0077BB"}
+    assert response.get_json()["overview_chart_keys"] is None
+    assert client.get("/api/experiments/exp1/chart_preferences").get_json() == response.get_json()
+
+
 @pytest.mark.parametrize(
     ("payload", "expected_error"),
     [
@@ -1555,6 +1766,7 @@ def test_reset_experiment_chart_preferences_to_config(client, monkeypatch: Monke
             {"overview_chart_keys": ["not-a-chart"]},
             "Chart selection contains unavailable charts",
         ),
+        ({"overview_unit_colors": {"unit1": "red"}}, "Line colors must be hex colors"),
     ],
 )
 def test_reject_invalid_experiment_chart_preferences(
@@ -1914,9 +2126,10 @@ def test_update_specific_config_for_worker_saves_snapshot(
     from pioreactor.mureq import Response as MureqResponse
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
-        mod,
-        "put_into",
+        "pioreactor.pubsub.put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             200,
@@ -1974,7 +2187,7 @@ def test_zipped_configs_contains_shared_and_all_reachable_unit_configs(
             }
 
     monkeypatch.setattr(
-        "pioreactor.web.api.fanout.broadcast_get_across_cluster",
+        "pioreactor.web.api.fanout.broadcast_across_cluster",
         lambda *args, **kwargs: FakeTask(),
     )
     monkeypatch.setattr(
@@ -2015,9 +2228,10 @@ def test_update_specific_config_for_worker_propagates_validation_error(
     from pioreactor.mureq import Response as MureqResponse
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
-        mod,
-        "put_into",
+        "pioreactor.pubsub.put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
@@ -2048,9 +2262,10 @@ def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
     from pioreactor.mureq import Response as MureqResponse
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
-        mod,
-        "put_into",
+        "pioreactor.pubsub.put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
@@ -2149,10 +2364,7 @@ def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
         "error": "Invalid request body.",
         "status": 400,
         "cause": "Expected `array`, got `str` - at `$.datasets`",
-        "remediation": (
-            "Send a JSON object with the required fields: datasets, experiment, "
-            "partition_by_unit, partition_by_experiment."
-        ),
+        "remediation": "Send a JSON object with the required fields: datasets, experiment, partition_by_unit.",
     }
 
 
@@ -2295,6 +2507,33 @@ def test_delete_experiment_profile_reports_delete_failure(
     assert response.get_json()["error"] == "Failed to delete experiment profile."
 
 
+def test_catalogs_skip_unreadable_files(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    from pioreactor.web.api import load_chart_descriptors
+
+    profiles_dir = tmp_path / "experiment_profiles"
+    profiles_dir.mkdir()
+    (profiles_dir / "good.yaml").write_text('version: "1.0"\nexperiment_profile_name: good', encoding="utf-8")
+    (profiles_dir / "broken.yaml").symlink_to(tmp_path / "missing.yaml")
+    charts_dir = tmp_path / "ui" / "charts"
+    charts_dir.mkdir(parents=True)
+    (charts_dir / "broken.yaml").symlink_to(tmp_path / "missing.yaml")
+    logged_messages: list[str] = []
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+    monkeypatch.setattr(
+        "pioreactor.web.api.publish_to_error_log",
+        lambda message, _task: logged_messages.append(message),
+    )
+
+    response = client.get("/api/experiment_profiles")
+
+    assert response.status_code == 200
+    assert [profile["file"] for profile in response.get_json()] == ["good.yaml"]
+    assert load_chart_descriptors() == []
+    assert sum("broken.yaml" in message for message in logged_messages) == 2
+
+
 def test_broadcasting(client) -> None:
     response = client.get("/api/workers")
     data = response.get_json()
@@ -2322,9 +2561,6 @@ def test_broadcast_in_manage_all(client) -> None:
         "config_overrides": [],
         "env": {
             "EXPERIMENT": "exp1",
-            "ACTIVE": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2366,8 +2602,9 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
     captured: dict[str, object] = {}
 
     def fake_broadcast_get_across_existing_workers_ever_assigned_to_experiment(
-        endpoint: str, experiment: str, timeout: float
+        method: str, endpoint: str, experiment: str, timeout: float
     ) -> FakeTaskResult:
+        assert method == "GET"
         _, connection, path = _prepare_request("GET", create_webserver_path("unit1.local", endpoint))
         connection.close()
         captured["endpoint"] = endpoint
@@ -2377,7 +2614,7 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
         return FakeTaskResult()
 
     monkeypatch.setattr(
-        "pioreactor.web.api.fanout.broadcast_get_across_existing_workers_ever_assigned_to_experiment",
+        "pioreactor.web.api.fanout.broadcast_across_existing_workers_ever_assigned_to_experiment",
         fake_broadcast_get_across_existing_workers_ever_assigned_to_experiment,
     )
 
@@ -2385,7 +2622,7 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
 
     assert response.status_code == 200
     assert captured == {
-        "endpoint": "/unit_api/camera/experiments/experiment a/status",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/status",
         "experiment": "experiment a",
         "path": "/unit_api/camera/experiments/experiment%20a/status",
         "timeout": 5,
@@ -2405,13 +2642,14 @@ def test_update_camera_settings_proxy_forwards_to_one_worker(client, monkeypatch
     class DummyTask:
         id = "camera-settings-task"
 
-    def fake_multicast_patch_to_worker(unit: str, endpoint: str, **kwargs: object) -> DummyTask:
+    def fake_multicast_patch_to_worker(method: str, unit: str, endpoint: str, **kwargs: object) -> DummyTask:
+        assert method == "PATCH"
         captured["unit"] = unit
         captured["endpoint"] = endpoint
         captured.update(kwargs)
         return DummyTask()
 
-    monkeypatch.setattr(mod, "multicast_patch_to_worker", fake_multicast_patch_to_worker)
+    monkeypatch.setattr(mod, "multicast_to_worker", fake_multicast_patch_to_worker)
 
     response = client.patch(
         "/api/workers/unit1/camera/settings",
@@ -2446,7 +2684,9 @@ def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/status")
 
@@ -2454,7 +2694,7 @@ def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
     assert response.get_json()["unit"] == "unit1"
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/status",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/status",
     }
 
 
@@ -2490,6 +2730,8 @@ def test_camera_focus_preview_proxy_preserves_image_content_type(client, monkeyp
     FakeStreamingResponse.headers["Content-Length"] = "13"
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
         "yield_response",
@@ -2537,7 +2779,9 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills")
 
@@ -2545,7 +2789,7 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
     assert response.get_json() == {"unit": "unit1", "experiment": "experiment a", "stills": []}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills",
         "path": "/unit_api/camera/experiments/experiment%20a/stills",
     }
 
@@ -2560,12 +2804,13 @@ def test_capture_camera_still_proxy_posts_to_worker_experiment_stills(
     class DummyTask:
         id = "camera-capture-proxy-task"
 
-    def fake_multicast_post_to_worker(unit: str, endpoint: str) -> DummyTask:
+    def fake_multicast_post_to_worker(method: str, unit: str, endpoint: str) -> DummyTask:
+        assert method == "POST"
         captured["unit"] = unit
         captured["endpoint"] = endpoint
         return DummyTask()
 
-    monkeypatch.setattr(mod, "multicast_post_to_worker", fake_multicast_post_to_worker)
+    monkeypatch.setattr(mod, "multicast_to_worker", fake_multicast_post_to_worker)
 
     response = client.post("/api/workers/unit1/camera/experiments/experiment%20a/stills")
 
@@ -2573,7 +2818,7 @@ def test_capture_camera_still_proxy_posts_to_worker_experiment_stills(
     assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-capture-proxy-task"
     assert captured == {
         "unit": "unit1",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills",
     }
 
 
@@ -2599,7 +2844,9 @@ def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: Mo
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg")
 
@@ -2608,7 +2855,7 @@ def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: Mo
     assert response.content_type == "image/jpeg"
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
         "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
 
@@ -2635,7 +2882,9 @@ def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "delete_from", fake_delete_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.delete_from", fake_delete_from)
 
     response = client.delete("/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg")
 
@@ -2643,7 +2892,7 @@ def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
     assert response.get_json() == {"image_id": "image-1"}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
         "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
 
@@ -2675,7 +2924,9 @@ def test_rename_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "patch_into", fake_patch_into)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.patch_into", fake_patch_into)
 
     response = client.patch(
         "/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg",
@@ -2685,7 +2936,7 @@ def test_rename_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
     assert response.status_code == 200
     assert response.get_json() == {"image_id": "inoculation"}
     assert captured["address"] == "unit1.local"
-    assert captured["endpoint"] == "/unit_api/camera/experiments/experiment a/stills/image 1.jpg"
+    assert captured["endpoint"] == "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg"
     assert captured["path"] == "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg"
     assert captured["body"] == structs.RenameCameraStillRequest(new_image_id="inoculation")
 
@@ -2727,6 +2978,8 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
         return FakeStreamingResponseContext()
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "yield_response", fake_yield_response)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills.zip")
@@ -2770,6 +3023,8 @@ def test_zipped_camera_stills_proxy_preserves_worker_error_details(client, monke
             return None
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
         "yield_response",
@@ -2808,7 +3063,9 @@ def test_task_result_proxy_fetches_worker_task_result(client, monkeypatch: Monke
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/task_results/task-1")
 
@@ -2833,9 +3090,6 @@ def test_run_job(client) -> None:
         "config_overrides": [],
         "env": {
             "EXPERIMENT": "exp1",
-            "ACTIVE": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2869,25 +3123,6 @@ def test_run_job_rejects_unknown_request_fields(client) -> None:
     assert response.get_json()["status"] == 400
 
 
-def test_run_job_omits_incomplete_model_metadata(client) -> None:
-    from pioreactor.web.app import modify_app_db
-
-    modify_app_db(
-        "UPDATE workers SET model_name = NULL, model_version = NULL WHERE pioreactor_unit = ?",
-        ("unit1",),
-    )
-
-    with capture_requests() as bucket:
-        client.post(
-            "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
-            json={},
-        )
-
-    assert len(bucket) == 1
-    assert "MODEL_NAME" not in bucket[0].json["env"]
-    assert "MODEL_VERSION" not in bucket[0].json["env"]
-
-
 def test_run_job_with_job_source(client) -> None:
     # regression test
     with capture_requests() as bucket:
@@ -2904,10 +3139,7 @@ def test_run_job_with_job_source(client) -> None:
         "config_overrides": [],
         "env": {
             "EXPERIMENT": "exp1",
-            "ACTIVE": "1",
             "JOB_SOURCE": "experiment_profile",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2938,11 +3170,11 @@ def test_stop_specific_job_uses_worker_job_manager(client, monkeypatch) -> None:
 
     captured: dict[str, object] = {}
 
-    def fake_multicast_post(endpoint: str, units: list[str], json: dict[str, str]) -> DummyTask:
-        captured.update({"endpoint": endpoint, "units": units, "json": json})
+    def fake_multicast_post(method: str, endpoint: str, units: list[str], json: dict[str, str]) -> DummyTask:
+        captured.update({"method": method, "endpoint": endpoint, "units": units, "json": json})
         return DummyTask()
 
-    monkeypatch.setattr(mod.tasks, "multicast_post", fake_multicast_post)
+    monkeypatch.setattr(mod.tasks, "multicast", fake_multicast_post)
 
     response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")
 
@@ -2951,6 +3183,7 @@ def test_stop_specific_job_uses_worker_job_manager(client, monkeypatch) -> None:
     assert data["task_id"] == "stop-task"
     assert data["result_url_path"] == "/unit_api/task_results/stop-task"
     assert captured == {
+        "method": "POST",
         "endpoint": "/unit_api/jobs/stop",
         "units": ["unit1"],
         "json": {"job_name": "stirring", "experiment": "exp1"},
@@ -2965,11 +3198,11 @@ def test_stop_specific_job_broadcast_uses_worker_job_manager(client, monkeypatch
 
     captured: dict[str, object] = {}
 
-    def fake_broadcast_post(endpoint: str, json: dict[str, str]) -> DummyTask:
-        captured.update({"endpoint": endpoint, "json": json})
+    def fake_broadcast_post(method: str, endpoint: str, json: dict[str, str]) -> DummyTask:
+        captured.update({"method": method, "endpoint": endpoint, "json": json})
         return DummyTask()
 
-    monkeypatch.setattr(mod.fanout, "broadcast_post_across_cluster", fake_broadcast_post)
+    monkeypatch.setattr(mod.fanout, "broadcast_across_cluster", fake_broadcast_post)
 
     response = client.post("/api/workers/$broadcast/jobs/stop/job_name/stirring/experiments/exp1")
 
@@ -2978,6 +3211,7 @@ def test_stop_specific_job_broadcast_uses_worker_job_manager(client, monkeypatch
     assert data["task_id"] == "broadcast-stop-task"
     assert data["result_url_path"] == "/unit_api/task_results/broadcast-stop-task"
     assert captured == {
+        "method": "POST",
         "endpoint": "/unit_api/jobs/stop",
         "json": {"job_name": "stirring", "experiment": "exp1"},
     }
@@ -2998,7 +3232,6 @@ def test_export_datasets_returns_async_task_response(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> DummyTask:
         captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
@@ -3006,7 +3239,6 @@ def test_export_datasets_returns_async_task_response(
         captured["start_time"] = start_time
         captured["end_time"] = end_time
         captured["partition_by_unit"] = partition_by_unit
-        captured["partition_by_experiment"] = partition_by_experiment
         return DummyTask()
 
     monkeypatch.setenv("RUN_PIOREACTOR", tmp_path.as_posix())
@@ -3042,7 +3274,6 @@ def test_export_datasets_returns_async_task_response(
     assert captured["start_time"] == "2025-11-02T06:30:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
-    assert captured["partition_by_experiment"] is False
 
 
 def test_export_datasets_rejects_timezone_naive_bounds(client: FlaskClient) -> None:
@@ -3094,7 +3325,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> DummyTask:
         captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
@@ -3102,7 +3332,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
         captured["start_time"] = start_time
         captured["end_time"] = end_time
         captured["partition_by_unit"] = partition_by_unit
-        captured["partition_by_experiment"] = partition_by_experiment
         return DummyTask()
 
     monkeypatch.setattr(
@@ -3135,7 +3364,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert captured["start_time"] == "2026-01-01T00:00:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
-    assert captured["partition_by_experiment"] is False
 
 
 def test_install_plugin_from_leader_usb_targets_selected_unit(
@@ -3501,7 +3729,7 @@ def test_get_settings_api(client, monkeypatch: MonkeyPatch) -> None:
         )
 
     monkeypatch.setattr("pioreactor.web.tasks.resolve_to_address", lambda unit: unit)
-    monkeypatch.setattr("pioreactor.web.tasks.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     r = client.get("/api/workers/$broadcast/jobs/settings/job_name/stirring/experiments/exp1")
     r = client.get(r.json["result_url_path"])
@@ -3536,8 +3764,9 @@ def test_get_job_descriptors_for_worker_proxies_unit_api(client, monkeypatch: Mo
             b'[{"job_name":"worker_plugin","display_name":"Worker plugin","display":true,"published_settings":[]}]',
         )
 
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
 
     response = client.get("/api/workers/unit1/jobs/descriptors")
 
@@ -3564,8 +3793,9 @@ def test_get_settings_descriptors_for_worker_proxies_unit_api(client, monkeypatc
             b'[{"key":"worker_settings","display_name":"Worker settings","display":true,"published_settings":[]}]',
         )
 
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
 
     response = client.get("/api/workers/unit1/settings/descriptors")
 
@@ -3612,8 +3842,9 @@ def test_get_automation_descriptors_for_worker_proxies_unit_api(client, monkeypa
             b'[{"automation_name":"worker_automation","display_name":"Worker automation","description":"Worker-only automation","fields":[]}]',
         )
 
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
 
     response = client.get("/api/workers/unit1/automations/descriptors/dosing")
 
@@ -3641,13 +3872,14 @@ def test_get_automation_descriptors_for_worker_rejects_broadcast(client) -> None
 def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> str:
+    def fake_multicast_patch(method: str, endpoint: str, units: list[str], json: dict | None = None) -> str:
+        assert method == "PATCH"
         captured["endpoint"] = endpoint
         captured["units"] = units
         captured["json"] = json
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_patch", fake_multicast_patch)
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast_patch)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.patch(
@@ -3761,7 +3993,7 @@ def test_zipped_calibrations_unwraps_raw_fanout_envelopes(
                 },
             }
 
-    monkeypatch.setattr("pioreactor.web.api.fanout.broadcast_get_across_workers", lambda *a, **k: FakeTask())
+    monkeypatch.setattr("pioreactor.web.api.fanout.broadcast_across_workers", lambda *a, **k: FakeTask())
 
     response = client.get("/api/workers/$broadcast/zipped_calibrations")
 
@@ -3782,7 +4014,7 @@ def test_zipped_dot_pioreactor_single_unit_unwraps_raw_fanout_envelope(
         def get(self, blocking: bool, timeout: float) -> dict[str, object]:
             return {"unit1": {"ok": True, "unit": "unit1", "value": archive.getvalue()}}
 
-    monkeypatch.setattr("pioreactor.web.api.multicast_get_to_unit", lambda *a, **k: FakeTask())
+    monkeypatch.setattr("pioreactor.web.api.multicast_to_unit", lambda *a, **k: FakeTask())
 
     response = client.get("/api/units/unit1/zipped_dot_pioreactor")
 
@@ -3806,7 +4038,7 @@ def test_zipped_dot_pioreactor_single_unit_rejects_failed_fanout_envelope(
                 }
             }
 
-    monkeypatch.setattr("pioreactor.web.api.multicast_get_to_unit", lambda *a, **k: FakeTask())
+    monkeypatch.setattr("pioreactor.web.api.multicast_to_unit", lambda *a, **k: FakeTask())
 
     response = client.get("/api/units/unit1/zipped_dot_pioreactor")
 
@@ -3814,43 +4046,24 @@ def test_zipped_dot_pioreactor_single_unit_rejects_failed_fanout_envelope(
     assert response.get_json()["error"] == "No data received from worker"
 
 
-def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:
-    import pioreactor.web.tasks as mod
+def test_cached_multicast_get_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web import cache
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
-    calls = 0
+    calls: list[str] = []
 
-    def fake_multicast_get_uncached(
-        endpoint: str,
-        units: list[str],
-        json: dict[str, object] | list[dict[str, object] | None] | None = None,
-        timeout: float = 5.0,
-        return_raw: bool = False,
-    ) -> dict[str, object]:
-        nonlocal calls
-        calls += 1
+    def fake_request_unit(method: str, unit: str, endpoint: str, **_kwargs: object) -> tuple[str, object]:
+        calls.append(unit)
         assert endpoint == "/unit_api/calibrations"
-        assert units == ["unit1"]
-        assert json is None
-        assert timeout == 5.0
-        assert return_raw is False
-        return {
-            "unit1": {
-                "ok": True,
-                "unit": "unit1",
-                "value": {"od90": [{"calibration_name": "cached-on-leader"}]},
-            }
-        }
+        return unit, {"od90": [{"calibration_name": "cached-on-leader"}]}
 
-    monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
+    monkeypatch.setattr("pioreactor.web.tasks._request_unit", fake_request_unit)
 
-    first = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
-    second = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    first = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
+    second = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
 
     first_payload = first.get(blocking=True, timeout=1)
-    second_payload = second.get(blocking=True, timeout=1)
-
     assert first_payload == {
         "unit1": {
             "ok": True,
@@ -3858,52 +4071,59 @@ def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch
             "value": {"od90": [{"calibration_name": "cached-on-leader"}]},
         }
     }
-    assert second_payload == first_payload
-    assert calls == 1
+    assert second.get(blocking=True, timeout=1) == first_payload
+    assert calls == ["unit1"]
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
 
-def test_multicast_get_with_leader_cache_does_not_cache_unit_failures(monkeypatch: MonkeyPatch) -> None:
-    import pioreactor.web.tasks as mod
+def test_cached_multicast_get_fetches_only_cache_misses(monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web import cache
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    units = ["unit1", "unit2"]
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", units)
+
+    calls: list[str] = []
+
+    def fake_request_unit(method: str, unit: str, endpoint: str, **_kwargs: object) -> tuple[str, object]:
+        calls.append(unit)
+        return unit, {"od90": [{"calibration_name": f"{unit}-calibration"}]}
+
+    monkeypatch.setattr("pioreactor.web.tasks._request_unit", fake_request_unit)
+
+    cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"]).get(blocking=True, timeout=1)
+    payload = cache.cached_multicast_get(cache.CALIBRATIONS, units).get(blocking=True, timeout=1)
+
+    assert calls == ["unit1", "unit2"]
+    assert list(payload) == units
+    assert payload["unit2"]["value"] == {"od90": [{"calibration_name": "unit2-calibration"}]}
+
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", units)
+
+
+def test_cached_multicast_get_does_not_cache_unit_failures(monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web import cache
+    from pioreactor.web import tasks
+
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
     calls = 0
 
-    def fake_multicast_get_uncached(
-        endpoint: str,
-        units: list[str],
-        json: dict[str, object] | list[dict[str, object] | None] | None = None,
-        timeout: float = 5.0,
-        return_raw: bool = False,
-    ) -> dict[str, object]:
+    def fake_request_unit(method: str, unit: str, endpoint: str, **_kwargs: object) -> tuple[str, object]:
         nonlocal calls
         calls += 1
         if calls == 1:
-            return {
-                "unit1": {
-                    "ok": False,
-                    "unit": "unit1",
-                    "error": {"kind": "connection_error", "message": "Could not reach unit1."},
-                    "status_code": None,
-                    "retryable": True,
-                }
-            }
-        return {
-            "unit1": {
-                "ok": True,
-                "unit": "unit1",
-                "value": {"od90": [{"calibration_name": "after-retry"}]},
-            }
-        }
+            return unit, tasks.fanout_failure(
+                unit, "connection_error", "Could not reach unit1.", retryable=True
+            )
+        return unit, {"od90": [{"calibration_name": "after-retry"}]}
 
-    monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
+    monkeypatch.setattr("pioreactor.web.tasks._request_unit", fake_request_unit)
 
-    first = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
-    second = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
-
+    first = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
     assert first.get(blocking=True, timeout=1)["unit1"]["ok"] is False
+
+    second = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
     assert second.get(blocking=True, timeout=1) == {
         "unit1": {
             "ok": True,
@@ -3913,7 +4133,7 @@ def test_multicast_get_with_leader_cache_does_not_cache_unit_failures(monkeypatc
     }
     assert calls == 2
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
 
 def test_get_all_calibrations_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
@@ -3991,7 +4211,7 @@ def test_create_calibration_invalidates_cached_worker_payloads(client, monkeypat
     monkeypatch.setattr(
         "pioreactor.web.api.cache.invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
     )
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", lambda *args, **kwargs: "task")
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", lambda *args, **kwargs: "task")
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.post(
@@ -4059,7 +4279,7 @@ def test_set_active_estimator_invalidates_estimator_cache(client, monkeypatch: M
     monkeypatch.setattr(
         "pioreactor.web.api.cache.invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
     )
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_patch", lambda *args, **kwargs: "task")
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", lambda *args, **kwargs: "task")
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.patch("/api/workers/unit1/active_estimators/od90/example-estimator")
@@ -4102,7 +4322,7 @@ def test_install_plugin_invalidates_plugins_cache(client, monkeypatch: MonkeyPat
     monkeypatch.setattr(
         "pioreactor.web.api.cache.invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
     )
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", lambda *args, **kwargs: "task")
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", lambda *args, **kwargs: "task")
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.post("/api/units/unit1/plugins/install", json={"args": ["example-plugin"]})

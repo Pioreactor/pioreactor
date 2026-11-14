@@ -186,6 +186,74 @@ def test_spline_fit_auto_selects_linear_curve_for_noisy_linear_data() -> None:
     assert coefficients[0][3] == pytest.approx(0.0, abs=1e-12)
 
 
+# OD standards from a user report: dense at low OD, sparse up to OD 4.
+USER_OD600 = [0.0, 0.03, 0.17, 0.40, 0.64, 1.03, 1.59, 2.21, 4.12]
+USER_VOLTAGES = [0.0, 0.0005, 0.006, 0.017, 0.035, 0.064, 0.128, 0.211, 0.360]
+# A response shaped like those standards: convex at low OD, flattening by OD 4.
+CURVED_OD_RESPONSE = np.polyfit(USER_OD600, USER_VOLTAGES, deg=3)
+DILUTION_SERIES = [0.0, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0]
+
+
+def _eval_on(spline_data: structs.SplineFitData, xs: np.ndarray | list[float]) -> np.ndarray:
+    return np.array([spline_eval(spline_data, float(x)) for x in xs])
+
+
+def test_spline_fit_auto_bends_for_od_standards_clustered_at_low_od() -> None:
+    # quantile knots alone gave a near-linear fit that missed the curvature here.
+    spline_data = spline_fit(USER_OD600, USER_VOLTAGES, knots="auto")
+
+    assert len(spline_data.knots) > 2
+
+    preds = _eval_on(spline_data, USER_OD600)
+    line = np.polyval(np.polyfit(USER_OD600, USER_VOLTAGES, deg=1), USER_OD600)
+    assert np.sum((preds - USER_VOLTAGES) ** 2) < 0.1 * np.sum((line - USER_VOLTAGES) ** 2)
+
+    grid = np.linspace(0.0, max(USER_OD600), 200)
+    assert np.all(np.diff(_eval_on(spline_data, grid)) > 0)
+
+
+@pytest.mark.parametrize("cluster", ["low", "high"])
+def test_spline_fit_auto_tracks_curve_for_noisy_clustered_x(cluster: str) -> None:
+    x = np.array(DILUTION_SERIES) if cluster == "low" else 4.0 - np.array(DILUTION_SERIES[::-1])
+    grid = np.linspace(0.0, 4.0, 200)
+    truth = np.polyval(CURVED_OD_RESPONSE, grid)
+
+    for seed in range(20):
+        y = np.polyval(CURVED_OD_RESPONSE, x) + np.random.default_rng(seed).normal(0.0, 0.002, x.size)
+        error = _eval_on(spline_fit(x.tolist(), y.tolist(), knots="auto"), grid) - truth
+        # a straight line misses this curve by ~0.02 RMSE, and a knot left in a gap in x swings by >0.1.
+        assert np.sqrt(np.mean(error**2)) < 0.017, seed
+        assert np.max(np.abs(error)) < 0.05, seed
+
+
+def test_spline_fit_auto_stays_linear_for_noisy_linear_data_with_clustered_x() -> None:
+    x = np.array(DILUTION_SERIES)
+    y = 0.09 * x + np.random.default_rng(0).normal(0.0, 0.002, x.size)
+    spline_data = spline_fit(x.tolist(), y.tolist(), knots="auto")
+
+    assert len(spline_data.knots) == 2
+
+
+def test_spline_fit_auto_does_not_swing_across_a_gap_in_x() -> None:
+    x = np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 3.8, 4.0])
+    grid = np.linspace(0.0, 4.0, 200)
+
+    for seed in range(20):
+        y = np.polyval(CURVED_OD_RESPONSE, x) + np.random.default_rng(seed).normal(0.0, 0.002, x.size)
+        preds = _eval_on(spline_fit(x.tolist(), y.tolist(), knots="auto"), grid)
+        assert y.min() - 0.05 <= preds.min() and preds.max() <= y.max() + 0.05, seed
+
+
+def test_spline_fit_auto_handles_replicate_x() -> None:
+    x = np.repeat([0.0, 0.5, 1.0, 2.0, 4.0], 3)
+    y = np.polyval(CURVED_OD_RESPONSE, x) + np.random.default_rng(1).normal(0.0, 0.002, x.size)
+    spline_data = spline_fit(x.tolist(), y.tolist(), knots="auto")
+
+    assert np.all(np.diff(spline_data.knots) > 0)
+    grid = np.linspace(0.0, 4.0, 200)
+    assert np.max(np.abs(_eval_on(spline_data, grid) - np.polyval(CURVED_OD_RESPONSE, grid))) < 0.03
+
+
 def test_spline_fit_respects_sorted_or_unsorted_input() -> None:
     x = [0.0, 1.0, 2.0, 3.0]
     y = [1.0, 2.0, 0.0, 3.0]

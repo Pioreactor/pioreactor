@@ -2,6 +2,7 @@
 # types
 import datetime
 import typing as t
+from threading import Event
 
 from msgspec import Meta
 
@@ -17,6 +18,9 @@ type Experiment = str
 class DosingProgram(t.Protocol):
     """
     Should return a non-negative float representing (approx) how much liquid was moved, in ml.
+
+    Forward cancel_event to built-in pump actions, or observe it when controlling hardware directly.
+    Cancellation is permanent for this operation, including across an automation pause/resume.
     """
 
     def __call__(
@@ -27,6 +31,8 @@ class DosingProgram(t.Protocol):
         source_of_event: str,
         mqtt_client: "Client",
         logger: "CustomLogger",
+        *,
+        cancel_event: Event,
     ) -> float:
         # don't forget to return a float!
         ...

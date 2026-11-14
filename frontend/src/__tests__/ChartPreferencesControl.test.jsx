@@ -1,8 +1,14 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SnackbarProvider } from "notistack";
+import { MemoryRouter } from "react-router";
 
 import ChartPreferencesControl from "../components/ChartPreferencesControl";
+
+jest.mock("../hooks/useLeaderHostname", () => ({
+  __esModule: true,
+  default: () => "leader",
+}));
 
 
 const descriptors = [
@@ -12,7 +18,7 @@ const descriptors = [
 ];
 
 
-function renderControl(overrides = {}) {
+function renderControl(overrides = {}, controlProps = {}) {
   const save = jest.fn(() => Promise.resolve());
   const chartPreferences = {
     defaultChartKeys: ["optical_density", "temperature"],
@@ -26,13 +32,16 @@ function renderControl(overrides = {}) {
   };
 
   render(
-    <SnackbarProvider>
-      <ChartPreferencesControl
-        chartPageLabel="Overview"
-        chartPreferences={chartPreferences}
-        experiment="exp1"
-      />
-    </SnackbarProvider>,
+    <MemoryRouter>
+      <SnackbarProvider>
+        <ChartPreferencesControl
+          chartPageLabel="Overview"
+          chartPreferences={chartPreferences}
+          experiment="exp1"
+          {...controlProps}
+        />
+      </SnackbarProvider>
+    </MemoryRouter>,
   );
 
   return { save };
@@ -94,4 +103,42 @@ test("reset restores config inheritance", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
   await waitFor(() => expect(save).toHaveBeenCalledWith(null));
+});
+
+
+test("line colors tab saves chosen colors", async () => {
+  const { save } = renderControl(
+    { unitColors: { unit3: "#CC3311" } },
+    { units: ["unit1", "unit2", "unit3"], relabelMap: { unit1: "control" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Customize Overview charts for this experiment" }));
+  expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Line colors", "Charts"]);
+  expect(screen.getByRole("tab", { name: "Line colors" })).toHaveAttribute("aria-selected", "true");
+  fireEvent.click(screen.getByRole("button", { name: /^control/ }));
+
+  expect(screen.getByRole("button", { name: "Automatic" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "#58502F" }));
+  // Picking a color closes the row.
+  expect(screen.queryByRole("group", { name: "Line color" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^control/ })).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await waitFor(() => expect(save).toHaveBeenCalledWith(
+    ["optical_density", "temperature"],
+    { unit1: "#58502F", unit3: "#CC3311" },
+  ));
+});
+
+
+test("reset all to automatic clears every chosen color", async () => {
+  const { save } = renderControl(
+    { unitColors: { unit1: "#58502F" } },
+    { units: ["unit1"] },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Customize Overview charts for this experiment" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Line colors" }));
+  fireEvent.click(screen.getByRole("button", { name: "Reset all to automatic" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await waitFor(() => expect(save).toHaveBeenCalledWith(["optical_density", "temperature"], {}));
 });

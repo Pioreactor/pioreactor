@@ -58,6 +58,17 @@ def test_led_intensity_preserves_partial_write_behavior_on_hardware_error(
         assert cache.get("C", 0.0) == pytest.approx(0.0)
 
 
+def test_led_intensity_validates_every_channel_before_touching_the_dac(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dac = MagicMock(A=8, B=9, C=10, D=11)
+    monkeypatch.setattr("pioreactor.utils.mock.Mock_DAC", MagicMock(return_value=dac))
+
+    assert not led_intensity({"A": 10.0, "C": 150.0}, verbose=False, source_of_event="test")
+
+    dac.set_intensity_to.assert_not_called()
+
+
 def test_lock_will_prevent_led_from_updating() -> None:
     channel: LedChannel = "A"
 
@@ -164,6 +175,19 @@ def test_led_intensity_can_be_killed_by_pio_kill() -> None:
 
     result = runner.invoke(kill, ["--job-name", "led_intensity"])
     assert result.output.strip() == "Killed 1 job."
+
+
+def test_turning_all_leds_off_from_the_cli_ends_the_led_intensity_job() -> None:
+    from pioreactor.actions.led_intensity import click_led_intensity
+
+    runner = CliRunner()
+    runner.invoke(click_led_intensity, ["--A", "10"])
+    with JobManager() as job_manager:
+        assert job_manager.is_job_running("led_intensity")
+
+    runner.invoke(click_led_intensity, ["--A", "0"])
+    with JobManager() as job_manager:
+        assert not job_manager.is_job_running("led_intensity")
 
 
 def test_internal_led_intensity_call_is_not_registered_as_a_running_job() -> None:
@@ -283,3 +307,25 @@ def test_led_intensity_invalid_inputs_do_not_modify_storage(desired_state) -> No
         for channel in ALL_LED_CHANNELS:
             # If present, values should be default
             assert cache.get(channel, 0.0) == pytest.approx(0.0)
+
+
+def test_led_lock_left_by_a_dead_process_is_reclaimed() -> None:
+    import subprocess
+
+    dead_process = subprocess.Popen(["true"])
+    dead_process.wait()
+
+    with local_intermittent_storage("led_locks") as cache:
+        cache["B"] = f"{dead_process.pid}:123"
+
+    try:
+        assert not is_led_channel_locked("B")
+        assert led_intensity({"B": 20.0}, verbose=False, source_of_event="test")
+
+        with lock_leds_temporarily(["B"]) as lock_owner:
+            with local_intermittent_storage("led_locks") as cache:
+                assert cache.get("B") == lock_owner
+    finally:
+        led_intensity({"B": 0.0}, verbose=False, source_of_event="test")
+        with local_intermittent_storage("led_locks") as cache:
+            cache.pop("B")

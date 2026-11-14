@@ -1,2 +1,0 @@
--r requirements.txt
-mcp-utils-msgspec==3.0.1

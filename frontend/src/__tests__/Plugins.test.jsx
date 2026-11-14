@@ -32,7 +32,12 @@ function renderPlugins() {
 }
 
 describe("Plugins", () => {
+  let usbStatus;
+  let usbArtifacts;
+
   beforeEach(() => {
+    usbStatus = { status: "absent" };
+    usbArtifacts = { plugins: [] };
     mockNavigate.mockReset();
     mockUseParams.mockReturnValue({});
     mockFetchTaskResult.mockResolvedValue({ result: {} });
@@ -50,8 +55,12 @@ describe("Plugins", () => {
       if (url === "/unit_api/usb") {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ status: "unmounted" }),
+          json: async () => usbStatus,
         });
+      }
+
+      if (url === "/unit_api/usb/artifacts") {
+        return Promise.resolve({ ok: true, json: async () => usbArtifacts });
       }
 
       if (url === "https://raw.githubusercontent.com/Pioreactor/list-of-plugins/main/plugins.json") {
@@ -90,5 +99,51 @@ describe("Plugins", () => {
 
     expect(mockNavigate).toHaveBeenCalledWith("/plugins/$broadcast");
     expect(await screen.findByText("Choose a Pioreactor to view installed plugins.")).toBeVisible();
+  });
+
+  test("prompts to attach a USB when none is present", async () => {
+    renderPlugins();
+
+    expect(
+      await screen.findByText(/You can attach a USB with Pioreactor plugins/),
+    ).toBeVisible();
+  });
+
+  test("prompts to mount a detected but unmounted USB", async () => {
+    usbStatus = { status: "present_unmounted", active_mount: null };
+    renderPlugins();
+
+    expect(await screen.findByText(/A USB drive is detected but not mounted/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Leader page" })).toHaveAttribute("href", "/leader");
+  });
+
+  test.each(["mounted", "mounted_readonly"])(
+    "explains an empty %s USB drive",
+    async (status) => {
+      usbStatus = {
+        status,
+        active_mount: { mountpoint: "/media/pioreactor-usb/sda1", display_name: "MyDrive" },
+      };
+      renderPlugins();
+
+      expect(await screen.findByText(/No plugins found on MyDrive/)).toBeVisible();
+      expect(screen.queryByText(/You can attach a USB/)).not.toBeInTheDocument();
+    },
+  );
+
+  test("lists plugins found on a mounted USB drive", async () => {
+    usbStatus = {
+      status: "mounted",
+      active_mount: { mountpoint: "/media/pioreactor-usb/sda1", display_name: "MyDrive" },
+    };
+    usbArtifacts = {
+      plugins: [
+        { name: "my-plugin", version: "1.0.0", kind: "wheel", path: "/media/pioreactor-usb/sda1/my_plugin-1.0.0-py3-none-any.whl" },
+      ],
+    };
+    renderPlugins();
+
+    expect(await screen.findByText("my-plugin")).toBeVisible();
+    expect(screen.queryByText(/No plugins found/)).not.toBeInTheDocument();
   });
 });

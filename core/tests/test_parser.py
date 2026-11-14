@@ -1,21 +1,120 @@
 # -*- coding: utf-8 -*-
+from contextlib import ExitStack
 from datetime import datetime
 from datetime import UTC
 from math import sqrt
+from unittest.mock import patch
 
 import pytest
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.experiment_profiles.parser import check_syntax
 from pioreactor.experiment_profiles.parser import parse_profile_expression
 from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
-from pioreactor.experiment_profiles.sly.lex import LexError
 from pioreactor.pubsub import publish
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
 exp = get_assigned_experiment_name(unit)
+
+
+def expression_sources(leaves: st.SearchStrategy[str]) -> st.SearchStrategy[str]:
+    return st.recursive(
+        leaves,
+        lambda children: st.one_of(
+            st.tuples(
+                children,
+                st.sampled_from(["+", "-", "*", "<", "<=", "==", ">=", ">", "and", "or"]),
+                children,
+            ).map(lambda parts: f"({parts[0]} {parts[1]} {parts[2]})"),
+            st.tuples(st.sampled_from(["+", "-", "not"]), children).map(
+                lambda parts: f"({parts[0]} ({parts[1]}))"
+            ),
+        ),
+        max_leaves=8,
+    )
+
+
+@settings(max_examples=100)
+@given(
+    source=expression_sources(
+        st.one_of(
+            st.integers(-10, 10).map(lambda value: f"{value}.0"),
+            st.sampled_from(["True", "False", "input_value"]),
+        )
+    ),
+    value=st.integers(-10, 10),
+)
+def test_property_expression_tree_matches_python(source: str, value: int) -> None:
+    env = {"input_value": float(value)}
+    # Only our bounded, generated grammar reaches eval; no user-supplied source is evaluated.
+    expected = eval(source, {"__builtins__": {}}, env)
+    assert check_syntax(source)
+    actual = parse_profile_expression(source, env=env)
+    assert actual == expected
+    assert type(actual) is type(expected)
+
+
+@settings(max_examples=100)
+@given(a=st.integers(-10, 10), b=st.integers(-10, 10), c=st.integers(1, 10), power=st.integers(2, 4))
+def test_property_expression_precedence_matches_python(a: int, b: int, c: int, power: int) -> None:
+    # Leave operators unparenthesized to exercise binding and associativity.
+    for source in (
+        f"{a} + {b} * {c} ** {power}",
+        f"-{c} ** {power} + {a} / {c} / {c}",
+        f"{a} - {b} - {c}",
+        f"{c} ** 2 ** 3",
+        f"not {a} + {b} * {c} >= {power} or False and True",
+    ):
+        expected = eval(source, {"__builtins__": {}})
+        assert parse_profile_expression(source) == expected
+
+
+@settings(max_examples=100)
+@given(
+    source=expression_sources(
+        st.sampled_from(
+            ["random()", "unit()", "missing()", "::job:setting", "unit():job:setting.nested", "(1 / 0)"]
+        )
+    )
+)
+def test_property_syntax_check_has_no_runtime_effects(source: str) -> None:
+    with ExitStack() as stack:
+        for name in (
+            "evaluate",
+            "lookup_mqtt",
+            "random",
+            "subscribe",
+            "is_active",
+            "get_assigned_experiment_name_from_leader",
+        ):
+            stack.enter_context(
+                patch(
+                    f"pioreactor.experiment_profiles.parser.{name}",
+                    side_effect=AssertionError("Syntax checking evaluated live state"),
+                )
+            )
+        assert check_syntax(source)
+
+
+@settings(max_examples=100)
+@given(
+    branch=st.sampled_from([("and", "False", False), ("or", "True", True)]),
+    source=expression_sources(st.sampled_from(["random()", "::job:setting", "unknown()", "(1 / 0)"])),
+)
+def test_property_boolean_short_circuit_skips_generated_branch(
+    branch: tuple[str, str, bool], source: str
+) -> None:
+    operator, left, expected = branch
+    with (
+        patch("pioreactor.experiment_profiles.parser.lookup_mqtt", side_effect=AssertionError("MQTT lookup")),
+        patch("pioreactor.experiment_profiles.parser.random", side_effect=AssertionError("Random function")),
+    ):
+        assert parse_profile_expression(f"{left} {operator} ({source})") is expected
 
 
 def test_identity() -> None:
@@ -42,7 +141,7 @@ def test_syntax_errors_and_typos() -> None:
     with pytest.raises(SyntaxError):
         assert parse_profile_expression_to_bool("(False or True) or False)") is None  # unbalanced paren
 
-    with pytest.raises(LexError):
+    with pytest.raises(SyntaxError):
         assert parse_profile_expression_to_bool("test.test > 1")  # test.test is too few for mqtt fetches
 
 
@@ -249,3 +348,156 @@ def test_mqtt_fetches_with_calculations() -> None:
         == 3 * 1.2
     )
     assert parse_profile_expression(f"({unit}:od_reading:od1.od + {unit}:od_reading:od1.od) > 2.0 ") is True
+
+
+@pytest.mark.parametrize(
+    "expression, expected",
+    [
+        ("8 - 3 - 2", 3.0),
+        ("8 / 2 / 2", 2.0),
+        ("2 + 3 * 4", 14.0),
+        ("2 ** 3 ** 2", 512.0),
+        ("-2 ** 2", -4.0),
+        ("2 ** -2", 0.25),
+        ("-1 + 2", 1.0),
+        ("2 * -3 + 4", -2.0),
+        ("(-1) + 2", 1.0),
+        ("3 <= 2 or True", True),
+        ("3 < 2 or True", True),
+        ("not 2 <= 3", False),
+        ("not 1 == 2", True),
+        ("not not True", True),
+        ("0 or 12", 12.0),
+        ("5 and 12", 12.0),
+        (".5+1", 1.5),
+        ("\tTrUe and FALSE ", False),
+        ("android", "android"),
+        ("$state", "$state"),
+    ],
+)
+def test_expression_precedence_and_tokens(expression: str, expected: object) -> None:
+    assert check_syntax(expression)
+    assert parse_profile_expression(expression) == expected
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "",
+        " ",
+        "1 +",
+        "(1 + 2",
+        "1 2",
+        "()",
+        "1 < 2 < 3",
+        "1 <= 2 <= 3",
+        "1 >= 2 > 3",
+        "unit:job:extra:setting",
+        "1 == 2 > 3",
+        "1 != 2",
+        "1 = 2",
+        "1 % 2",
+        "1e3",
+        "1.",
+        "1\n+2",
+        "'hello'",
+        "random(1)",
+        "test.test",
+        "::job:",
+        "unit:job:setting.",
+    ],
+)
+def test_invalid_expression_syntax(expression: str) -> None:
+    assert not check_syntax(expression)
+    with pytest.raises(SyntaxError):
+        parse_profile_expression(expression)
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "1 / 0",
+        "missing()",
+        "unit()",
+        "hours_elapsed()",
+        "experiment()",
+        "job_name()",
+        "random()",
+        "::job:setting",
+        "unit():job_name():setting.nested",
+        "unit:job:$state",
+        "True + name",
+    ],
+)
+def test_syntax_validation_has_no_runtime_dependencies(
+    expression: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_call(*args: object, **kwargs: object) -> None:
+        pytest.fail("Syntax validation evaluated live state")
+
+    for name in ("subscribe", "is_active", "get_assigned_experiment_name_from_leader", "random"):
+        monkeypatch.setattr(f"pioreactor.experiment_profiles.parser.{name}", unexpected_call)
+    assert check_syntax(expression)
+
+
+@pytest.mark.parametrize("operator, left", [("and", "False"), ("or", "True")])
+@pytest.mark.parametrize("right", ["(1 / 0)", "unknown()", "::job:setting", "random()"])
+def test_boolean_short_circuit(operator: str, left: str, right: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_call(*args: object, **kwargs: object) -> None:
+        pytest.fail("Short-circuited operand was evaluated")
+
+    for name in ("subscribe", "is_active", "get_assigned_experiment_name_from_leader", "random"):
+        monkeypatch.setattr(f"pioreactor.experiment_profiles.parser.{name}", unexpected_call)
+    assert parse_profile_expression(f"{left} {operator} {right}") is (left == "True")
+
+
+@pytest.mark.parametrize("expression", ["True and (1 / 0)", "False or (1 / 0)"])
+def test_boolean_required_operand_is_evaluated(expression: str) -> None:
+    with pytest.raises(ZeroDivisionError, match="Division by zero is not allowed"):
+        parse_profile_expression(expression)
+
+
+@pytest.mark.parametrize("expression", ["True or (1 +)", "False and (1 +)", "random() +"])
+def test_entire_expression_is_parsed_before_evaluation(
+    expression: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_call() -> None:
+        pytest.fail("Invalid expression was evaluated")
+
+    monkeypatch.setattr("pioreactor.experiment_profiles.parser.random", unexpected_call)
+    with pytest.raises(SyntaxError):
+        parse_profile_expression(expression)
+
+
+@pytest.mark.parametrize("name", ["unit", "hours_elapsed", "experiment", "job_name"])
+def test_environment_functions(name: str) -> None:
+    assert parse_profile_expression(f"{name}()", env={name: "value"}) == "value"
+    with pytest.raises(KeyError):
+        parse_profile_expression(f"{name}()")
+
+
+def test_unknown_function() -> None:
+    with pytest.raises(ValueError, match="not a valid function"):
+        parse_profile_expression("unknown()")
+
+
+def test_boolean_literals_take_precedence_over_environment() -> None:
+    assert parse_profile_expression("true", env={"true": "shadowed"}) is True
+
+
+@pytest.mark.parametrize("comparison", ["<", "<=", "==", ">=", ">"])
+def test_comparisons_bind_between_arithmetic_and_logic(comparison: str) -> None:
+    assert parse_profile_expression(f"2 {comparison} 1 and False") is False
+    assert parse_profile_expression(f"2 {comparison} 1 or True") is True
+    assert parse_profile_expression(f"not 2 {comparison} 1") is (
+        not parse_profile_expression(f"2 {comparison} 1")
+    )
+    assert parse_profile_expression(f"2 {comparison} 1 + 2") == parse_profile_expression(f"2 {comparison} 3")
+
+
+@pytest.mark.parametrize("first", ["<", "<=", "==", ">=", ">"])
+@pytest.mark.parametrize("second", ["<", "<=", "==", ">=", ">"])
+def test_comparison_chains_require_explicit_grouping(first: str, second: str) -> None:
+    assert not check_syntax(f"1 {first} 2 {second} 3")
+    assert check_syntax(f"(1 {first} 2) {second} 3")
+    assert check_syntax(f"1 {first} (2 {second} 3)")

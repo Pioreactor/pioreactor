@@ -83,7 +83,7 @@ export default function ActionPumpForm(props) {
   function stopPump() {
     fetch(`/api/workers/${unit}/jobs/stop/job_name/${action}/experiments/${experimentPathSegment(experiment)}`, {method: "POST"})
     .catch(() => {
-      setSnackbarMsg("🛑 Failed to stop - please try again!")
+      setSnackbarMsg("Failed to stop the pump. Try again.")
       setOpenSnackbar(true)
     });
   }

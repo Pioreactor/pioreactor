@@ -1,4 +1,4 @@
--r requirements_leader_worker.txt
+-r requirements_hardware.txt
 pytest
 pytest-timeout
 pytest-random-order
@@ -8,6 +8,7 @@ numpy
 scipy
 pre-commit
 pytest-mock
+hypothesis
 zeroconf
 mypy
 black

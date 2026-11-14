@@ -220,9 +220,19 @@ describe("CalibrationSessionDialog", () => {
       if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
         return Promise.resolve({
           ok: true,
+          status: 202,
+          json: () => Promise.resolve({ task_id: "task-1" }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/task_results/task-1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
           json: () =>
             Promise.resolve({
-              step: focusStep("blurrier", "Blurrier — turn back slightly.", 2),
+              status: "succeeded",
+              result: { step: focusStep("blurrier", "Blurrier — turn back slightly.", 2) },
             }),
         });
       }
@@ -292,8 +302,166 @@ describe("CalibrationSessionDialog", () => {
       "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ inputs: { action: "retake" } }),
+        body: JSON.stringify({ inputs: { action: "retake" }, expected_step_id: "focus_camera" }),
       }),
     );
+  });
+
+  test("lets the user correct and exclude recorded rows before saving", async () => {
+    const reviewStep = {
+      step_id: "review_data",
+      step_type: "form",
+      title: "Review data",
+      body: "Check the recorded data before saving.",
+      fields: [
+        {
+          name: "recorded_data",
+          label: "Recorded data",
+          field_type: "data_table",
+          columns: [
+            { key: "run", label: "Run", editable: false, minimum: null },
+            { key: "duration", label: "Duration (s)", editable: false, minimum: null },
+            { key: "volume", label: "Volume (mL)", editable: true, minimum: 0.0001 },
+          ],
+          default: [
+            { run: 1, duration: 1.0, volume: 0.5, include: true },
+            { run: 2, duration: 2.23456789, volume: 10.123456789, include: true },
+            { run: 3, duration: 3.0, volume: 1.5, include: true },
+          ],
+        },
+      ],
+      metadata: {
+        primary_action_label: "Save calibration",
+        actions: [{ label: "Recalculate curve", inputs: { action: "preview" }, include_values: true }],
+      },
+    };
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ step: reviewStep }) });
+      }
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
+        return Promise.resolve({ ok: true, status: 202, json: () => Promise.resolve({ task_id: "task-1" }) });
+      }
+      if (url === "/api/workers/unit-1/task_results/task-1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ status: "succeeded", result: { step: reviewStep } }),
+        });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog
+          open
+          protocol={{ title: "Pump calibration", protocol_name: "duration_based", target_device: "media_pump" }}
+          unit="unit-1"
+          sessionId="session-1"
+        />
+      </MemoryRouter>,
+    );
+
+    const volumeInput = await screen.findByRole("textbox", { name: "Volume (mL) for Run 2" });
+    const saveButton = screen.getByRole("button", { name: "Save calibration" });
+
+    expect(screen.getByText("2.235")).toBeVisible();
+    expect(volumeInput).toHaveValue("10.123");
+    fireEvent.focus(volumeInput);
+    expect(volumeInput).toHaveValue("10.123456789");
+    fireEvent.change(volumeInput, { target: { value: "" } });
+    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(saveButton).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recalculate curve" })).toBeDisabled();
+
+    fireEvent.change(volumeInput, { target: { value: "1.123456789" } });
+    expect(volumeInput).toHaveValue("1.123456789");
+    fireEvent.blur(volumeInput);
+    expect(volumeInput).toHaveValue("1.123");
+    expect(saveButton).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Include Run 3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recalculate curve" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            inputs: {
+              recorded_data: [
+                { run: 1, duration: 1.0, volume: 0.5, include: true },
+                { run: 2, duration: 2.23456789, volume: 1.123456789, include: true },
+                { run: 3, duration: 3.0, volume: 1.5, include: false },
+              ],
+              action: "preview",
+            },
+            expected_step_id: "review_data",
+          }),
+        }),
+      );
+    });
+  });
+
+  test("formats read-only voltages without rounding the measurements submitted for review", async () => {
+    const recordedRows = [
+      { standard: "1", od600: 0.5, voltage_2: 0.123456789, include: true },
+      { standard: "2", od600: 1, voltage_2: 0.00000123456789, include: true },
+      { standard: "3", od600: 2, voltage_2: 0, include: true },
+      { standard: "Blank", od600: 0, voltage_2: null, include: true },
+    ];
+    const reviewStep = {
+      step_id: "review_data",
+      step_type: "form",
+      title: "Review data",
+      fields: [{
+        name: "recorded_data",
+        label: "Recorded data",
+        field_type: "data_table",
+        columns: [
+          { key: "standard", label: "Standard" },
+          { key: "od600", label: "OD600", editable: true, minimum: 0 },
+          { key: "voltage_2", label: "Voltage (V), 2 (90°)" },
+        ],
+        default: recordedRows,
+      }],
+      metadata: {
+        primary_action_label: "Save calibration",
+        actions: [{ label: "Recalculate curve", inputs: { action: "preview" }, include_values: true }],
+      },
+    };
+    global.fetch = jest.fn((url) => {
+      if (url.endsWith("/inputs")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ task_id: "task-1" }) });
+      }
+      if (url.includes("/task_results/")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ status: "succeeded", result: { step: reviewStep } }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ step: reviewStep }) });
+    });
+
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog open unit="unit-1" sessionId="session-1" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("0.123")).toBeVisible();
+    expect(screen.getByText("1.23e-6")).toBeVisible();
+    expect(screen.getByText("0")).toBeVisible();
+    expect(screen.getByText("—")).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Include measurement" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Recalculate curve" }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
+      expect.objectContaining({ body: JSON.stringify({ inputs: { recorded_data: recordedRows, action: "preview" }, expected_step_id: "review_data" }) }),
+    ));
   });
 });

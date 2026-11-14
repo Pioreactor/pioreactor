@@ -14,13 +14,13 @@ import {
   FormControl,
   FormLabel,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReplayIcon from '@mui/icons-material/Replay';
 
 import PioreactorIcon from "./PioreactorIcon";
 import ChangeAutomationsDialog from "./ChangeAutomationsDialog";
 import ChangeDosingAutomationsDialog from "./ChangeDosingAutomationsDialog";
+import DialogCloseButton from "./DialogCloseButton";
 
 function getAutomationConfigValues(configSections, jobName) {
   const baseSection = `${jobName}.config`;
@@ -147,13 +147,7 @@ export default function AutomationAdvancedConfigButton({
           <Typography sx={{ fontSize: 20, color: uiColors.text }}>
             {displayName}
           </Typography>
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{ position: "absolute", right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
 
         <DialogContent>

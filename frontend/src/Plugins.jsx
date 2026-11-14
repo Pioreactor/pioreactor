@@ -1,5 +1,5 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { uiColors } from "./theme/colors";
-import Avatar from "boring-avatars";
 import React from "react";
 import UnderlineSpan from "./components/UnderlineSpan";
 
@@ -15,15 +15,20 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Snackbar from "./components/Snackbar";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import Avatar from "@mui/material/Avatar";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import ListItemText from "@mui/material/ListItemText";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
+import DownloadIcon from "@mui/icons-material/Download";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Link, useParams, useNavigate } from "react-router";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 import { styled } from "@mui/material/styles";
 import PioreactorsIcon from "./components/PioreactorsIcon";
+import PluginIcon from "./components/PluginIcon";
+import { textIcon } from "./theme";
 
 const BROADCAST_TARGET = "$broadcast";
 const PLUGIN_ROW_CONTENT_INSET = "2%";
@@ -31,7 +36,6 @@ const PLUGIN_ROW_ACTION_SX = {
   display: { xs: "contents", md: "block" },
   right: { md: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)` },
 };
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 const ListItemStyled = styled(ListItem)(() => ({
   "&:nth-of-type(odd)": {
@@ -147,13 +151,12 @@ function assertPluginTaskResultSucceeded(taskPayload, failureMessage) {
   }
 }
 
-function PluginAvatar({ name, source = "community" }) {
-  const colors =
-    source === "installed"
-      ? ["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]
-      : ["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"];
-
-  return <Avatar name={`${name}${source}`} size={40} colors={colors} variant="bauhaus" />;
+function PluginAvatar() {
+  return (
+    <Avatar sx={{ bgcolor: uiColors.selection, color: "primary.main" }}>
+      <PluginIcon sx={{ fontSize: 22 }} />
+    </Avatar>
+  );
 }
 
 function InstallButton({
@@ -184,7 +187,7 @@ function InstallButton({
 
   return (
     <Button
-      variant="outlined"
+      variant="text"
       color="primary"
       size="small"
       aria-label={ariaLabel}
@@ -192,7 +195,9 @@ function InstallButton({
       disabled={disabled}
       sx={{ ml: "3px",  minWidth: 92 }}
     >
-      {isRunning && <CircularProgress color="inherit" size={14} sx={textIcon} />}
+      {isRunning
+        ? <CircularProgress color="inherit" size={14} sx={textIcon} />
+        : <DownloadIcon fontSize="small" sx={textIcon} />}
       {buttonText}
     </Button>
   );
@@ -293,7 +298,7 @@ function ListSuggestedPlugins({
               return (
                 <ListItemStyled key={plugin.name}>
                   <ListItemAvatar>
-                    <PluginAvatar name={plugin.name} />
+                    <PluginAvatar />
                   </ListItemAvatar>
                   <ListItemText
                     primary={plugin.name}
@@ -333,11 +338,9 @@ function ListSuggestedPlugins({
                         variant="text"
                         size="small"
                         color="primary"
-                        aria-label="view homepage"
-                        endIcon={<OpenInNewIcon />}
                         sx={{ ml: "15px" }}
                       >
-                        View homepage
+                        <OpenInNewIcon fontSize="small" sx={textIcon} /> View homepage
                       </Button>
                     )}
                   </ListItemSecondaryAction>
@@ -396,7 +399,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
           return (
             <ListItemStyled key={plugin.name}>
               <ListItemAvatar>
-                <PluginAvatar name={plugin.name} source="installed" />
+                <PluginAvatar />
               </ListItemAvatar>
               <ListItemText
                 primary={plugin.name}
@@ -444,11 +447,9 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                     variant="text"
                     size="small"
                     color="primary"
-                    aria-label="view homepage"
-                    endIcon={<OpenInNewIcon />}
                     sx={{ ml: "15px" }}
                   >
-                    View homepage
+                    <OpenInNewIcon fontSize="small" sx={textIcon} /> View homepage
                   </Button>
                 )}
               </ListItemSecondaryAction>
@@ -460,6 +461,8 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
   );
 }
 
+const USB_MOUNTED_STATUSES = ["mounted", "mounted_readonly"];
+
 function ListUsbPlugins({
   selectedTarget,
   installedPlugins,
@@ -467,6 +470,7 @@ function ListUsbPlugins({
   getTask,
   onInstall,
 }) {
+  const [usbState, setUsbState] = React.useState("absent");
   const [usbName, setUsbName] = React.useState("");
   const [usbPlugins, setUsbPlugins] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -489,8 +493,9 @@ function ListUsbPlugins({
         const status = await statusResponse.json();
         const activeMount = status?.active_mount;
 
-        if (!activeMount?.mountpoint || status.status !== "mounted") {
+        if (!activeMount?.mountpoint || !USB_MOUNTED_STATUSES.includes(status.status)) {
           if (isActive) {
+            setUsbState(status?.status === "present_unmounted" ? "unmounted" : "absent");
             setUsbName("");
             setUsbPlugins([]);
           }
@@ -509,6 +514,7 @@ function ListUsbPlugins({
           return;
         }
 
+        setUsbState("mounted");
         setUsbName(activeMount.display_name || "USB");
         setUsbPlugins(Array.isArray(artifacts?.plugins) ? artifacts.plugins : []);
       } catch (err) {
@@ -517,6 +523,7 @@ function ListUsbPlugins({
         }
 
         console.error("Error getting USB plugins:", err);
+        setUsbState("absent");
         setUsbName("");
         setUsbPlugins([]);
         setError(err instanceof Error ? err.message : "Failed to load USB plugins.");
@@ -550,22 +557,49 @@ function ListUsbPlugins({
     return null;
   }
 
+  const usbPluginsDocsLink = (
+    <a
+      href="https://docs.pioreactor.com/user-guide/using-usb-drives#install-plugins-from-usb"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      USB-sourced plugins
+    </a>
+  );
+
+  if (usbState !== "mounted") {
+    return (
+    <>
+      <Typography variant="h6" component="h2">
+        USB device
+      </Typography>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
+        <Typography variant="body2" component="p" color="text.secondary">
+          {usbState === "unmounted" ? (
+            <>
+              A USB drive is detected but not mounted. Mount it from the <Link to="/leader">Leader page</Link>, then reload this page.
+            </>
+          ) : (
+            <>
+              You can attach a USB with Pioreactor plugins to install them on your cluster.
+            </>
+          )}
+          {" "}Learn more about {usbPluginsDocsLink}.
+        </Typography>
+      </Box>
+    </>
+    )
+  }
+
   if (usbPlugins.length === 0) {
     return (
     <>
       <Typography variant="h6" component="h2">
-        USB Device
+        USB device <UnderlineSpan title="Attached to leader">{usbName}</UnderlineSpan>
       </Typography>
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
         <Typography variant="body2" component="p" color="text.secondary">
-           You can attach a USB with Pioreactor plugins to install them on your cluster. Learn more about {" "}
-          <a
-            href="https://docs.pioreactor.com/user-guide/using-usb-drives#install-plugins-from-usb"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-           USB-sourced plugins
-          </a>.
+          No plugins found on {usbName}. Add <code>.whl</code> or <code>.py</code> plugin files to the root of the drive or to <code>pioreactor/plugins/</code>, then reload this page. Learn more about {usbPluginsDocsLink}.
         </Typography>
       </Box>
     </>
@@ -591,7 +625,7 @@ function ListUsbPlugins({
             return (
               <ListItemStyled key={plugin.path}>
                 <ListItemAvatar>
-                  <PluginAvatar name={plugin.name} source="usb" />
+                  <PluginAvatar />
                 </ListItemAvatar>
                 <ListItemText
                   primary={plugin.name}
@@ -726,7 +760,7 @@ function PluginContainer() {
         }
 
         const data = await response.json();
-        const nextUnits = Array.isArray(data) ? data.map((unit) => unit.pioreactor_unit) : [];
+        const nextUnits = Array.isArray(data) ? sortNatural(data.map(byUnit)) : [];
 
         if (!isActive) {
           return;
@@ -1040,9 +1074,7 @@ function PluginContainer() {
 }
 
 function Plugins(props) {
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
   return (
     <Grid container spacing={2}>
       <Grid

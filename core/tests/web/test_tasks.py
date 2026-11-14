@@ -10,11 +10,15 @@ from http.client import HTTPMessage
 from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 from huey.exceptions import RateLimitExceeded
 from huey.storage import SqliteStorage
+from pioreactor import hardware
+from pioreactor import pubsub
 from pioreactor.camera import CameraStillMetadata
+from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
 from pioreactor.web import db as web_db
 from pioreactor.web import tasks
@@ -56,7 +60,6 @@ def test_periodic_camera_capture_attempts_capture_when_detection_is_unknown(
         raise tasks.CameraUnavailableError("camera unavailable")
 
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
@@ -77,7 +80,6 @@ def test_periodic_camera_capture_skips_confirmed_missing_camera(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
@@ -102,7 +104,6 @@ def test_periodic_camera_capture_does_not_probe_before_snapshot_is_due(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
@@ -122,7 +123,6 @@ def test_periodic_camera_capture_noops_when_auto_capture_is_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "camera_auto_capture_is_enabled", lambda: False)
     monkeypatch.setattr(
@@ -140,7 +140,6 @@ def test_periodic_camera_capture_noops_when_worker_is_inactive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "is_active", lambda unit: False)
@@ -156,20 +155,44 @@ def test_periodic_camera_capture_noops_when_worker_is_inactive(
     assert result == {"captured": False, "reason": "inactive"}
 
 
-def test_periodic_camera_capture_noops_when_camera_feature_is_disabled(
+def test_periodic_camera_capture_ignores_legacy_camera_feature_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: False)
+    monkeypatch.setitem(tasks.pioreactor_config["camera"], "enabled", "0")
+    monkeypatch.setattr(tasks, "camera_auto_capture_is_enabled", lambda: True)
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
+    monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
+    monkeypatch.setattr(tasks.whoami, "is_active", lambda unit: True)
+    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
+    monkeypatch.setattr(
+        tasks, "get_camera_status", lambda unit, *, experiment: {"detection_status": "detected"}
+    )
+    metadata = CameraStillMetadata(
+        experiment="experiment-a",
+        captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
+        image_id="scheduled-image",
+    )
+    captures: list[tuple[str, str | None, str]] = []
+
+    def capture(unit: str, *, experiment: str | None, capture_reason: str) -> CameraStillMetadata:
+        captures.append((unit, experiment, capture_reason))
+        return metadata
+
+    publications: list[tuple[str, str, CameraStillMetadata]] = []
+    monkeypatch.setattr(tasks, "capture_camera_still", capture)
     monkeypatch.setattr(
         tasks,
-        "camera_snapshot_interval_minutes",
-        lambda: pytest.fail("disabled camera feature must not inspect the capture interval"),
+        "enqueue_latest_camera_still_publication",
+        lambda unit, experiment, still: publications.append((unit, experiment, still)),
     )
 
     result = tasks.capture_camera_still_periodic_task.call_local()
 
-    assert result == {"captured": False, "reason": "camera_disabled"}
+    assert result["captured"] is True
+    assert captures == [("unit-a", "experiment-a", "scheduled")]
+    assert publications == [("unit-a", "experiment-a", metadata)]
 
 
 def test_huey_lifecycle_starts_and_stops_camera_warmer(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -506,9 +529,9 @@ def test_delete_experiment_through_huey(
         events.append(f"cleanup:{address}")
         return _response(200, {"deleted_image_ids": []})
 
-    monkeypatch.setattr(tasks, "post_into", stop_request)
-    monkeypatch.setattr(tasks, "get_from", stop_result)
-    monkeypatch.setattr(tasks, "delete_from", cleanup_request)
+    monkeypatch.setattr(pubsub, "post_into", stop_request)
+    monkeypatch.setattr(pubsub, "get_from", stop_result)
+    monkeypatch.setattr(pubsub, "delete_from", cleanup_request)
 
     result = tasks.delete_experiment_task("exp1", units)
     deletion = tasks.huey.dequeue()
@@ -536,6 +559,23 @@ def test_delete_experiment_through_huey(
     assert tasks.huey.dequeue() is None
 
 
+def test_delayed_result_polling_backs_off_from_short_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    pending = _response(202, {"result_url_path": "/unit_api/task_results/abc"})
+    responses = [pending] * 5 + [
+        _response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}})
+    ]
+    sleeps: list[float] = []
+
+    monkeypatch.setattr(pubsub, "get_from", lambda *args, **kwargs: responses.pop(0))
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
+    monkeypatch.setattr(tasks, "sleep", sleeps.append)
+
+    _, result = tasks._request_unit("GET", "unit1", "/unit_api/do")
+
+    assert result["ok"] is True
+    assert sleeps == [0.05, 0.1, 0.2, 0.25]
+
+
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate two pending responses followed by a completed task.
     responses = [
@@ -547,17 +587,17 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
 
     # Each request pops the next response in sequence.
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         events.append("get")
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: events.append("sleep"))
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
@@ -576,50 +616,138 @@ def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     responses.append(_response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}))
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", timeout=7.0)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", timeout=7.0)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
     assert responses == []
 
 
-def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Simulate a pending response that never resolves within the attempt limit.
-    responses = [
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-    ]
+@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE"])
+@pytest.mark.parametrize("poll_failure", ["pending", "connection", "http", "decode"])
+def test_interrupted_polling_preserves_operation_without_resubmission(
+    monkeypatch: pytest.MonkeyPatch, method: str, poll_failure: str
+) -> None:
+    requests: list[tuple[str, str]] = []
+    operation = {"task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}
 
-    # Each request pops the next response in sequence.
-    def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
-    ) -> Response:
-        return responses.pop(0)
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        path = urlparse(url).path
+        requests.append((request_method, path))
+        if path == "/unit_api/do":
+            return _response(202, operation)
+        if poll_failure == "connection":
+            raise HTTPException("Lost polling response")
+        if poll_failure == "http":
+            return _response(503, {"error": "Unavailable", "status": 503})
+        if poll_failure == "decode":
+            return Response(url, 200, HTTPMessage(), b"not json")
+        # Older responses may omit task_id; retain it from acceptance.
+        return _response(202, {"result_url_path": operation["result_url_path"]})
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
-    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
-    # Avoid test delays from retry sleeps.
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=1)
+    unit, result = tasks._request_unit(method, "unit1", "/unit_api/do", max_attempts=1)
 
     assert unit == "unit1"
-    assert result == {
-        "ok": False,
-        "unit": "unit1",
-        "error": {"kind": "task_timeout", "message": "Timed out waiting for unit task result."},
-        "status_code": 202,
-        "retryable": True,
+    assert result["ok"] is False
+    assert result["retryable"] is False
+    assert result["outcome"] == "unknown"
+    assert result["recovery_action"] == "poll_task"
+    assert result["operation"] == {"unit": "unit1", **operation}
+    assert "do not resubmit" in result["error"]["remediation"]
+    assert requests == [(method, "/unit_api/do"), ("GET", operation["result_url_path"])]
+
+    # The aggregate must retain the handle and recovery advice for clients.
+    assert tasks._reduce_multicast_results([unit], False, [(unit, result)])[unit] == result
+
+
+@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE"])
+@pytest.mark.parametrize("failure", ["connection", "http", "decode"])
+def test_ambiguous_initial_response_does_not_invite_repeating_mutations(
+    monkeypatch: pytest.MonkeyPatch, method: str, failure: str
+) -> None:
+    requests: list[str] = []
+
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        requests.append(request_method)
+        if failure == "connection":
+            raise HTTPException("Response lost after acceptance")
+        if failure == "http":
+            return _response(500, {"error": "Internal error", "status": 500})
+        return Response(url, 200, HTTPMessage(), b"not json")
+
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+
+    _, result = tasks._request_unit(method, "unit1", "/unit_api/do")
+
+    assert result["retryable"] is (method == "GET" and failure != "decode")
+    if method != "GET":
+        assert result["outcome"] == "unknown"
+        assert result["recovery_action"] == "check_state"
+        assert "operation" not in result
+        assert "do not resubmit" in result["error"]["remediation"]
+    assert requests == [method]
+
+
+def test_incomplete_task_response_does_not_invite_resubmission() -> None:
+    payload = {"task_id": "abc", "status": "running", "result_url_path": "/unit_api/task_results/abc"}
+    _, result = tasks._process_json_response("unit1", _response(200, payload), payload)
+    assert result["retryable"] is False
+    assert result["outcome"] == "unknown"
+    assert result["recovery_action"] == "poll_task"
+    assert result["operation"]["task_id"] == "abc"
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH", "DELETE"])
+def test_request_unit_follows_delayed_result_for_every_mutation(
+    monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    requests: list[tuple[str, str]] = []
+    responses = {
+        "/unit_api/do": _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
+        "/unit_api/task_results/abc": _response(
+            200, {"task_id": "abc", "status": "succeeded", "result": {"done": True}}
+        ),
     }
-    assert responses == []
+
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        path = urlparse(url).path
+        requests.append((request_method, path))
+        return responses[path]
+
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    unit, result = tasks._request_unit(method, "unit1", "/unit_api/do")
+
+    assert result == {"ok": True, "unit": "unit1", "value": {"done": True}}
+    assert requests == [(method, "/unit_api/do"), ("GET", "/unit_api/task_results/abc")]
+
+
+def test_request_unit_treats_an_empty_body_as_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.mureq.request",
+        lambda *_args, **_kwargs: Response("http://unit.local", 204, HTTPMessage(), b""),
+    )
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+
+    assert tasks._request_unit("POST", "unit1", "/unit_api/do") == (
+        "unit1",
+        {"ok": True, "unit": "unit1", "value": None},
+    )
 
 
 def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -637,15 +765,15 @@ def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPat
     ]
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {
@@ -678,9 +806,9 @@ def test_fanout_success_strips_generic_success_status() -> None:
 
 
 def test_check_model_hardware_skips_non_v1_hat(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (2, 0))
+    monkeypatch.setattr(hardware, "hardware_version_info", (2, 0))
     monkeypatch.setattr(
-        tasks.hardware,
+        hardware,
         "get_adc_addresses_for_model",
         lambda *_args: (_ for _ in ()).throw(AssertionError("should not inspect ADCs")),
     )
@@ -757,12 +885,62 @@ def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatc
     ]
 
 
+class _RC:
+    def __init__(self, returncode: int) -> None:
+        self.returncode = returncode
+
+
+def test_update_clock_sets_date_then_persists_fake_hwclock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On success, update_clock sets the date and immediately persists it."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        calls.append(command)
+        return _RC(0)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is True
+    assert calls == [
+        ["sudo", "date", "-s", "2025-01-31T12:34:56Z"],
+        ["sudo", "systemctl", "start", "fake-hwclock-save.service"],
+    ]
+
+
+def test_update_clock_does_not_persist_when_date_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If `date -s` fails, return False and do not persist a bad clock."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        calls.append(command)
+        return _RC(1)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is False
+    assert calls == [["sudo", "date", "-s", "2025-01-31T12:34:56Z"]]
+
+
+def test_update_clock_persist_failure_is_non_fatal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failing fake-hwclock save (e.g. unit absent) must not fail the clock update."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        return _RC(0 if command[:2] == ["sudo", "date"] else 1)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is True
+
+
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (1, 2))
-    monkeypatch.setattr(tasks.hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
-    monkeypatch.setattr(tasks.hardware, "is_i2c_device_present", lambda address: address == 0x48)
+    monkeypatch.setattr(hardware, "hardware_version_info", (1, 2))
+    monkeypatch.setattr(hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
+    monkeypatch.setattr(hardware, "is_i2c_device_present", lambda address: address == 0x48)
 
     assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.1") == {"status": "ok"}
 
@@ -783,16 +961,28 @@ def test_reduce_multicast_results_handles_partial_failures() -> None:
         "unit2": {
             "ok": False,
             "unit": "unit2",
-            "error": {"kind": "task_exception", "message": "boom"},
+            "error": {
+                "kind": "task_exception",
+                "message": "boom",
+                "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it.",
+            },
             "status_code": None,
-            "retryable": True,
+            "retryable": False,
+            "outcome": "unknown",
+            "recovery_action": "check_state",
         },
         "unit3": {
             "ok": False,
             "unit": "unit3",
-            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "error": {
+                "kind": "missing_result",
+                "message": "No result returned for unit.",
+                "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it.",
+            },
             "status_code": None,
-            "retryable": True,
+            "retryable": False,
+            "outcome": "unknown",
+            "recovery_action": "check_state",
         },
     }
     assert helper_output == output
@@ -822,14 +1012,14 @@ def test_multicast_chord_deletes_child_results_and_preserves_callback_result(
     )
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"http://{unit}.local")
     monkeypatch.setattr(
-        tasks,
+        pubsub,
         "get_from",
-        lambda address, endpoint, json=None, timeout=5.0: _response(
+        lambda address, endpoint, json=None, timeout=5.0, **_kwargs: _response(
             200, {"address": address, "endpoint": endpoint}
         ),
     )
 
-    chord_result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    chord_result = tasks.multicast("GET", "/unit_api/test", ["unit1", "unit2"])
     child_task_ids = [child_result.id for child_result in chord_result.results]
 
     for _ in child_task_ids:
@@ -873,13 +1063,13 @@ def test_multicast_chord_reports_failed_and_skipped_members(
     monkeypatch.setattr(tasks.huey, "_immediate", False)
     monkeypatch.setattr(tasks.huey, "storage", SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"))
 
-    def get_from_unit(unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
+    def request_unit(method: str, unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
         if unit == "unit2":
             raise RuntimeError("boom")
         return unit, tasks.fanout_success(unit, {"value": 1})
 
-    monkeypatch.setattr(tasks, "_get_from_unit", get_from_unit)
-    result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    monkeypatch.setattr(tasks, "_request_unit", request_unit)
+    result = tasks.multicast("GET", "/unit_api/test", ["unit1", "unit2"])
     if skipped:
         tasks.huey.revoke_by_id(list(result.results)[1].id)
 
@@ -892,15 +1082,13 @@ def test_multicast_chord_reports_failed_and_skipped_members(
     assert callback_task is not None
     tasks.huey.execute(callback_task)
 
-    assert result.get() == {
-        "unit1": tasks.fanout_success("unit1", {"value": 1}),
-        "unit2": tasks.fanout_failure(
-            "unit2",
-            "task_skipped" if skipped else "task_exception",
-            "Task was skipped." if skipped else "RuntimeError('boom')",
-            retryable=not skipped,
-        ),
-    }
+    output = result.get()
+    assert output["unit1"] == tasks.fanout_success("unit1", {"value": 1})
+    assert output["unit2"]["retryable"] is False
+    assert output["unit2"]["error"]["kind"] == ("task_skipped" if skipped else "task_exception")
+    if not skipped:
+        assert output["unit2"]["outcome"] == "unknown"
+        assert output["unit2"]["recovery_action"] == "check_state"
 
 
 def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
@@ -909,7 +1097,7 @@ def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
     captured: dict[str, Any] = {}
 
     class DummyResult:
-        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+        def get(self, blocking: bool, timeout: float, max_delay: float) -> dict[str, Any]:
             captured["blocking"] = blocking
             captured["timeout"] = timeout
             return {
@@ -959,7 +1147,7 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
                 PendingChildResult(),
             ]
 
-        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+        def get(self, blocking: bool, timeout: float, max_delay: float) -> dict[str, Any]:
             raise tasks.ResultTimeout("timed out waiting for result.")
 
     monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
@@ -971,9 +1159,15 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
         "unit2": {
             "ok": False,
             "unit": "unit2",
-            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "error": {
+                "kind": "missing_result",
+                "message": "No result returned for unit.",
+                "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it.",
+            },
             "status_code": None,
-            "retryable": True,
+            "retryable": False,
+            "outcome": "unknown",
+            "recovery_action": "check_state",
         },
     }
 
@@ -994,7 +1188,6 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> None:
         assert experiment == "exp1"
         output_path.write_text("zip", encoding="utf-8")
@@ -1088,7 +1281,6 @@ def test_export_experiment_data_to_usb_task_writes_final_output_path(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> None:
         assert experiment == "exp1"
         assert output == (export_dir / "export.zip").as_posix()
@@ -1171,7 +1363,7 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
         captured["copy"] = (unit, localpath, remotepath, timeout)
 
     def fake_post_into(
-        address: str, endpoint: str, json: dict[str, str], timeout: int, headers: dict[str, str]
+        address: str, endpoint: str, json: dict[str, str], timeout: int, headers: dict[str, str], body: None
     ) -> FakeResponse:
         captured["post"] = (address, endpoint, json, timeout)
         captured["headers"] = headers
@@ -1179,8 +1371,8 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
 
     monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: source)
     monkeypatch.setattr(tasks, "cp_file_across_cluster", fake_cp_file_across_cluster)
-    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(tasks, "post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(pubsub, "post_into", fake_post_into)
 
     result = tasks._install_plugin_from_leader_usb_on_worker("worker1", source.as_posix())
 
@@ -1361,7 +1553,7 @@ def test_pio_run_fast_fail_raises_runtime_error(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(tasks, "Popen", lambda *args, **kwargs: FakeProc())
 
     with pytest.raises(RuntimeError, match="Command exited during startup grace window. Exit code 2."):
-        tasks.pio_run.call_local("circulate_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
+        tasks.pio_run.call_local("add_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
 
 
 def test_update_app_across_cluster_excludes_leader_from_worker_phase(
@@ -1533,6 +1725,26 @@ def test_update_app_from_usb_release_archive_stages_archive_on_workers(
     ]
 
 
+def test_update_app_from_release_archive_removes_staged_archive_even_on_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("tempfile.tempdir", str(tmp_path))
+    staged_archive = tmp_path / "pioreactor_update_archive_abc_release_26.11.0.zip"
+    staged_archive.write_bytes(b"zip")
+
+    monkeypatch.setattr(tasks, "get_leader_hostname", lambda: "leader")
+
+    def failing_check_call(_cmd: list[str]) -> None:
+        raise subprocess.CalledProcessError(1, "pio")
+
+    monkeypatch.setattr(tasks, "check_call", failing_check_call)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        tasks.update_app_from_release_archive_across_cluster.call_local(str(staged_archive), "leader")
+
+    assert not staged_archive.exists()
+
+
 def test_update_app_from_release_archive_updates_leader_when_selected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1563,3 +1775,37 @@ def test_update_app_from_release_archive_updates_leader_when_selected(
         ["sudo", "systemctl", "restart", "pioreactor-web.target"],
     ]
     assert run_calls == []
+
+
+def test_add_new_pioreactor_raises_the_commands_error_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr="Adding new pioreactor unit1\nError: Unable to configure unit1: boom\n",
+        )
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="^Unable to configure unit1: boom$"):
+        tasks.add_new_pioreactor.call_local("unit1", "1.5", "pioreactor_40ml")
+
+
+@pytest.mark.parametrize(
+    "stderr, expected_error",
+    [
+        ("Traceback (most recent call last):\nValueError: boom\n", "^ValueError: boom$"),
+        ("", "^`pio workers add` exited with code 1.$"),
+    ],
+)
+def test_add_new_pioreactor_without_an_error_line(
+    monkeypatch: pytest.MonkeyPatch, stderr: str, expected_error: str
+) -> None:
+    def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr=stderr)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match=expected_error):
+        tasks.add_new_pioreactor.call_local("unit1", "1.5", "pioreactor_40ml")

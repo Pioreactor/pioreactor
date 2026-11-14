@@ -56,8 +56,7 @@ def simple_linear_regression(
     slope, intercept = linear_regression(x, y)
 
     # Calculate residuals
-    residuals = [y_i - slope * x_i - intercept for x_i, y_i in zip(x, y)]
-    residuals_sq_sum = sum([r**2 for r in residuals])
+    residuals_sq_sum = sum([(y_i - slope * x_i - intercept) ** 2 for x_i, y_i in zip(x, y)])
     mean = sum(x) / n
     x_sq = sum([x_i**2 for x_i in x])
     x_diff_mean_sq = sum([(x_i - mean) ** 2 for x_i in x])
@@ -84,8 +83,7 @@ def simple_linear_regression_with_forced_nil_intercept(
     assert intercept == 0, "Intercept should be zero for proportional=True"
 
     # Calculate residuals
-    residuals = [y_i - slope * x_i for x_i, y_i in zip(x, y)]
-    residuals_sq_sum = sum([r**2 for r in residuals])
+    residuals_sq_sum = sum([(y_i - slope * x_i) ** 2 for x_i, y_i in zip(x, y)])
 
     # Calculate standard errors
     std_error_slope = (residuals_sq_sum / (n - 1) / sum([x_i**2 for x_i in x])) ** 0.5
@@ -134,3 +132,13 @@ def closest_point_to_domain(P: list[Number], D: tuple[Number, Number]) -> float:
 
     assert closest_point is not None
     return closest_point
+
+
+def aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
+    import numpy as np
+
+    if n_obs <= n_params + 1:
+        return float("inf")
+    sse = max(weighted_sse, np.finfo(float).tiny)
+    correction = (2 * n_params * (n_params + 1)) / (n_obs - n_params - 1)
+    return n_obs * np.log(sse / n_obs) + 2 * n_params + correction

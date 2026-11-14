@@ -30,7 +30,7 @@ from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 from pioreactor.camera import camera_captured_image
-from pioreactor.camera import camera_is_enabled
+from pioreactor.camera import get_camera_detection_status
 from pioreactor.config import config
 from pioreactor.hardware import get_available_pd_channels
 from pioreactor.hardware import is_HAT_present
@@ -608,7 +608,8 @@ def test_aux_power_is_not_too_high(
     client: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT was not detected."
-    assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
+    aux_voltage = voltage_in_aux()
+    assert aux_voltage <= 18.0, f"Voltage measured {aux_voltage} > 18.0V"
 
 
 def test_positive_correlation_between_rpm_and_stirring(
@@ -616,7 +617,8 @@ def test_positive_correlation_between_rpm_and_stirring(
 ) -> None:
     assert is_HAT_present(), "HAT was not detected."
     assert is_heating_pcb_present(), "Heating PCB was not detected."
-    assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
+    aux_voltage = voltage_in_aux()
+    assert aux_voltage <= 18.0, f"Voltage measured {aux_voltage} > 18.0V"
 
     initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
 
@@ -692,7 +694,7 @@ def get_builtin_self_tests() -> list[SelfTest]:
             test_PD_is_near_0_volts_for_blank,
         }
         tests = [test for test in tests if test not in photodiode_tests]
-    if camera_is_enabled():
+    if get_camera_detection_status() == "detected":
         tests.append(test_camera_capture)
     return tests
 
@@ -710,7 +712,6 @@ def run_tests(
 
     for test in tests_to_run:
         if managed_state.exit_event.is_set():
-            logger.info("Self-test interrupted, stopping remaining tests.")
             break
 
         test_name = test.__name__

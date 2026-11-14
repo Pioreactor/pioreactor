@@ -27,7 +27,7 @@ from werkzeug.exceptions import HTTPException
 
 VERSION = __version__
 HOSTNAME = get_unit_name()
-NAME = f"pioreactor-{HOSTNAME}-api"
+NAME = "pioreactor-api"
 APP_DATABASE_QUERY_TIMEOUT_SECONDS = 30.0
 APP_DATABASE_QUERY_PROGRESS_HANDLER_INSTRUCTIONS = 50_000
 
@@ -38,13 +38,13 @@ logger = create_logger(
 )
 
 
-logger.debug(f"Starting {NAME}={VERSION} on {HOSTNAME}...")
+logger.debug(f"Starting {NAME}={VERSION} on unit {HOSTNAME}...")
 
 
 try:
     plugins = get_plugins()
     for plugin in plugins:
-        logger.debug(f"Loading plugin {plugin}")
+        logger.debug(f"Loading plugin `{plugin}`")
 except BaseException as e:
     # BaseExpection since some plugins might use SystemExit, which isn't an Exception.
     logger.debug(f"Web-server encountered error {e} when loading plugins.")
@@ -59,16 +59,22 @@ def create_app() -> Flask:
     app = Flask(NAME)
     app.logger = t.cast(t.Any, logger)
 
+    from pioreactor.web.cors import reject_cross_site_writes
     from pioreactor.web.unit_api import unit_api_bp
 
     app.register_blueprint(unit_api_bp)
+    # Every unit must reject browser writes from untrusted origins before dispatch.
+    app.before_request(reject_cross_site_writes)
 
     if am_I_leader():
         from pioreactor.web.api import api_bp
+        from pioreactor.web.cors import add_cors_headers
         from pioreactor.web.mcp import mcp_bp
 
         app.register_blueprint(api_bp)
         app.register_blueprint(mcp_bp)
+        # Lets each Pioreactor's touchscreen call the leader's /api.
+        app.after_request(add_cors_headers)
 
     @app.teardown_appcontext
     def close_connection(exception: BaseException | None) -> None:
@@ -185,7 +191,7 @@ def publish_to_error_log(msg: t.Any, task: str) -> None:
 
 
 def _make_dicts(cursor: sqlite3.Cursor, row: tuple[t.Any, ...]) -> dict[str, t.Any]:
-    return dict((cursor.description[idx][0], value) for idx, value in enumerate(row))
+    return {column[0]: row[i] for i, column in enumerate(cursor.description)}
 
 
 def _get_app_db_connection() -> sqlite3.Connection:

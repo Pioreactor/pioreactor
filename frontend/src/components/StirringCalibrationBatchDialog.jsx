@@ -8,7 +8,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
@@ -21,12 +20,15 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import CalibrationIcon from "./CalibrationIcon";
-import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink } from "react-router";
+import {
+  advanceCalibrationSession,
+  isDataReviewStep,
+  recordedDataInputs,
+} from "../utils/calibrationSessions";
+import DialogCloseButton from "./DialogCloseButton";
 
 const START_SESSION_ENDPOINT = (unit) => `/api/workers/${unit}/calibrations/sessions`;
-const ADVANCE_SESSION_ENDPOINT = (unit, sessionId) =>
-  `/api/workers/${unit}/calibrations/sessions/${sessionId}/inputs`;
 const ABORT_SESSION_ENDPOINT = (unit, sessionId) =>
   `/api/workers/${unit}/calibrations/sessions/${sessionId}/abort`;
 
@@ -79,7 +81,7 @@ function renderCalibrationLinks(unit, result) {
           icon={<CalibrationIcon />}
           clickable
           component={RouterLink}
-          to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
+          to={`/calibrations/${unit}/${calibration.device}/${encodeURIComponent(calibration.calibration_name)}`}
           label={calibration.calibration_name}
         />
       ))}
@@ -216,15 +218,7 @@ export default function StirringCalibrationBatchDialog({
       error: undefined,
     }));
 
-    const advance = async (message) =>
-      fetch(ADVANCE_SESSION_ENDPOINT(unit, sessionId), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs: {} }),
-      }).then((response) => responseToJson(response, message));
+    const advance = (message, inputs = {}) => advanceCalibrationSession(unit, sessionId, inputs, message);
 
     await advance(`Failed to advance stirring session for ${unit}.`);
     if (abortRequestedRef.current || runId !== runIdRef.current) {
@@ -232,10 +226,22 @@ export default function StirringCalibrationBatchDialog({
       return;
     }
 
-    const finalPayload = await advance(`Failed to finish stirring session for ${unit}.`);
+    let finalPayload = await advance(`Failed to finish stirring session for ${unit}.`);
     if (abortRequestedRef.current || runId !== runIdRef.current) {
       await abortSession(unit, sessionId);
       return;
+    }
+
+    if (isDataReviewStep(finalPayload.step)) {
+      // Batch runs keep every reading; review is for single-unit sessions.
+      finalPayload = await advance(
+        `Failed to save stirring calibration for ${unit}.`,
+        recordedDataInputs(finalPayload.step)
+      );
+      if (abortRequestedRef.current || runId !== runIdRef.current) {
+        await abortSession(unit, sessionId);
+        return;
+      }
     }
 
     updateBatchUnit(unit, (details) => ({
@@ -356,14 +362,7 @@ export default function StirringCalibrationBatchDialog({
     >
       <DialogTitle sx={{ pr: 6 }}>
         {protocol?.title}
-        <IconButton
-          aria-label="Close"
-          onClick={onClose}
-          disabled={isStarting || isRunning || isAborting}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} disabled={isStarting || isRunning || isAborting} />
       </DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
         {batchError && <Alert severity="error">{batchError}</Alert>}

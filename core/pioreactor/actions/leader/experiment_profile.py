@@ -3,6 +3,7 @@ import random
 import time
 from pathlib import Path
 from sched import scheduler
+from threading import Event
 from time import perf_counter
 from typing import Any
 from typing import Callable
@@ -26,17 +27,16 @@ from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from
-from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import get_from_unit
 from pioreactor.pubsub import patch_into_leader
-from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name_from_leader
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -59,6 +59,7 @@ def coalesce(*args: Any) -> Any:
 class ActionMetrics:
     def __init__(self) -> None:
         self.count = 0
+        self.skipped_after_stop = 0
         self._start = perf_counter()
 
     def hours_elapsed(self) -> float:
@@ -69,8 +70,19 @@ class ActionMetrics:
         return self.count
 
 
-def wrap_in_try_except(func: Callable[..., Any], logger: CustomLogger) -> Callable[..., None]:
+def wrap_in_try_except(
+    func: Callable[..., Any],
+    logger: CustomLogger,
+    exit_event: Event,
+    action_metrics: ActionMetrics,
+) -> Callable[..., None]:
     def inner_function(*args: Any, **kwargs: Any) -> None:
+        # sched.run drains every due action before the scheduler loop can see a stop request,
+        # so each action checks for itself. This also covers each worker in a common action.
+        if exit_event.is_set():
+            action_metrics.skipped_after_stop += 1
+            return
+
         try:
             func(*args, **kwargs)
         except Exception as e:
@@ -121,13 +133,11 @@ def evaluate_log_message(message: str, env: Env) -> str:
     import re
     from pioreactor.experiment_profiles.parser import parse_profile_expression
 
-    matches = re.findall(FLEXIBLE_EXPRESSION_PATTERN, message)
-
-    modified_matches = [parse_profile_expression(match, env) for match in matches]
-
-    # Replace each ${{...}} in the original string with the modified match
-    result_string = re.sub(FLEXIBLE_EXPRESSION_PATTERN, lambda m: str(modified_matches.pop(0)), message)
-    return result_string
+    return re.sub(
+        FLEXIBLE_EXPRESSION_PATTERN,
+        lambda match: str(parse_profile_expression(match.group(1), env)),
+        message,
+    )
 
 
 def evaluate_bool_expression(bool_expression: BoolExpression, env: Env) -> bool:
@@ -152,25 +162,6 @@ def _get_worker_env_for_start(
         "HOSTNAME": unit,
         "TESTING": str(int(is_testing_env())),
     }
-
-    try:
-        response = get_from_leader(f"/api/workers/{unit}")
-        response.raise_for_status()
-        worker = response.json()
-    except HTTPException:
-        return job_env
-
-    model_name = worker.get("model_name")
-    if model_name:
-        job_env["MODEL_NAME"] = model_name
-
-    model_version = worker.get("model_version")
-    if model_version:
-        job_env["MODEL_VERSION"] = model_version
-
-    if "is_active" in worker:
-        job_env["ACTIVE"] = str(int(bool(worker["is_active"])))
-
     return job_env
 
 
@@ -192,10 +183,8 @@ def _wait_for_unit_task_result(
             return {"ok": True}
         return None
 
-    address = resolve_to_address(unit)
-
     for _ in range(max_attempts):
-        response = get_from(address, result_url_path, timeout=timeout)
+        response = get_from_unit(unit, result_url_path, timeout=timeout)
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
@@ -231,18 +220,9 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | No
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
-    # treat it as one.
+    # treat it as one. Container actions pass through: their nested actions come back through here when they fire.
     match action:
-        case struct.Log(_, _, _):
-            # noop
-            return action
-
-        case struct.Start(_, _, _, _):
-            # noop
-            return action
-
-        case struct.Repeat(_, _, _, _, _, _):
-            # noop
+        case struct.Log() | struct.Start() | struct.Repeat() | struct.When():
             return action
 
         case struct.Pause(hours, t, if_) | struct.Stop(hours, t, if_):
@@ -253,7 +233,8 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             return struct.Start(hours, t, if_, options, [])
 
         case _:
-            raise ValueError()
+            # ex: resume, as there are no prior intensities to restore.
+            raise ValueError(f"`{action}` is not supported for led_intensity.")
 
 
 def get_simple_priority(action: struct.Action) -> int:
@@ -475,9 +456,9 @@ def _prepare_action_execution(
     action_count = action_metrics.increment()
     parent_job.publish_setting("action_count", action_count)
 
-    if get_assigned_experiment_name(unit) != experiment:
+    if get_assigned_experiment_name_from_leader(unit) != experiment:
         logger.debug(
-            f"Skipping {action_name} action on {unit} due to not being assigned to experiment {experiment}."
+            f"Skipping {action_name} action on `{unit}` due to not being assigned to experiment `{experiment}`."
         )
         return None
 
@@ -512,7 +493,7 @@ def when(
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
-        if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
+        if (get_assigned_experiment_name_from_leader(unit) != experiment) and not is_testing_env():
             return
 
         nonlocal env
@@ -573,7 +554,7 @@ def when(
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def repeat(
@@ -600,9 +581,9 @@ def repeat(
 
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
+        if get_assigned_experiment_name_from_leader(unit) != experiment:
             logger.debug(
-                f"Skipping repeat action on {unit} due to not being assigned to experiment {experiment}."
+                f"Skipping repeat action on `{unit}` due to not being assigned to experiment `{experiment}`."
             )
             return
 
@@ -656,7 +637,7 @@ def repeat(
                 f"Action's `if` or `while` condition, `{if_=}` or `{while_=}`, evaluated False. Skipping."
             )
 
-    repeat_callback = wrap_in_try_except(_callable, logger)
+    repeat_callback = wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
     return repeat_callback
 
 
@@ -695,11 +676,9 @@ def log(
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
-        getattr(logger, "debug")(
-            f"{action_count}. Logging message `{evaluate_log_message(options.message, env)}`"
-        )
+        logger.debug(f"{action_count}. Logging message `{body['message']}`")
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def start_job(
@@ -732,21 +711,21 @@ def start_job(
         if dry_run:
             evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.info(
-                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}, and overrides {evaluated_config_overrides}."
+                f"{action_count}. Dry-run: Starting {job_name} on `{unit}` with options {evaluate_options(options, env)} and args {args}, and overrides {evaluated_config_overrides}."
             )
         else:
             evaluated_options = evaluate_options(options, env)
             evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.debug(
-                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {evaluated_config_overrides}."
+                f"{action_count}. Starting {job_name} on `{unit}` with options {evaluated_options}, args {args}, and overrides {evaluated_config_overrides}."
             )
             address = resolve_to_address(unit)
             for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
                 try:
-                    response = post_into(
-                        address,
+                    response = post_into_unit(
+                        unit,
                         f"/unit_api/jobs/run/job_name/{job_name}",
-                        headers={"X-Pioreactor-Target": unit},
+                        address=address,
                         json={
                             "options": evaluated_options,
                             "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
@@ -761,12 +740,16 @@ def start_job(
                 except HTTPException as exc:
                     if attempt == START_JOB_SUBMIT_MAX_ATTEMPTS:
                         raise HTTPException(
-                            f"Unable to submit start command for `{job_name}` to {unit} at {address} after {attempt} attempts. Is it online?"
+                            f"Unable to submit start command for `{job_name}` to `{unit}` at {address} after {attempt} attempts. Is it online?"
                         ) from exc
                     logger.debug(
-                        f"Unable to submit start command for `{job_name}` to {unit} at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
+                        f"Unable to submit start command for `{job_name}` to `{unit}` at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
                     )
-                    time.sleep(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS)
+                    if parent_job.exit_event.wait(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS):
+                        logger.debug(
+                            f"Not retrying start command for `{job_name}` on `{unit}` because the profile is stopping."
+                        )
+                        return
 
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
@@ -778,9 +761,9 @@ def start_job(
                     f"Submitted start command for `{job_name}` to {unit} at {address}, but couldn't read the task result. The job may still have started."
                 ) from exc
             if task_result is not None and not task_result["ok"]:
-                logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
+                logger.error(f"Failed to start `{job_name}` on `{unit}`. {task_result.get('error')}")
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def pause_job(
@@ -808,9 +791,9 @@ def pause_job(
             return
 
         if dry_run:
-            logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
+            logger.info(f"{action_count}. Dry-run: Pausing {job_name} on `{unit}`.")
         else:
-            logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Pausing {job_name} on `{unit}`.")
             response = patch_into_leader(
                 f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                 json={"settings": {"$state": "sleeping"}},
@@ -818,7 +801,7 @@ def pause_job(
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def resume_job(
@@ -846,9 +829,9 @@ def resume_job(
             return
 
         if dry_run:
-            logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
+            logger.info(f"{action_count}. Dry-run: Resuming {job_name} on `{unit}`.")
         else:
-            logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Resuming {job_name} on `{unit}`.")
             response = patch_into_leader(
                 f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                 json={"settings": {"$state": "ready"}},
@@ -856,7 +839,7 @@ def resume_job(
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def stop_job(
@@ -884,19 +867,18 @@ def stop_job(
             return
 
         if dry_run:
-            logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
+            logger.info(f"{action_count}. Dry-run: Stopping {job_name} on `{unit}`.")
         else:
-            logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-            response = post_into(
-                resolve_to_address(unit),
+            logger.debug(f"{action_count}. Stopping {job_name} on `{unit}`.")
+            response = post_into_unit(
+                unit,
                 "/unit_api/jobs/stop",
-                headers={"X-Pioreactor-Target": unit},
                 json={"job_name": job_name, "experiment": experiment},
             )
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def update_job(
@@ -929,7 +911,7 @@ def update_job(
         if dry_run:
             for setting, value in evaluated_options.items():
                 logger.info(
-                    f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on {unit}."
+                    f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on `{unit}`."
                 )
             return
 
@@ -937,7 +919,7 @@ def update_job(
             return
 
         for setting, value in evaluated_options.items():
-            logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on `{unit}`.")
 
         response = patch_into_leader(
             f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
@@ -946,7 +928,7 @@ def update_job(
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def time_to_seconds(value: float | int | str) -> float:
@@ -980,17 +962,18 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     return profile
 
 
-def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> None:
-    try:
-        for unit_name, label in labels_map.items():
+def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str], logger: CustomLogger) -> None:
+    # labels are cosmetic, so a failure shouldn't stop the profile, or the remaining labels.
+    for unit_name, label in labels_map.items():
+        try:
             response = put_into_leader(
                 f"/api/experiments/{experiment}/unit_labels",
                 json={"unit": unit_name, "label": label},
             )
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
-    except Exception:
-        pass
+        except HTTPException as e:
+            logger.warning(f"Unable to set label `{label}` for `{unit_name}`: {e}")
 
 
 def get_installed_plugins_and_versions() -> dict[str, str]:
@@ -1098,20 +1081,20 @@ def execute_experiment_profile(
         # process specific pioreactors
         for unit_ in profile.pioreactors:
             try:
-                assigned_experiment = get_assigned_experiment_name(unit_)
+                assigned_experiment = get_assigned_experiment_name_from_leader(unit_)
             except NotAssignedAnExperimentError:
                 assigned_experiment = None
 
             if (assigned_experiment != experiment) and not is_testing_env():
                 logger.warning(
-                    f"There exists profile actions for {unit_}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
+                    f"There exists profile actions for `{unit_}`, but it's not assigned to experiment `{experiment}`. Skipping scheduling actions."
                 )
                 continue
 
             pioreactor_specific_block = profile.pioreactors[unit_]
             if pioreactor_specific_block.label is not None:
                 label = pioreactor_specific_block.label
-                push_labels_to_ui(experiment, {unit_: label})
+                push_labels_to_ui(experiment, {unit_: label}, logger)
 
             for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:
@@ -1149,7 +1132,7 @@ def execute_experiment_profile(
                 # ended early
 
                 logger.notice(
-                    f"Stopping profile `{profile.experiment_profile_name}` early: {action_metrics.count} actions(s) completed, {len(sched.queue)} action(s) not started. Stopping all started jobs."
+                    f"Stopping profile `{profile.experiment_profile_name}` early: {action_metrics.count} actions(s) completed, {len(sched.queue) + action_metrics.skipped_after_stop} action(s) not started. Stopping all started jobs."
                 )
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped

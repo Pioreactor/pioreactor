@@ -1,10 +1,11 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import { useState, useEffect, useMemo, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
+import EmptyState from "./components/EmptyState";
 import LogTable from "./components/LogTable";
 import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
@@ -13,12 +14,14 @@ import MediaCard from "./components/MediaCard";
 import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
 import { getConfig, getRelabelMap } from "./utils/config";
-import { colors, ColorCycler } from "./utils/color";
+import { createUnitColorMap } from "./utils/color";
+import { byUnit, sortNatural } from "./utils/naturalSort";
 import Card from "@mui/material/Card";
-import Stack from "@mui/material/Stack";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
-import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import ChartControlsRow from "./components/ChartControlsRow";
 import useExperimentChartPreferences from "./hooks/useExperimentChartPreferences";
 import { experimentPathSegment } from "./utils/url";
 
@@ -69,9 +72,9 @@ function Charts(props) {
 
   if (charts.length === 0) {
     return (
-        <Typography variant="body2" color="text.secondary">
+      <EmptyState>
         No charts are selected for this page. Use the settings to add one.
-        </Typography>
+      </EmptyState>
     );
   }
 
@@ -85,7 +88,8 @@ function Charts(props) {
             <Grid size={12}>
               <Card sx={{ maxHeight: "100%"}}>
                 <Chart
-                  key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}`}
+                  // Charts keep the colors they resolve when history loads, so new choices remount them.
+                  key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}-${props.unitColorsKey}`}
                   chartKey={chart_key}
                   config={config}
                   dataSource={chart.data_source}
@@ -94,7 +98,7 @@ function Charts(props) {
                   payloadKey={chart.payload_key}
                   yAxisLabel={chart.y_axis_label}
                   experiment={experiment}
-                  experimentStartTime={props.experimentMetadata.created_at}
+                  experimentStartTime={props.experimentMetadata.started_at}
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
@@ -132,8 +136,13 @@ function Overview(props) {
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
+  // Every Pioreactor ever assigned to the experiment; their lines stay in the charts after unassignment.
+  const [historicalUnitNames, setHistoricalUnitNames] = useState([])
   const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
-  const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
+  // Set even when the workers request fails, so charts still render.
+  const [unitsSettledFor, setUnitsSettledFor] = useState(null)
+  const theme = useTheme();
+  const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true })
   const cardsConfig = config['ui.overview.cards'] || {};
   const chartPreferences = useExperimentChartPreferences({
     chartPage: "overview",
@@ -141,12 +150,26 @@ function Overview(props) {
     configReady,
     experiment: experimentMetadata.experiment,
   });
+  const unitNames = useMemo(() => units.map((unit) => unit.pioreactor_unit), [units])
+  // Current units first, so unassigned ones don't shift their colors.
+  const colorUnitNames = useMemo(
+    () => [...unitNames, ...sortNatural(historicalUnitNames.filter((unit) => !unitNames.includes(unit)))],
+    [unitNames, historicalUnitNames],
+  )
+  const colorChoiceUnitNames = useMemo(() => sortNatural(colorUnitNames), [colorUnitNames])
+  // Seed colors in the server's sorted worker order so they don't depend on which chart's history loads first.
+  const unitsColorMap = useMemo(
+    () => createUnitColorMap(colorUnitNames, chartPreferences.unitColors),
+    [colorUnitNames, chartPreferences.unitColors],
+  )
+  const unitColorsKey = JSON.stringify(chartPreferences.unitColors)
 
+
+  useDocumentTitle(props.title);
 
   useEffect(() => {
-    document.title = props.title;
     getConfig(setConfig).finally(() => setConfigReady(true))
-  }, [props.title])
+  }, []);
 
   useEffect(() => {
     if (!experimentMetadata.experiment) {
@@ -158,17 +181,25 @@ function Overview(props) {
 
   useEffect(() => {
     async function fetchWorkers(experiment) {
+      const historyRequest = Promise.resolve()
+        .then(() => fetch(`/api/experiments/${experimentPathSegment(experiment)}/historical_worker_assignments`))
+        .then((response) => (response.ok ? response.json() : []))
+        .catch(() => []);
       try {
         const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`);
         if (response.ok) {
           const units = await response.json();
-          setUnits(units);
+          setUnits(sortNatural(units, byUnit));
           setHasFetchedUnits(true);
         } else {
           console.error('Failed to fetch workers:', response.statusText);
         }
       } catch (error) {
         console.error('Error fetching workers:', error);
+      } finally {
+        const assignments = await historyRequest;
+        setHistoricalUnitNames(assignments.map(byUnit));
+        setUnitsSettledFor(experiment);
       }
     };
 
@@ -176,14 +207,30 @@ function Overview(props) {
     if (experimentMetadata.experiment){
         setHasFetchedUnits(false)
         setUnits([])
+        setHistoricalUnitNames([])
         fetchWorkers(experimentMetadata.experiment)
     }
   }, [experimentMetadata.experiment])
 
-  const activeUnits = units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)
-  const assignedUnits = units.map(unit => unit.pioreactor_unit)
+  const showAssignmentAlert = hasFetchedUnits && unitNames.length === 0
 
-  const showAssignmentAlert = hasFetchedUnits && assignedUnits.length === 0
+  const chartControls = (
+    <ChartControlsRow
+      timeWindow={timeWindow}
+      setTimeWindow={setTimeWindow}
+      timeScale={timeScale}
+      setTimeScale={setTimeScale}
+      settingsControl={
+        <ChartPreferencesControl
+          chartPageLabel="Overview"
+          chartPreferences={chartPreferences}
+          experiment={experimentMetadata.experiment}
+          relabelMap={relabelMap}
+          units={colorChoiceUnitNames}
+        />
+      }
+    />
+  )
 
   return (
     <Fragment>
@@ -197,15 +244,20 @@ function Overview(props) {
         </Grid>
 
 
+        {!isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
+
         <Grid
           container
           spacing={2}
           sx={{height: "100%",  justifyContent: "flex-start" }}
           size={{
             xs: 12,
-            md: 7
+            lg: 7
           }}>
-          <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+          {/* Charts keep the colors they resolve when history loads, so wait for the seeded map. */}
+          {unitsSettledFor === experimentMetadata.experiment
+            ? <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} unitColorsKey={unitColorsKey} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+            : <CircularProgress aria-label="Loading charts" size={24} />}
         </Grid>
 
         <Grid
@@ -214,49 +266,20 @@ function Overview(props) {
           sx={{height: "100%",  justifyContent: "flex-end" }}
           size={{
             xs: 12,
-            md: 5
+            lg: 5
           }}>
 
-          <Grid
-            size={{
-              xs: 12,
-              sm: 7,
-              md: 7
-            }}>
-            <Stack direction="row" sx={{ justifyContent: "start" }}>
-              <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-            </Stack>
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 4,
-              md: 4
-            }}>
-              <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-          </Grid>
-          <Grid
-            size={{
-              xs: 1,
-              sm: 1,
-              md: 1
-            }}>
-              <ChartPreferencesControl
-                chartPageLabel="Overview"
-                chartPreferences={chartPreferences}
-                experiment={experimentMetadata.experiment}
-              />
-          </Grid>
+          {isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
 
           {( cardsConfig['dosings'] === "1") &&
             <Grid size={12}>
-              <MediaCard key={experimentMetadata.experiment} activeUnits={activeUnits} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
+              <MediaCard key={experimentMetadata.experiment} experiment={experimentMetadata.experiment} startedAt={experimentMetadata.started_at} relabelMap={relabelMap}/>
             </Grid>
           }
 
         {( cardsConfig['profiles'] === "1") &&
         <Grid size={12}>
-          <RunningProfilesProvider experiment={experimentMetadata.experiment} leaderHostname={config['cluster.topology']?.leader_hostname}>
+          <RunningProfilesProvider experiment={experimentMetadata.experiment}>
             <RunningProfilesContainer/>
           </RunningProfilesProvider>
         </Grid>
@@ -264,7 +287,7 @@ function Overview(props) {
 
         {( cardsConfig['event_logs'] === "1") &&
           <Grid size={12}>
-            <LogTable units={assignedUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+            <LogTable units={unitNames} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.started_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
           </Grid>
         }
         </Grid>

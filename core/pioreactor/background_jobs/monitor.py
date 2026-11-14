@@ -37,6 +37,7 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
+from pioreactor.utils.clock import is_clock_synchronized
 from pioreactor.utils.networking import discover_workers_on_network
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -61,18 +62,6 @@ def button_controls_enabled_from_config(config_value: str, cpu_count: int | None
         return False
     else:
         raise ValueError("[monitor.config] enable_button must be one of: auto, true, false.")
-
-
-def self_check_interval_hours_from_config(config_value: str) -> float:
-    try:
-        interval_hours = float(config_value)
-    except ValueError as e:
-        raise ValueError("[monitor.config] self_check_interval_hours must be a non-negative number.") from e
-
-    if interval_hours < 0:
-        raise ValueError("[monitor.config] self_check_interval_hours must be a non-negative number.")
-
-    return interval_hours
 
 
 class classproperty(property):
@@ -184,6 +173,7 @@ class Monitor(LongRunningBackgroundJob):
         else:
             self.logger.debug("Pioreactor HAT not detected. Skipping LED / button controls.")
 
+        self.check_clock_sync()
         self.self_check_thread = self.start_self_check_thread()
 
         self.add_pre_button_callback(self._republish_state)
@@ -232,24 +222,19 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.warning(f"{e} Defaulting to enabled.")
             return True
 
-    def self_check_interval_hours(self) -> float:
-        config_value = config.get("monitor.config", "self_check_interval_hours", fallback="12")
-        try:
-            return self_check_interval_hours_from_config(config_value)
-        except ValueError as e:
-            self.logger.warning(f"{e} Defaulting to 12 hours.")
-            return 12
+    def check_clock_sync(self) -> None:
+        # Leaders (including leader-workers) may intentionally have no upstream time source.
+        if not whoami.am_I_leader() and is_clock_synchronized() is False:
+            self.logger.warning("Clock is not synchronised. Measurement timestamps may be incorrect.")
 
     def start_self_check_thread(self) -> RepeatedTimer | None:
-        self_check_interval_hours = self.self_check_interval_hours()
-        if self_check_interval_hours == 0:
+        interval_hours = config.getfloat("monitor.config", "self_check_interval_hours", fallback=12)
+        if interval_hours <= 0:
             self.self_checks()
             return None
 
-        # We manually run a self_check outside of a thread first, as if there are
-        # problems detected, we may want to block and not let the job continue.
         return RepeatedTimer(
-            self_check_interval_hours * 60 * 60,
+            interval_hours * 60 * 60,
             self.self_checks,
             job_name=self.job_name,
             run_immediately=True,
@@ -401,11 +386,16 @@ class Monitor(LongRunningBackgroundJob):
         """
         Originally from #220
         """
-        # if no model assigned or missing hardware, skip
+        # if no model assigned, model unreachable, or missing hardware, skip
         model = None
         try:
             model = get_pioreactor_model()
-        except (exc.NoModelAssignedError, exc.UnknownModelAssignedError):
+        except (
+            exc.NoModelAssignedError,
+            exc.UnknownModelAssignedError,
+            exc.NoWorkerFoundError,
+            HTTPException,
+        ):
             return
 
         if model is None:
@@ -421,7 +411,7 @@ class Monitor(LongRunningBackgroundJob):
             except ImportError:
                 # leader-only is a worker?
                 self.logger.debug(
-                    f"{self.unit} doesn't have TMP1075 software installed, but is acting as a worker."
+                    f"`{self.unit}` doesn't have TMP1075 software installed, but is acting as a worker."
                 )
                 return
 
@@ -501,7 +491,7 @@ class Monitor(LongRunningBackgroundJob):
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
-        self.logger.notice(f"{self.unit} is online and ready.")
+        self.logger.notice("Online and ready.")
 
         # we can delay this check until ready.
 
@@ -687,7 +677,7 @@ class Monitor(LongRunningBackgroundJob):
             and (unit != self.unit)
             and (unit in get_workers_in_inventory())
         ):
-            self.logger.warning(f"{unit} seems to be lost.")
+            self.logger.warning(f"`{unit}` seems to be lost.")
 
     def announce_new_workers(self) -> None:
         sleep(10)  # wait for the web server to be available

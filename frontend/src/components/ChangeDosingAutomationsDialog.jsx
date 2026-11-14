@@ -11,8 +11,6 @@ import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from './Snackbar';
 import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
@@ -20,6 +18,7 @@ import PioreactorIcon from "./PioreactorIcon"
 import DosingAutomationForm from "./DosingAutomationForm"
 import { hasAutomationFormErrors } from "./AutomationForm"
 import { Box } from "@mui/material";
+import DialogCloseButton from "./DialogCloseButton";
 
 const getDefaultDosingSettings = (fields) => (
   Object.fromEntries(
@@ -164,18 +163,7 @@ function ChangeDosingAutomationsDialog(props) {
         <Typography sx={{fontSize: 20, color: uiColors.text}}>
           Select {automationType} automation
         </Typography>
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" component="span" gutterBottom>

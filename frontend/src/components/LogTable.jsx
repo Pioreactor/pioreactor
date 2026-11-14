@@ -23,10 +23,14 @@ import Divider from '@mui/material/Divider';
 import { Link } from 'react-router';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
+import EmptyState from './EmptyState';
+import LoadingState from './LoadingState';
+import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { experimentPathSegment } from "../utils/url";
-import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
+import LogMessage, { useClusterUnits } from "./LogMessage";
+import { textIcon } from "../theme";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -47,8 +51,20 @@ const StyledTableCellFiller = styled(TableCell)(() => ({
 }));
 
 
+// In a narrow card (the Overview side column below ~1480px), fold Source under the
+// Pioreactor chip and cap the chip so the Message column keeps its room.
+const NARROW_LOG_TABLE_SX = {
+  containerType: "inline-size",
+  "@container (max-width: 480px)": {
+    "& .log-source-column": { display: "none" },
+    "& .log-source-inline": { display: "block" },
+    "& .log-unit-chip": { maxWidth: "128px" },
+  },
+};
+
 const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL"];
 const HIGHLIGHTABLE_CHIP_SX = {
+  maxWidth: "none",
   userSelect: "text",
   WebkitUserSelect: "text",
   "& .MuiChip-icon": {
@@ -63,28 +79,49 @@ const HIGHLIGHTABLE_CHIP_SX = {
 
 function LogTable({ units, byDuration, experimentStartTime, experiment, config, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const clusterUnits = useClusterUnits();
 
   useEffect(() => {
+    let isCancelled = false;
     const getData = async () => {
-      const response = await fetch(
-        `/api/experiments/${experimentPathSegment(experiment)}/recent_logs?` +
-          new URLSearchParams({
-            min_level: config.logging.ui_log_level,
-          })
-      );
-      const logs = await response.json();
-      setListOfLogs(
-        logs.map((log) => ({
-          ...log,
-          key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
-        }))
-      );
+      setLoading(true);
+      setError(false);
+      setListOfLogs([]);
+      try {
+        const response = await fetch(
+          `/api/experiments/${experimentPathSegment(experiment)}/recent_logs?` +
+            new URLSearchParams({
+              min_level: config.logging.ui_log_level,
+            })
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch recent experiment logs");
+        }
+        const logs = await response.json();
+        if (!isCancelled) {
+          setListOfLogs(
+            logs.map((log) => ({
+              ...log,
+              key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
+            }))
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) setError(true);
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
     };
 
     if (experiment && Object.keys(config).length) {
       getData();
     }
+    return () => {
+      isCancelled = true;
+    };
   }, [experiment, config]);
 
   const relabelUnit = (unit) => {
@@ -101,7 +138,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
     if (dayjs.isDayjs(timestamp)) {
       return timestamp;
     }
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    // Parse ISO 8601 without a format string: when customParseFormat is loaded, a format
+    // makes parsing strict and rejects dayjs objects and timestamps without milliseconds.
+    return dayjs.utc(timestamp);
   };
 
   const timestampCell = (timestamp) => {
@@ -125,6 +164,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         {
           timestamp: toTimestampObject(payload.timestamp),
           pioreactor_unit: unit,
+          experiment: topic.toString().split('/')[2],
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
@@ -170,22 +210,39 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         <Typography variant="h6" component="h2">
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent experiment logs</Box>
         </Typography>
-        <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ height: '660px', width: '100%', overflowY: 'auto' }}>
+        <TableContainer sx={{ height: '660px', width: '100%', overflowY: 'auto', ...NARROW_LOG_TABLE_SX }}>
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
                 <StyledTableHeaderCell>Time</StyledTableHeaderCell>
                 <StyledTableHeaderCell>Pioreactor</StyledTableHeaderCell>
-                <StyledTableHeaderCell>Source</StyledTableHeaderCell>
+                <StyledTableHeaderCell className="log-source-column">Source</StyledTableHeaderCell>
                 <StyledTableHeaderCell>Message</StyledTableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
+              {(loading || error || listOfLogs.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={4} sx={{ borderBottom: 0 }}>
+                    {loading ? (
+                      <LoadingState label="Loading recent experiment logs" />
+                    ) : error ? (
+                      <Alert severity="error">Unable to load recent experiment logs. Refresh the page to try again.</Alert>
+                    ) : (
+                      <EmptyState>
+                        No recent experiment logs.
+                        <br />
+                        New activity will appear here automatically.
+                      </EmptyState>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
               {listOfLogs.map((log, i) => (
                 <React.Fragment key={log.key}>
                   <ZebraTableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
-                    <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
+                    <StyledTableCell level={log.level}>
                       <Chip
                         size="small"
                         icon={<PioreactorIcon/>}
@@ -195,10 +252,15 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                         to={"/pioreactors/" + log.pioreactor_unit}
                         data-pioreactor-unit={log.pioreactor_unit}
                         sx={HIGHLIGHTABLE_CHIP_SX}
+                        className="log-unit-chip"
+                        title={relabelUnit(log.pioreactor_unit)}
                       />
+                      <Box className="log-source-inline" sx={{ display: "none", mt: 0.5, color: "text.secondary" }}>{log.task.replace(/_/g, ' ')}</Box>
                     </StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                    <StyledTableCell level={log.level} className="log-source-column">{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                    <StyledTableCell level={log.level}>
+                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
+                    </StyledTableCell>
                   </ZebraTableRow>
                   {listOfLogs[i + 1] &&
                     toTimestampObject(log.timestamp).diff(
@@ -206,7 +268,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       'hours',
                       true
                     ) >= 2 && (
-                      <TableRow key={`filler-${log.key}`} data-copy-row="false">
+                      <TableRow key={`filler-${log.key}`}>
                         <StyledTableCellFiller colSpan="4">
                           {toTimestampObject(log.timestamp).diff(
                             toTimestampObject(listOfLogs[i + 1].timestamp),
@@ -233,7 +295,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
             to={`/logs`}
             component={Link}
             color="primary"
-            sx={{  verticalAlign: 'middle', m: '0px 3px' }}
+            sx={textIcon}
           >
             <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> View experiment logs
           </Button>

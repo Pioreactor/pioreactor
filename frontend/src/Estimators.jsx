@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { NavigableTableRow } from "./components/TableRows";
 import dayjs from 'dayjs';
@@ -9,7 +10,6 @@ import {
   FormControl,
   MenuItem,
   Select,
-  Typography,
   Alert,
 } from '@mui/material';
 import Grid from "@mui/material/Grid";
@@ -27,7 +27,9 @@ import PioreactorsIcon from './components/PioreactorsIcon';
 import EstimatorIcon from './components/EstimatorIcon';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import { readyGreen } from "./utils/color";
+import { compareNatural, sortNatural } from "./utils/naturalSort";
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
+import EmptyState from "./components/EmptyState";
 
 
 const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {
@@ -104,7 +106,7 @@ function EstimatorData({ loading, rawData }) {
     const deviceSet = new Set();
     const deviceMap = {};
 
-    setWorkers(Object.keys(allMachines));
+    setWorkers(sortNatural(Object.keys(allMachines)));
 
     Object.values(allMachines).forEach((machine) => {
       Object.entries(machine ?? {}).forEach(([deviceName, estimators]) => {
@@ -187,7 +189,7 @@ function EstimatorData({ loading, rawData }) {
         return bTime - aTime;
       }
 
-      const unitCmp = a.pioreactor_unit.localeCompare(b.pioreactor_unit);
+      const unitCmp = compareNatural(a.pioreactor_unit, b.pioreactor_unit);
       if (unitCmp !== 0) return unitCmp;
 
       return a.estimator_name.localeCompare(b.estimator_name);
@@ -297,7 +299,7 @@ function EstimatorData({ loading, rawData }) {
 
               return (
                 <NavigableTableRow
-                  to={`/estimators/${unitName}/${deviceName}/${estimatorName}`}
+                  to={`/estimators/${unitName}/${deviceName}/${encodeURIComponent(estimatorName)}`}
                   key={i}
                 >
                   <TableCell data-copy-value={unitName} sx={{ padding: "6px 6px", display: "flex" }}>
@@ -317,7 +319,7 @@ function EstimatorData({ loading, rawData }) {
                       data-estimator-name={estimatorName}
                       clickable
                       component={Link}
-                      to={`/estimators/${unitName}/${deviceName}/${estimatorName}`}
+                      to={`/estimators/${unitName}/${deviceName}/${encodeURIComponent(estimatorName)}`}
                     />
                   </TableCell>
                   <TableCell align="left" data-copy-value={estimator.is_active ? "Active" : ""} sx={{ padding: "6px 0px" }}>
@@ -346,11 +348,7 @@ function EstimatorData({ loading, rawData }) {
       </TableContainer>
 
       {!hasEstimators && (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
-          <Typography variant="body2" component="p" color="textSecondary">
-            {emptyStateMessage}
-          </Typography>
-        </Box>
+        <EmptyState>{emptyStateMessage}</EmptyState>
       )}
     </Box>
   );
@@ -380,9 +378,7 @@ function EstimatorsContainer() {
 
 
 function Estimators(props) {
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
   return (
     <Grid container spacing={2}>
       <Grid

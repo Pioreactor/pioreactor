@@ -29,8 +29,8 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.paths import get_dot_pioreactor_path
-from pioreactor.pubsub import get_from
-from pioreactor.pubsub import post_into
+from pioreactor.pubsub import get_from_unit
+from pioreactor.pubsub import post_into_unit
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
@@ -322,7 +322,7 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, str, list[dict[str, Any]]]:
             try:
                 address = resolve_to_address(unit)
-                response = get_from(address, endpoint)
+                response = get_from_unit(unit, endpoint, address=address)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, list):
@@ -408,7 +408,7 @@ if am_I_leader() or is_testing_env():
             else:
                 contents = ""
         else:
-            response = get_from(resolve_to_address(unit), "/unit_api/config/specific", timeout=15)
+            response = get_from_unit(unit, "/unit_api/config/specific", timeout=15)
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
             contents = response.content.decode("utf-8")
@@ -490,7 +490,7 @@ if am_I_leader() or is_testing_env():
                 cp_file_across_cluster(unit, src, remotepath, timeout=15)
                 return True
             except Exception as e:
-                logger.error(f"Error occurred copying to {unit}. See logs for more.")
+                logger.error(f"Error occurred copying to `{unit}`. See logs for more.")
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
                 return False
 
@@ -534,10 +534,10 @@ if am_I_leader() or is_testing_env():
             try:
                 address = resolve_to_address(unit)
                 logger.debug(f"deleting {unit}:{filepath}...")
-                r = post_into(
-                    address,
+                r = post_into_unit(
+                    unit,
                     "/unit_api/system/remove_file",
-                    headers={"X-Pioreactor-Target": unit},
+                    address=address,
                     json={"filepath": filepath},
                 )
                 if not r.ok:
@@ -545,7 +545,7 @@ if am_I_leader() or is_testing_env():
                 return True
 
             except HTTPException as e:
-                logger.error(f"Unable to remove file on {unit} at {address} due to server error: {e}")
+                logger.error(f"Unable to remove file on `{unit}` at {address} due to server error: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -644,28 +644,28 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 address = resolve_to_address(unit)
-                r = post_into(
-                    address,
+                r = post_into_unit(
+                    unit,
                     "/unit_api/system/update/app",
-                    headers={"X-Pioreactor-Target": unit},
+                    address=address,
                     json={"options": options},
                 )
                 if not r.ok:
                     if r.status_code == 409:
                         # An identity rejection must not fall back to an unguarded SSH command.
-                        logger.error(f"Unable to update {unit}: {summarize_error_response(r)}")
+                        logger.error(f"Unable to update `{unit}`: {summarize_error_response(r)}")
                         return False, {"unit": unit}
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
                 logger.warning(
-                    f"Unable to update on {unit} at {address} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
+                    f"Unable to update on `{unit}` at {address} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
                 )
                 try:
                     ssh(address, f"pio update app {args}")
                     return True, {"unit": unit}
                 except SSHError as e:
-                    logger.error(f"Unable to update on {unit} at {address} due to error: {e}.")
+                    logger.error(f"Unable to update on `{unit}` at {address} due to error: {e}.")
                     return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -746,10 +746,10 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 address = resolve_to_address(unit)
-                r = post_into(
-                    address,
+                r = post_into_unit(
+                    unit,
                     "/unit_api/plugins/install",
-                    headers={"X-Pioreactor-Target": unit},
+                    address=address,
                     json=commands,
                     timeout=60,
                 )
@@ -757,7 +757,7 @@ if am_I_leader() or is_testing_env():
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to install plugin on {unit} at {address} due to server error: {e}")
+                logger.error(f"Unable to install plugin on `{unit}` at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -804,10 +804,10 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 address = resolve_to_address(unit)
-                r = post_into(
-                    address,
+                r = post_into_unit(
+                    unit,
                     "/unit_api/plugins/uninstall",
-                    headers={"X-Pioreactor-Target": unit},
+                    address=address,
                     json=commands,
                     timeout=60,
                 )
@@ -816,7 +816,7 @@ if am_I_leader() or is_testing_env():
                 return True, r.json()
 
             except HTTPException as e:
-                logger.error(f"Unable to uninstall plugin on {unit} at {address} due to server error: {e}")
+                logger.error(f"Unable to uninstall plugin on `{unit}` at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -877,20 +877,20 @@ if am_I_leader() or is_testing_env():
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Syncing configs on {unit}...")
+            logger.debug(f"Syncing configs on unit `{unit}`...")
             try:
                 sync_config_files(unit, shared, specific, persist=not skip_save)
                 return True
             except RsyncError as e:
-                logger.warning(f"Could not transfer config to {unit}.")
+                logger.warning(f"Could not transfer config to `{unit}`.")
                 logger.debug(e, exc_info=True)
                 return False
             except HTTPException as e:
-                logger.warning(f"Could not refresh unit-specific config snapshot from {unit}: {e}")
+                logger.warning(f"Could not refresh unit-specific config snapshot from `{unit}`: {e}")
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
-                logger.warning(f"Encountered error syncing configs to {unit}: {e}")
+                logger.warning(f"Encountered error syncing configs to `{unit}`: {e}")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -1071,10 +1071,10 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 address = resolve_to_address(unit)
-                r = post_into(
-                    address,
+                r = post_into_unit(
+                    unit,
                     f"/unit_api/jobs/run/job_name/{job}",
-                    headers={"X-Pioreactor-Target": unit},
+                    address=address,
                     json=data,
                 )
                 if not r.ok:
@@ -1123,9 +1123,7 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> bool:
             try:
                 address = resolve_to_address(unit)
-                response = post_into(
-                    address, "/unit_api/system/shutdown", headers={"X-Pioreactor-Target": unit}, timeout=60
-                )
+                response = post_into_unit(unit, "/unit_api/system/shutdown", address=address, timeout=60)
                 response.raise_for_status()
                 return True
             except HTTPErrorStatus:
@@ -1142,12 +1140,7 @@ if am_I_leader() or is_testing_env():
         # we delay shutdown leader (if asked), since it would prevent
         # executing the shutdown cmd on other workers
         if also_shutdown_leader:
-            response = post_into(
-                resolve_to_address(leader),
-                "/unit_api/system/shutdown",
-                headers={"X-Pioreactor-Target": leader},
-                timeout=60,
-            )
+            response = post_into_unit(leader, "/unit_api/system/shutdown", timeout=60)
             try:
                 response.raise_for_status()
             except HTTPErrorStatus as error:
@@ -1180,9 +1173,7 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> bool:
             try:
                 address = resolve_to_address(unit)
-                response = post_into(
-                    address, "/unit_api/system/reboot", headers={"X-Pioreactor-Target": unit}, timeout=60
-                )
+                response = post_into_unit(unit, "/unit_api/system/reboot", address=address, timeout=60)
                 response.raise_for_status()
                 return True
             except HTTPErrorStatus:
@@ -1199,12 +1190,7 @@ if am_I_leader() or is_testing_env():
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
         if also_reboot_leader:
-            response = post_into(
-                resolve_to_address(leader),
-                "/unit_api/system/reboot",
-                headers={"X-Pioreactor-Target": leader},
-                timeout=60,
-            )
+            response = post_into_unit(leader, "/unit_api/system/reboot", timeout=60)
             try:
                 response.raise_for_status()
             except HTTPErrorStatus as error:

@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router";
@@ -8,7 +9,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import Alert from '@mui/material/Alert';
 import DialogActions from '@mui/material/DialogActions';
-import IconButton from '@mui/material/IconButton';
 import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
@@ -34,10 +34,10 @@ import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import DisplaySourceCode from "./components/DisplaySourceCode";
-import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function formatSplineType(curveData) {
   if (!curveData || Array.isArray(curveData)) {
@@ -108,16 +108,17 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
   const deleteEstimator = async () => {
     let confirmed = false;
     try {
-      await confirm({
+      const result = await confirm({
         description: 'Deleting this estimator will remove it from disk. This is irreversible.',
         title: `Delete estimator ${estimatorName}?`,
         confirmationText: "Confirm",
         confirmationButtonProps: { color: "primary", variant: "contained" },
         cancellationButtonProps: { color: "secondary" },
       });
+      if (!result.confirmed) return;
       confirmed = true;
 
-      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`, {
+      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/estimators/${device}/${encodeURIComponent(estimatorName)}`, {
         fetchOptions: { method: "DELETE" },
       });
       assertUnitTaskResultSucceeded(
@@ -135,8 +136,8 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
   };
 
   return (
-    <Button sx={{  mr: "0px" }} color="secondary" onClick={deleteEstimator}>
-      <DeleteOutlineIcon fontSize="small" /> Delete
+    <Button color="secondary" onClick={deleteEstimator}>
+      <DeleteOutlineIcon fontSize="small" sx={textIcon} /> Delete
     </Button>
   );
 }
@@ -164,24 +165,13 @@ function ViewYamlSource({ estimatorName, estimator, disabled }) {
         disabled={disabled}
         onClick={openAndLoad}
       >
-        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
+        <CodeIcon fontSize="small" sx={textIcon} />
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ pr: 6 }}>
           YAML description for estimator {estimatorName}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <DisplaySourceCode sourceCode={yamlText} />
@@ -220,7 +210,7 @@ function DownloadEstimatorYaml({ estimatorName, estimator, disabled, onError }) 
       disabled={disabled}
       onClick={downloadEstimator}
     >
-      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
+      <DownloadIcon fontSize="small" sx={textIcon} />
       Download estimator
     </Button>
   );
@@ -234,13 +224,11 @@ function SingleEstimatorPage(props) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   const fetchSingleEstimator = useCallback(async () => {
     setLoading(true);
-    const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${encodeURIComponent(estimatorName)}`;
     try {
       const data = await fetchTaskResult(apiUrl)
       try {
@@ -273,7 +261,7 @@ function SingleEstimatorPage(props) {
   };
 
   const handleSetActive = async () => {
-    const apiUrl = `/api/workers/${pioreactorUnit}/active_estimators/${device}/${estimatorName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/active_estimators/${device}/${encodeURIComponent(estimatorName)}`;
     try {
       const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
       assertUnitTaskResultSucceeded(
@@ -354,7 +342,7 @@ function SingleEstimatorPage(props) {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", overflowWrap: "anywhere" }}>
-            Estimator: {estimatorName}
+            Estimator: <span style={{ userSelect: "all" }}>{estimatorName}</span>
           </Typography>
           {isActive && (
             <Chip

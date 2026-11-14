@@ -30,6 +30,7 @@ const light = {
   surface: "white",
   text: "#333",
   axisLabel: "grey",
+  legendSwatchStroke: "#485157",
   seriesColor: (color) => color,
 };
 const dark = {
@@ -37,9 +38,10 @@ const dark = {
   surface: darkColors.surface,
   text: darkColors.text,
   axisLabel: darkColors.textSecondary,
+  legendSwatchStroke: "#777583",
   // Preserve hue and series identity while lifting dark lines off the canvas.
   seriesColor: (color) => color && /^(#[\da-f]{3,8}$|rgba?\()/i.test(color)
-    ? lighten(color, 0.35)
+    ? lighten(color, 0.36)
     : color,
 };
 

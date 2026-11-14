@@ -41,6 +41,14 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
     elif is_testing_env():
         return "_testing_experiment"
 
+    return get_assigned_experiment_name_from_leader(unit_name)
+
+
+def get_assigned_experiment_name_from_leader(unit_name: "pt.Unit") -> "pt.Experiment":
+    """
+    Always asks the leader, ignoring this process's EXPERIMENT env.
+    Use for checks about another unit's live membership.
+    """
     from pioreactor.pubsub import get_from_leader
     from pioreactor.config import leader_address
     from pioreactor.mureq import HTTPErrorStatus
@@ -70,7 +78,8 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
         except Exception:
             # some other error? Keep trying
             pass
-        time.sleep(0.5 * attempt)
+        if attempt < retries - 1:
+            time.sleep(0.5 * attempt)
     else:
         raise ConnectionError(
             f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments."
@@ -82,11 +91,16 @@ def is_active(unit_name: "pt.Unit") -> bool:
 
 
 def _is_active(unit_name: "pt.Unit") -> bool:
-    if os.environ.get("ACTIVE") == "1" or is_testing_env():
-        return True
-    elif os.environ.get("ACTIVE") == "0":
-        return False
+    if unit_name == get_unit_name():
+        # Lazy import avoids the config/utils -> whoami import cycle.
+        from pioreactor.unit_active import is_locally_active
 
+        # Each unit owns whether it's active. Reads never write.
+        return is_locally_active()
+    elif is_testing_env():
+        return True
+
+    # The leader mirrors each unit's value.
     from pioreactor.pubsub import get_from_leader
     from pioreactor.mureq import HTTPErrorStatus
     from pioreactor.mureq import HTTPException
@@ -168,14 +182,12 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
 
     target_unit_name = unit_name or get_unit_name()
 
-    try:
-        name = _get_pioreactor_model_name(target_unit_name)
-        version = _get_pioreactor_model_version(target_unit_name)
-    except NoWorkerFoundError:
-        raise
+    name, version = _get_pioreactor_model_name_and_version(target_unit_name)
 
     if name is None or version is None:
-        raise NoModelAssignedError("Unknown Pioreactor model: name and version not set yet.")
+        raise NoModelAssignedError(
+            f"No Pioreactor model assigned to {target_unit_name}. Assign one from the leader's Inventory page, or run `pio model set <name> <version>` on {target_unit_name}."
+        )
 
     try:
         return get_registered_models()[(name, version)]
@@ -183,55 +195,38 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
         raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
 
 
-def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
-    # pioreactor model version
-    local_unit_name = get_unit_name()
+def _get_pioreactor_model_name_and_version(unit_name: "pt.Unit") -> tuple[str | None, str | None]:
+    if unit_name != get_unit_name():
+        # The leader mirrors each unit's model.
+        return _get_pioreactor_model_name_and_version_from_leader(unit_name)
 
-    if unit_name == local_unit_name and os.environ.get("MODEL_VERSION"):
-        return os.environ["MODEL_VERSION"]
+    # Lazy import avoids the config/utils -> whoami import cycle.
+    from pioreactor.unit_model import get_local_model
 
+    # Each unit owns its model, saved when it joins a cluster or its model is set. Reads never write.
+    if (local := get_local_model()) is not None:
+        return local
+
+    # Development and CI environments set the model in the environment.
+    return os.environ.get("MODEL_NAME") or None, os.environ.get("MODEL_VERSION") or None
+
+
+def _get_pioreactor_model_name_and_version_from_leader(
+    unit_name: "pt.Unit",
+) -> tuple[str | None, str | None]:
     from pioreactor.pubsub import get_from_leader
     from pioreactor.mureq import HTTPErrorStatus
-    from pioreactor.mureq import HTTPException
 
     try:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
-        data = result.json()
-        return data["model_version"]
-    except HTTPErrorStatus as e:
-        if e.status_code == 404:
-            raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
-        raise e
-    except HTTPException as e:
-        raise e
-
-
-def _get_pioreactor_model_name(unit_name: "pt.Unit") -> str | None:
-    # pioreactor model name
-    local_unit_name = get_unit_name()
-
-    if unit_name == local_unit_name and (model := os.environ.get("MODEL_NAME")):
-        return model
-    elif unit_name == local_unit_name and is_testing_env():
-        return "pioreactor_40ml"
-
-    from pioreactor.pubsub import get_from_leader
-    from pioreactor.mureq import HTTPErrorStatus
-    from pioreactor.mureq import HTTPException
-
-    try:
-        result = get_from_leader(f"/api/workers/{unit_name}")
-        result.raise_for_status()
-        data = result.json()
-        return data["model_name"]
     except HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not found or not assigned a model.")
-        else:
-            raise e
-    except HTTPException as e:
-        raise e
+        raise
+
+    data = result.json()
+    return data["model_name"], data["model_version"]
 
 
 @cache

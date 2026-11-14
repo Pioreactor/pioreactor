@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { TextDecoder, TextEncoder } from "util";
 
@@ -36,7 +36,7 @@ jest.mock("notistack", () => ({
 }));
 
 jest.mock("material-ui-confirm", () => ({
-  useConfirm: () => jest.fn(() => Promise.resolve()),
+  useConfirm: () => jest.fn(() => Promise.resolve({ confirmed: true, reason: "confirm" })),
 }));
 
 jest.mock("../providers/MQTTContext", () => ({
@@ -138,6 +138,71 @@ describe("AssignPioreactors", () => {
     jest.resetAllMocks();
   });
 
+  test("selects and reassigns all ten units from another experiment", async () => {
+    const workers = Array.from({ length: 10 }, (_, index) => ({
+      pioreactor_unit: `unit-${index + 1}`,
+      experiment: "exp2",
+    }));
+    global.fetch.mockImplementation((url) => {
+      if (url === "/api/workers/assignments") {
+        return jsonResponse(workers);
+      }
+      return jsonResponse({});
+    });
+    const warning = "Reassigning Pioreactors will stop their activities in the previous experiment.";
+
+    renderAssignPioreactors();
+    fireEvent.click(screen.getByRole("button", { name: /assign pioreactors/i }));
+    const selectAll = await screen.findByRole("checkbox", { name: "Select all" });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    fireEvent.click(selectAll);
+    expect(screen.getAllByRole("checkbox").every((checkbox) => checkbox.checked)).toBe(true);
+    expect(screen.getByText(warning)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /^unit-1 / }));
+    expect(selectAll).not.toBeChecked();
+    expect(selectAll).toHaveAttribute("data-indeterminate", "true");
+
+    fireEvent.click(selectAll);
+    fireEvent.click(selectAll);
+    expect(screen.getAllByRole("checkbox").every((checkbox) => !checkbox.checked)).toBe(true);
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /^unit-1 / }));
+    expect(screen.getByText(warning)).toBeInTheDocument();
+
+    fireEvent.click(selectAll);
+    fireEvent.click(screen.getByRole("button", { name: "Assign 10" }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(0));
+
+    const mutations = global.fetch.mock.calls.filter(([, options]) => options?.method);
+    expect(mutations).toHaveLength(10);
+    expect(mutations.map(([, options]) => JSON.parse(options.body).pioreactor_unit).sort())
+      .toEqual(workers.map((worker) => worker.pioreactor_unit).sort());
+    mutations.forEach(([url, options]) => {
+      expect(url).toBe("/api/experiments/exp1/workers");
+      expect(options.method).toBe("PUT");
+    });
+  });
+
+  test("select all preserves current assignments and only submits new assignments", async () => {
+    renderAssignPioreactors();
+    fireEvent.click(screen.getByRole("button", { name: /assign pioreactors/i }));
+    const selectAll = await screen.findByRole("checkbox", { name: "Select all" });
+    expect(selectAll).toHaveAttribute("data-indeterminate", "true");
+
+    fireEvent.click(selectAll);
+    expect(screen.getByRole("checkbox", { name: /unit-2/i })).toBeChecked();
+    expect(screen.queryByText(/Reassigning Pioreactors will stop/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Assign 1" }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(0));
+
+    const mutations = global.fetch.mock.calls.filter(([, options]) => options?.method);
+    expect(mutations).toHaveLength(1);
+    expect(JSON.parse(mutations[0][1].body)).toEqual({ pioreactor_unit: "unit-1" });
+  });
+
   test("closes and refreshes after successful assignment changes", async () => {
     renderAssignPioreactors();
 
@@ -195,6 +260,62 @@ describe("Pioreactors unit configuration loading", () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.resetAllMocks();
+  });
+
+  test("shows camera self-tests only on detected units in the bulk controls", async () => {
+    const selfTestDefinition = {
+      job_name: "self_test",
+      display_name: "Self-test",
+      display: false,
+      source: "app",
+      published_settings: [
+        { key: "all_tests_passed", type: "boolean", display: false },
+        { key: "test_pioreactor_HAT_present", type: "boolean", display: false },
+        { key: "test_camera_capture", type: "boolean", display: false },
+      ],
+    };
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/config/shared") {
+        return Promise.resolve({ ok: true, text: async () => "[camera]\nenabled=0\n" });
+      }
+      if (url === "/api/experiments/exp1/workers") {
+        return jsonResponse([worker("unit-1"), worker("unit-2")]);
+      }
+      if (url === "/api/models") {
+        return jsonResponse({ models: [] });
+      }
+      if (url === "/api/jobs/descriptors" || url.endsWith("/jobs/descriptors")) {
+        return jsonResponse([selfTestDefinition]);
+      }
+      if (url === "/api/settings/descriptors" || url.endsWith("/settings/descriptors")) {
+        return jsonResponse([]);
+      }
+      if (url === "/api/experiments/exp1/unit_labels") {
+        return jsonResponse({});
+      }
+      if (url.startsWith("/api/config/units/")) {
+        return jsonResponse({ configs: { "unit-1": {}, "unit-2": {} } });
+      }
+      if (url === "/api/experiments/exp1/cameras") {
+        return jsonResponse({ cameras: {
+          "unit-1": { ok: true, value: { detection_status: "detected" } },
+          "unit-2": { ok: true, value: { detection_status: "configured_camera_not_detected" } },
+        } });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    renderPioreactors();
+    await screen.findAllByText("unit-1");
+    expect(global.fetch.mock.calls.some(([url]) => url.endsWith("/cameras"))).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Control all Pioreactors" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Self-test" }));
+
+    const cameraCheck = await screen.findByText("Camera captures an image");
+    const unit1Results = cameraCheck.closest(".MuiAccordion-root");
+    expect(within(unit1Results).getByText("unit-1")).toBeInTheDocument();
+    expect(screen.getAllByText("Camera captures an image")).toHaveLength(1);
+    expect(screen.getAllByText("Pioreactor HAT is detected")).toHaveLength(2);
   });
 
   test("uses one filtered bulk request while preserving unit failures and shared fallback", async () => {

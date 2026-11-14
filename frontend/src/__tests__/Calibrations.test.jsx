@@ -31,7 +31,26 @@ const {
 } = require("../Calibrations");
 
 describe("UploadCalibrationDialog", () => {
+  const uploadTask = jest.fn();
+  const protocolsByUnit = {
+    xr1: [{ target_device: "od90" }, { target_device: "od" }, { target_device: "plugin_sensor" }],
+    xr2: [{ target_device: "od90" }, { target_device: "od" }],
+  };
   beforeEach(() => {
+    uploadTask.mockReset();
+    getSuccessfulUnitTaskResults.mockImplementation((payload) => Object.fromEntries(
+      Object.entries(payload.result).filter(([, result]) => result?.ok).map(([unit, result]) => [unit, result.value]),
+    ));
+    fetchTaskResult.mockImplementation((endpoint, options) => {
+      if (endpoint.endsWith('/calibration_protocols')) {
+        const unit = endpoint.split('/')[3];
+        return Promise.resolve({ result: Object.fromEntries(
+          Object.entries(unit === '$broadcast' ? protocolsByUnit : { [unit]: protocolsByUnit[unit] })
+            .map(([name, protocols]) => [name, { ok: true, value: protocols }]),
+        ) });
+      }
+      return uploadTask(endpoint, options);
+    });
     global.fetch = jest.fn((url) => {
       if (url === "/api/workers") {
         return Promise.resolve({
@@ -52,10 +71,53 @@ describe("UploadCalibrationDialog", () => {
     jest.resetAllMocks();
   });
 
+  test("queries the selected unit and preserves plugin device names", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/calibrations/xr1/od90"]}>
+        <Routes>
+          <Route path="/calibrations/:pioreactorUnit/:device" element={<UploadCalibrationDialog open onClose={() => {}} />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole("combobox", { name: /Device/ })).not.toHaveAttribute("aria-disabled", "true"));
+    expect(fetchTaskResult).toHaveBeenCalledWith("/api/workers/xr1/calibration_protocols");
+    expect(screen.getByRole("combobox", { name: /Device/ })).toHaveTextContent("od90");
+    await user.click(screen.getByRole("combobox", { name: /Device/ }));
+    expect(screen.getByRole("option", { name: "plugin_sensor" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "od", exact: true })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getAllByRole("combobox")[0]);
+    await user.click(screen.getByRole("option", { name: "xr2" }));
+    await waitFor(() => expect(fetchTaskResult).toHaveBeenCalledWith("/api/workers/xr2/calibration_protocols"));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: /Device/ })).not.toHaveAttribute("aria-disabled", "true"));
+    await user.click(screen.getByRole("combobox", { name: /Device/ }));
+    expect(screen.queryByRole("option", { name: "plugin_sensor" })).not.toBeInTheDocument();
+  });
+
+  test("shows only shared registry devices for a broadcast upload", async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><UploadCalibrationDialog open onClose={() => {}} /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole("combobox", { name: /Device/ })).not.toHaveAttribute("aria-disabled", "true"));
+    expect(fetchTaskResult).toHaveBeenCalledWith("/api/workers/$broadcast/calibration_protocols");
+    await user.click(screen.getByRole("combobox", { name: /Device/ }));
+    expect(screen.getByRole("option", { name: "od90" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "plugin_sensor" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "od", exact: true })).not.toBeInTheDocument();
+  });
+
+  test("blocks uploads and reports a registry query failure", async () => {
+    fetchTaskResult.mockRejectedValue(new Error("Registry unavailable"));
+    render(<MemoryRouter><UploadCalibrationDialog open onClose={() => {}} /></MemoryRouter>);
+    expect(await screen.findByText("Registry unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Device/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Upload calibration" })).toBeDisabled();
+  });
+
   test("shows failed unit names when a broadcast upload has partial failures", async () => {
     const user = userEvent.setup();
 
-    fetchTaskResult.mockResolvedValue({
+    uploadTask.mockResolvedValue({
       result: {
         xr1: null,
         xr2: {
@@ -78,13 +140,16 @@ describe("UploadCalibrationDialog", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/workers"));
 
-    await user.type(screen.getByPlaceholderText("e.g. od, media_pump"), "od");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: /Device/ })).not.toHaveAttribute("aria-disabled", "true"));
+    await user.click(screen.getByRole("combobox", { name: /Device/ }));
+    expect(screen.queryByRole("option", { name: "od", exact: true })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "od90" }));
     await user.type(screen.getByLabelText("YAML description"), "calibration_name: test");
     await user.click(screen.getByRole("button", { name: "Upload calibration" }));
 
     await waitFor(() =>
       expect(fetchTaskResult).toHaveBeenCalledWith(
-        "/api/workers/$broadcast/calibrations/od",
+        "/api/workers/$broadcast/calibrations/od90",
         expect.objectContaining({
           fetchOptions: expect.objectContaining({
             method: "POST",
@@ -102,7 +167,7 @@ describe("UploadCalibrationDialog", () => {
   test("shows upload success and clears the YAML after a successful upload", async () => {
     const user = userEvent.setup();
 
-    fetchTaskResult.mockResolvedValue({
+    uploadTask.mockResolvedValue({
       result: {
         xr1: {
           msg: "Calibration created successfully.",
@@ -128,7 +193,10 @@ describe("UploadCalibrationDialog", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/workers"));
 
-    await user.type(screen.getByPlaceholderText("e.g. od, media_pump"), "od");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: /Device/ })).not.toHaveAttribute("aria-disabled", "true"));
+    await user.click(screen.getByRole("combobox", { name: /Device/ }));
+    expect(screen.queryByRole("option", { name: "od", exact: true })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "od90" }));
     const yamlEditor = screen.getByLabelText("YAML description");
     await user.type(yamlEditor, "calibration_name: test");
     await user.click(screen.getByRole("button", { name: "Upload calibration" }));
@@ -147,7 +215,7 @@ describe("UploadCalibrationDialog", () => {
       resolveUpload = resolve;
     });
 
-    fetchTaskResult.mockReturnValue(uploadPromise);
+    uploadTask.mockReturnValue(uploadPromise);
 
     render(
       <MemoryRouter initialEntries={["/calibrations"]}>
@@ -162,7 +230,10 @@ describe("UploadCalibrationDialog", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/workers"));
 
-    await user.type(screen.getByPlaceholderText("e.g. od, media_pump"), "od");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: /Device/ })).not.toHaveAttribute("aria-disabled", "true"));
+    await user.click(screen.getByRole("combobox", { name: /Device/ }));
+    expect(screen.queryByRole("option", { name: "od", exact: true })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "od90" }));
     await user.type(screen.getByLabelText("YAML description"), "calibration_name: test");
     const uploadButton = screen.getByRole("button", { name: "Upload calibration" });
     await user.click(uploadButton);

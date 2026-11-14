@@ -5,6 +5,7 @@ import { uiColors } from "../theme/colors";
 import React, {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -25,18 +26,24 @@ import {
   VictoryLegend,
   VictoryTooltip,
   VictoryVoronoiContainer,
+  TextSize,
   createContainer
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { shiftHue } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
+import { compareNatural } from "../utils/naturalSort";
 import { Box } from "@mui/material";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
 
 const sensorRe = /^(.*)-((?:ch)?\d+)$/;
+const MS_PER_HOUR = 60 * 60 * 1000;
+const DOWNSAMPLED_TARGET_POINTS = 1400;
+// Live points are buffered and committed in batches so each MQTT message doesn't redraw the chart.
+const LIVE_FLUSH_INTERVAL_MS = 5000;
+const HIDDEN_LIVE_FLUSH_INTERVAL_MS = 60 * 1000;
 
 function toArray(thing){
    if (Array.isArray(thing)){
@@ -54,17 +61,83 @@ const splitPartitionedName = (name) => {
   return { base: match[1], suffix: match[2] };
 };
 
-const resolveUnitColor = (name, colorMap) => {
-  const { base, suffix } = splitPartitionedName(name);
-  if (suffix) {
-    const primaryName = base;
-    return resolveUnitColor(primaryName, colorMap);
-  }
-  if (colorMap) {
-    return colorMap[name];
-  }
-  return undefined;
+// Sensor identity remains readable when hues are similar or colors cannot be distinguished.
+const sensorStyles = {
+  "90": { symbol: "circle", dash: undefined },
+  "45": { symbol: "triangleUp", dash: "8,4" },
+  "135": { symbol: "square", dash: "3,3" },
+  "180": { symbol: "diamond", dash: "8,3,2,3" },
 };
+
+// Vertical layout: the plot area keeps a fixed height and the legend grows below the x-axis.
+const PLOT_TOP = 50;
+const PLOT_HEIGHT = 195;
+const AXIS_LABEL_SPACE = 40;
+const LEGEND_Y = PLOT_TOP + PLOT_HEIGHT + AXIS_LABEL_SPACE;
+const LEGEND_FONT_SIZE = 13;
+const LEGEND_SYMBOL_SPACER = 6;
+const LEGEND_ROW_GUTTER = 5;
+const LEGEND_SYMBOL_SIZE = 6.5;
+const LEGEND_GUTTER = 15;
+// Victory sizes each legend column to its widest item: label + symbol + spacer + gutter.
+const LEGEND_ITEM_OVERHEAD = LEGEND_SYMBOL_SIZE + LEGEND_SYMBOL_SPACER + LEGEND_GUTTER;
+// Longer labels are shortened in the middle so one long name doesn't take a whole row.
+const LEGEND_MAX_LABEL_WIDTH = 220;
+// Mirrors Victory's legend row height: label height (x1.15 when it has capitals or digits, x1.05
+// overlap margin) + symbol spacer + row gutter. Reserving less clips the bottom rows.
+const LEGEND_ROW_HEIGHT =
+  Math.ceil(LEGEND_FONT_SIZE * 1.15 * 1.05) + LEGEND_SYMBOL_SPACER + LEGEND_ROW_GUTTER;
+
+const dropPointsBefore = (data, cutoff) => {
+  if (!data.length || data[0].x >= cutoff) {
+    return data;
+  }
+  const firstKeptIndex = data.findIndex((point) => point.x >= cutoff);
+  return firstKeptIndex === -1 ? [] : data.slice(firstKeptIndex);
+};
+
+// Once a series outgrows its budget, resample it to half the budget on an even time grid,
+// keeping the point nearest each grid time and always the newest point. Sampling by time
+// rather than by index means repeated compaction doesn't keep thinning older history while
+// dense recent live points survive; nearest (not first-after) avoids losing already-sparse
+// points to aliasing on each pass.
+export const thinSeriesData = (data, maxPoints) => {
+  if (data.length <= maxPoints) {
+    return data;
+  }
+  const targetPoints = Math.floor(maxPoints / 2);
+  const lastIndex = data.length - 1;
+  const firstX = data[0].x;
+  const span = data[lastIndex].x - firstX;
+  const thinned = [];
+  let index = 0;
+  for (let i = 0; i < targetPoints - 1; i++) {
+    const targetX = firstX + (span * i) / (targetPoints - 1);
+    while (index < lastIndex && data[index].x < targetX) {
+      index++;
+    }
+    const previous = data[index - 1];
+    if (
+      previous &&
+      previous !== thinned[thinned.length - 1] &&
+      targetX - previous.x < data[index].x - targetX
+    ) {
+      index--;
+    }
+    if (index === lastIndex) {
+      break;
+    }
+    if (thinned[thinned.length - 1] !== data[index]) {
+      thinned.push(data[index]);
+    }
+  }
+  thinned.push(data[lastIndex]);
+  return thinned;
+};
+
+// Only sensor-partitioned series carry a "-<angle>" suffix; unit names like `pio-1` keep theirs.
+export const resolveUnitColor = (name, colorMap, isPartitionedBySensor) =>
+  colorMap?.[isPartitionedBySensor ? splitPartitionedName(name).base : name];
 
 function Chart(props) {
   const chartTheme = useChartTheme();
@@ -98,14 +171,14 @@ function Chart(props) {
 
   const topics = useMemo(() => toArray(topic), [topic]);
   const chartContainerRef = useRef(null);
-  const canvasMeasureRef = useRef(null);
   const [chartWidth, setChartWidth] = useState(600);
   const [seriesMap, setSeriesMap] = useState({});
   const [hiddenSeries, setHiddenSeries] = useState(() => new Set());
+  const [hoveredSeries, setHoveredSeries] = useState(null);
   const [fetched, setFetched] = useState(false);
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
-
-  const names = useMemo(() => Object.keys(seriesMap), [seriesMap]);
+  const pendingPointsRef = useRef(new Map());
+  const flushTimerRef = useRef(null);
 
   const ChartContainer = useMemo(
     () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
@@ -117,104 +190,78 @@ function Chart(props) {
     [yTransformationProp]
   );
 
-  const getUnitColor = useCallback(
-    (name) => resolveUnitColor(name, unitsColorMap),
-    [unitsColorMap]
+  const experimentStartMs = useMemo(
+    () => dayjs.utc(experimentStartTime).valueOf(),
+    [experimentStartTime]
   );
 
-  const applyAngleAlpha = useCallback(
-    (seriesName, color) => {
-      if (!isPartitionedBySensor) {
-        return color;
-      }
-      const { suffix } = splitPartitionedName(seriesName);
-      if (!suffix) {
-        return color;
-      }
-      if (suffix === "45") {
-        return shiftHue(color, 7);
-      }
-      if (suffix === "135") {
-        return shiftHue(color, -7);
-      }
-      return color;
-    },
-    [isPartitionedBySensor]
-  );
+  // An effect event, so a new color map identity doesn't refetch history or resubscribe.
+  const getUnitColor = useEffectEvent((name) => resolveUnitColor(name, unitsColorMap, isPartitionedBySensor));
 
-  const breakString = useCallback((n) => (string) => {
-    if (string.length > n) {
-      return string.slice(0, n - 5) + "..." + string.slice(string.length - 2, string.length);
-    }
-    return string;
-  }, []);
+  const getSensorStyle = useCallback((name) => (
+    isPartitionedBySensor
+      ? sensorStyles[splitPartitionedName(name).suffix] || sensorStyles["90"]
+      : sensorStyles["90"]
+  ), [isPartitionedBySensor]);
 
-  const relabelAndFormatSeries = useCallback(
+  // Splits a series' display label into a shortenable head and a tail that is always kept,
+  // so names that differ only at the end (pio01, pio02) and sensor angles stay distinguishable.
+  const seriesLabelParts = useCallback(
     (name) => {
-      if (isPartitionedBySensor) {
-        const { base, suffix } = splitPartitionedName(name);
-        if (suffix) {
-          const displayBase = relabelMap ? (relabelMap[base] || base) : base;
-          return `${breakString(12)(displayBase)}-${suffix.startsWith("ch") ? `channel ${suffix.slice(2)}` : `${suffix}°`}`;
-        }
-      }
-      if (!relabelMap) {
-        return name;
-      }
-      return breakString(12)(relabelMap[name] || name);
+      const relabel = (unitName) => relabelMap?.[unitName] || unitName;
+      const { base, suffix } = isPartitionedBySensor
+        ? splitPartitionedName(name)
+        : { base: name, suffix: null };
+      const display = suffix ? relabel(base) : relabel(name);
+      const sensorLabel = suffix?.startsWith("ch") ? `channel ${suffix.slice(2)}` : `${suffix}°`;
+      const tail = display.slice(-2) + (suffix ? `-${sensorLabel}` : "");
+      return { head: display.slice(0, -2), tail };
     },
-    [breakString, isPartitionedBySensor, relabelMap]
+    [isPartitionedBySensor, relabelMap]
   );
 
-  const relabelAndFormatSeriesForLegend = useCallback(
+  const seriesLabel = useCallback(
     (name) => {
-      const truncateString = breakString(12);
-
-      if (isPartitionedBySensor) {
-        const { base, suffix } = splitPartitionedName(name);
-        if (suffix) {
-          const displayBase = relabelMap ? (relabelMap[base] || base) : base;
-          return `${truncateString(displayBase)}-${suffix.startsWith("ch") ? `channel ${suffix.slice(2)}` : `${suffix}°`}`;
-        }
-      }
-      if (!relabelMap) {
-        return name;
-      }
-      return truncateString(relabelMap[name] || name);
+      const { head, tail } = seriesLabelParts(name);
+      return head + tail;
     },
-    [breakString, isPartitionedBySensor, relabelMap]
+    [seriesLabelParts]
   );
 
-  const measureLegendLabel = useMemo(() => {
-    if (!canvasMeasureRef.current) {
-      canvasMeasureRef.current = document.createElement("canvas");
-    }
-    const context = canvasMeasureRef.current.getContext("2d");
-    if (context) {
-      context.font = "13px Helvetica, Arial, sans-serif";
-      return (text) => context.measureText(text).width;
-    }
-    return (text) => text.length * 8;
-  }, []);
+  // Legend and draw order follow the display label, not server or live-arrival order.
+  const names = useMemo(
+    () => Object.keys(seriesMap).sort((a, b) => compareNatural(seriesLabel(a), seriesLabel(b))),
+    [seriesMap, seriesLabel]
+  );
+
+  // Measured the way VictoryLegend measures its labels, so the layout matches what it draws.
+  const measureLegendLabel = useCallback(
+    (text) =>
+      TextSize.approximateTextSize(text, {
+        fontSize: LEGEND_FONT_SIZE,
+        fontFamily: chartTheme.theme.legend.style.labels.fontFamily,
+      }).width,
+    [chartTheme]
+  );
 
   const createToolTip = useCallback(
     (d) => {
       let xValue;
-      const seriesLabel = d.datum.childName || "unknown";
+      const label = d.datum.childName ? seriesLabel(d.datum.childName) : "unknown";
       try {
         if (byDuration) {
           xValue = `${d.datum.x.toFixed(2)} hours elapsed`;
         } else {
-          xValue = d.datum.x.format("MMM DD HH:mm");
+          xValue = dayjs(d.datum.x).format("MMM DD HH:mm");
         }
       } catch {
         xValue = d.datum.x;
       }
 
       const rounded = formatChartValue(yTransformation(d.datum.y), fixedDecimals);
-      return `${xValue}\n${seriesLabel}: ${rounded}`;
+      return `${xValue}\n${label}: ${rounded}`;
     },
-    [byDuration, fixedDecimals, yTransformation]
+    [byDuration, fixedDecimals, seriesLabel, yTransformation]
   );
 
   const mapPartitionedSeriesName = useCallback(
@@ -245,56 +292,75 @@ function Chart(props) {
     [isPartitionedBySensor, unit]
   );
 
+  const legendAvailableWidth = Math.max(200, chartWidth - 70 - 50); // spans the plot area
+
+  const fitLegendLabel = useCallback(
+    (name) => {
+      const { head, tail } = seriesLabelParts(name);
+      const maxWidth = Math.min(LEGEND_MAX_LABEL_WIDTH, legendAvailableWidth - LEGEND_ITEM_OVERHEAD);
+      if (measureLegendLabel(head + tail) <= maxWidth) {
+        return head + tail;
+      }
+      // Longest head prefix that fits alongside the ellipsis and tail.
+      let low = 0;
+      let high = head.length;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (measureLegendLabel(`${head.slice(0, mid)}…${tail}`) <= maxWidth) {
+          low = mid;
+        } else {
+          high = mid - 1;
+        }
+      }
+      return `${head.slice(0, low)}…${tail}`;
+    },
+    [legendAvailableWidth, measureLegendLabel, seriesLabelParts]
+  );
+
   const selectLegendData = useCallback(
     (name) => {
-      if (!seriesMap[name]) {
-        return {};
-      }
-
-      const reformattedName = relabelAndFormatSeriesForLegend(name);
-      const line = seriesMap[name];
-      const legendColor = applyAngleAlpha(name, chartTheme.seriesColor(line?.color));
       const item = {
-        name: reformattedName,
+        name: fitLegendLabel(name),
         originalName: name,
-        symbol: { fill: legendColor },
+        symbol: { fill: chartTheme.seriesColor(seriesMap[name].color) },
       };
       if (hiddenSeries.has(name)) {
-        return { ...item, symbol: { fill: chartTheme.surface } };
+        // A hidden series keeps an outlined swatch and a dimmed label.
+        return { ...item, symbol: { fill: chartTheme.surface }, labels: { opacity: 0.45 } };
       }
       return item;
     },
-    [chartTheme, applyAngleAlpha, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
+    [chartTheme, fitLegendLabel, hiddenSeries, seriesMap]
   );
 
-  const legendItems = useMemo(
-    () => names.map(selectLegendData).filter((item) => item && item.name),
-    [names, selectLegendData]
-  );
+  const legendItems = useMemo(() => names.map(selectLegendData), [names, selectLegendData]);
 
   const legendLayout = useMemo(() => {
     if (!legendItems.length) {
-      return { itemsPerRow: 1, rows: 0, rowHeight: 24 };
+      return { itemsPerRow: 1, rows: 0 };
     }
-
-    const legendPadding = 130; // left + right padding for legend area inside the chart
-    const availableWidth = Math.max(200, chartWidth - legendPadding);
-    const gutter = 15;
-    const symbolWidth = 14; // approx symbol + stroke width
-
-    const estimatedWidths = legendItems.map(
-      (item) => measureLegendLabel(item.name) + symbolWidth + gutter + 8
-    );
-    const avgWidth = estimatedWidths.reduce((sum, width) => sum + width, 0) / estimatedWidths.length;
-    const minWidth = Math.max(60, Math.max(...estimatedWidths));
-    const targetWidth = Math.max(minWidth, avgWidth + gutter);
-    const itemsPerRow = Math.max(
-      1,
-      Math.min(legendItems.length, Math.floor(availableWidth / targetWidth) || 1)
-    );
-    const rows = Math.ceil(legendItems.length / itemsPerRow);
-    return { itemsPerRow, rows, rowHeight: 24 };
-  }, [chartWidth, legendItems, measureLegendLabel]);
+    const itemWidths = legendItems.map((item) => measureLegendLabel(item.name) + LEGEND_ITEM_OVERHEAD);
+    // Item i sits in column i % itemsPerRow, and each column is as wide as its widest item.
+    const fits = (itemsPerRow) => {
+      const columnWidths = new Array(itemsPerRow).fill(0);
+      itemWidths.forEach((width, i) => {
+        const column = i % itemsPerRow;
+        columnWidths[column] = Math.max(columnWidths[column], width);
+      });
+      return columnWidths.reduce((sum, width) => sum + width, 0) <= legendAvailableWidth;
+    };
+    let itemsPerRow = itemWidths.length;
+    while (itemsPerRow > 1 && !fits(itemsPerRow)) {
+      itemsPerRow -= 1;
+    }
+    // Spread items evenly over the rows needed (5 + 5 rather than 9 + 1).
+    const rows = Math.ceil(itemWidths.length / itemsPerRow);
+    const balanced = Math.ceil(itemWidths.length / rows);
+    if (fits(balanced)) {
+      itemsPerRow = balanced;
+    }
+    return { itemsPerRow, rows };
+  }, [legendAvailableWidth, legendItems, measureLegendLabel]);
 
   useLayoutEffect(() => {
     const node = chartContainerRef.current;
@@ -320,23 +386,27 @@ function Chart(props) {
 
   const selectVictoryLines = useCallback(
     (name) => {
-      const reformattedName = relabelAndFormatSeries(name);
       const series = seriesMap?.[name];
       if (!series) {
         return null;
       }
 
-      const seriesColor = applyAngleAlpha(name, chartTheme.seriesColor(series?.color));
+      const seriesColor = chartTheme.seriesColor(series?.color);
+      // Hovering a legend entry fades the other series so one line stands out among many.
+      const highlighted = hiddenSeries.has(hoveredSeries) ? null : hoveredSeries;
+      const opacity = highlighted && highlighted !== name ? 0.2 : 1;
       let marker = null;
       if (interpolation === "none" || series.data?.length === 1) {
         marker = (
           <VictoryScatter
             size={4}
-            key={`line-${reformattedName}${chartKey}`}
-            name={reformattedName}
+            symbol={getSensorStyle(name).symbol}
+            key={`line-${name}${chartKey}`}
+            name={name}
             style={{
               data: {
                 fill: seriesColor,
+                opacity,
               },
             }}
           />
@@ -345,13 +415,15 @@ function Chart(props) {
         marker = (
           <VictoryLine
             interpolation={interpolation}
-            key={`line-${reformattedName}${chartKey}`}
-            name={reformattedName}
+            key={`line-${name}${chartKey}`}
+            name={name}
             style={{
               labels: { fill: seriesColor },
               data: {
                 stroke: seriesColor,
-                strokeWidth: 2,
+                strokeWidth: highlighted === name ? 3 : 2,
+                strokeDasharray: getSensorStyle(name).dash,
+                opacity,
               },
               parent: { border: `1px solid ${uiColors.border}` },
             }}
@@ -375,48 +447,43 @@ function Chart(props) {
     },
     [
       chartTheme,
-      applyAngleAlpha,
+      getSensorStyle,
       chartKey,
       hiddenSeries,
+      hoveredSeries,
       interpolation,
-      relabelAndFormatSeries,
       seriesMap,
       yTransformation,
     ]
   );
 
-  const legendEvents = useMemo(
-    () => [
-      {
-        childName: "legend",
-        target: "data",
-        eventHandlers: {
-          onClick: (_, legendProps) => {
-            return [
-              {
-                childName: legendProps.datum.name,
-                target: "data",
-                mutation: () => {
-                  const seriesName = legendProps.datum.originalName;
-                  setHiddenSeries((prevHidden) => {
-                    const next = new Set(prevHidden);
-                    if (next.has(seriesName)) {
-                      next.delete(seriesName);
-                    } else {
-                      next.add(seriesName);
-                    }
-                    return next;
-                  });
-                  return null;
-                },
-              },
-            ];
-          },
-        },
+  const legendEvents = useMemo(() => {
+    const eventHandlers = {
+      onClick: (_, legendProps) => {
+        const seriesName = legendProps.datum.originalName;
+        setHiddenSeries((prevHidden) => {
+          const next = new Set(prevHidden);
+          if (next.has(seriesName)) {
+            next.delete(seriesName);
+          } else {
+            next.add(seriesName);
+          }
+          return next;
+        });
+        return [];
       },
-    ],
-    [setHiddenSeries]
-  );
+      onMouseOver: (_, legendProps) => {
+        setHoveredSeries(legendProps.datum.originalName);
+        return [];
+      },
+      onMouseOut: () => {
+        setHoveredSeries(null);
+        return [];
+      },
+    };
+    // Both the swatch and its label toggle and highlight the series.
+    return ["data", "labels"].map((target) => ({ childName: "legend", target, eventHandlers }));
+  }, []);
 
   const triggerBlobDownload = useCallback((blob, filename) => {
     const url = URL.createObjectURL(blob);
@@ -561,111 +628,160 @@ function Chart(props) {
     [exportChart]
   );
 
-  const onMessage = useCallback(
-    (incomingTopic, message, packet) => {
-      if (!fetched) {
-        return;
-      }
-      if (packet.retain) {
-        return;
-      }
-      if (!message || !incomingTopic) {
-        return;
-      }
+  const flushPendingPoints = useEffectEvent(() => {
+    const pending = pendingPointsRef.current;
+    if (pending.size === 0) {
+      return;
+    }
+    pendingPointsRef.current = new Map();
 
-      const payloadString = message.toString();
-      if (!payloadString) {
-        return;
-      }
+    const lookbackHours = Number(lookback);
+    const nowMs = Date.now();
+    // A lookback of 0 ("Now") keeps every live point that arrives while the chart is open.
+    let cutoff = -Infinity;
+    if (Number.isFinite(lookbackHours) && lookbackHours > 0) {
+      cutoff = byDuration
+        ? (nowMs - experimentStartMs) / MS_PER_HOUR - lookbackHours
+        : nowMs - lookbackHours * MS_PER_HOUR;
+    }
+    const maxPoints = downSample ? 2 * DOWNSAMPLED_TARGET_POINTS : Infinity;
+    const colorsByName = new Map(
+      Array.from(pending.keys(), (name) => [name, getUnitColor(name)])
+    );
 
-      let timestamp;
-      let yValue;
-      let angle;
-      try {
-        if (payloadKey) {
-          const payload = JSON.parse(payloadString);
-          angle = payload.angle;
-          if (!Object.prototype.hasOwnProperty.call(payload, payloadKey)) {
-            throw new Error(`Payload key '${payloadKey}' not found in the message.`);
-          }
-          timestamp = dayjs.utc(payload.timestamp);
-          yValue = parseFloat(payload[payloadKey]);
-        } else {
-          yValue = parseFloat(payloadString);
-          timestamp = dayjs.utc();
-        }
-      } catch (error) {
-        return;
-      }
-
-      const duration = Math.round(
-        timestamp.diff(dayjs.utc(experimentStartTime), "hours", true) * 1e3
-      ) / 1e3;
-      const localTimestamp = timestamp.local();
-      const xValue = byDuration ? duration : localTimestamp;
-
-      const baseUnit = incomingTopic.split("/")[1];
-      const channel = incomingTopic
-        .split("/")[4]
-        .replace("raw_od", "")
-        .replace("od", "");
-      const parsedUnit = isPartitionedBySensor
-        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`, angle)
-        : baseUnit;
-
-      if (!parsedUnit) {
-        return;
-      }
-
-      if (unit) {
-        if (!shouldIncludeUnit(parsedUnit)) {
-          return;
-        }
-      }
-
-      setSeriesMap((prevMap) => {
-        const existingSeries = prevMap[parsedUnit];
-        if (!existingSeries) {
-          return {
-            ...prevMap,
-            [parsedUnit]: {
-              data: [{ x: xValue, y: yValue }],
-              name: parsedUnit,
-              color: getUnitColor(parsedUnit),
-            },
-          };
-        }
-
-        return {
-          ...prevMap,
-          [parsedUnit]: {
-            ...existingSeries,
-            data: [...(existingSeries.data || []), { x: xValue, y: yValue }],
-          },
+    setSeriesMap((prevMap) => {
+      const nextMap = { ...prevMap };
+      for (const [name, points] of pending) {
+        const existingSeries = prevMap[name];
+        const data = existingSeries ? existingSeries.data.concat(points) : points;
+        nextMap[name] = {
+          name,
+          color: colorsByName.get(name),
+          ...existingSeries,
+          data: thinSeriesData(dropPointsBefore(data, cutoff), maxPoints),
         };
-      });
-    },
-    [byDuration, experimentStartTime, fetched, getUnitColor, isPartitionedBySensor, mapPartitionedSeriesName, payloadKey, shouldIncludeUnit, unit]
-  );
+      }
+      return nextMap;
+    });
+  });
 
-  const getHistoricalDataFromServer = useCallback(async () => {
-    if (!experiment) {
+  const onMessage = useEffectEvent((incomingTopic, message, packet) => {
+    if (!fetched) {
+      return;
+    }
+    if (packet.retain) {
+      return;
+    }
+    if (!message || !incomingTopic) {
       return;
     }
 
+    const payloadString = message.toString();
+    if (!payloadString) {
+      return;
+    }
+
+    let timestampMs;
+    let yValue;
+    let angle;
+    try {
+      if (payloadKey) {
+        const payload = JSON.parse(payloadString);
+        angle = payload.angle;
+        if (!Object.prototype.hasOwnProperty.call(payload, payloadKey)) {
+          throw new Error(`Payload key '${payloadKey}' not found in the message.`);
+        }
+        timestampMs = dayjs.utc(payload.timestamp).valueOf();
+        yValue = parseFloat(payload[payloadKey]);
+      } else {
+        yValue = parseFloat(payloadString);
+        timestampMs = Date.now();
+      }
+    } catch (error) {
+      return;
+    }
+
+    const xValue = byDuration
+      ? Math.round(((timestampMs - experimentStartMs) / MS_PER_HOUR) * 1e3) / 1e3
+      : timestampMs;
+
+    const baseUnit = incomingTopic.split("/")[1];
+    const channel = incomingTopic
+      .split("/")[4]
+      .replace("raw_od", "")
+      .replace("od", "");
+    const parsedUnit = isPartitionedBySensor
+      ? mapPartitionedSeriesName(`${baseUnit}-${channel}`, angle)
+      : baseUnit;
+
+    if (!parsedUnit) {
+      return;
+    }
+
+    if (unit) {
+      if (!shouldIncludeUnit(parsedUnit)) {
+        return;
+      }
+    }
+
+    const pendingPoints = pendingPointsRef.current.get(parsedUnit);
+    if (pendingPoints) {
+      pendingPoints.push({ x: xValue, y: yValue });
+    } else {
+      pendingPointsRef.current.set(parsedUnit, [{ x: xValue, y: yValue }]);
+    }
+
+    if (flushTimerRef.current === null) {
+      flushTimerRef.current = setTimeout(
+        () => {
+          flushTimerRef.current = null;
+          flushPendingPoints();
+        },
+        document.hidden ? HIDDEN_LIVE_FLUSH_INTERVAL_MS : LIVE_FLUSH_INTERVAL_MS
+      );
+    }
+  });
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden || flushTimerRef.current === null) {
+        return;
+      }
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+      flushPendingPoints();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!experiment) {
+      return undefined;
+    }
+    let isCancelled = false;
+
     const queryParams = new URLSearchParams({
-      target_points: downSample ? 1400 : 1000000,
+      target_points: downSample ? DOWNSAMPLED_TARGET_POINTS : 1000000,
       lookback,
+      // A changed time zero must not reuse history cached before the edit.
+      started_at: experimentStartTime,
     });
 
+    // Keep x values as numbers: a dayjs object per point is far heavier to retain.
     let transformX;
     if (byDuration) {
-      const experimentStart = dayjs.utc(experimentStartTime);
       transformX = (x) =>
-        Math.round(dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").diff(experimentStart, "hours", true) * 1e3) /
-        1e3;
+        Math.round(
+          ((dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").valueOf() - experimentStartMs) / MS_PER_HOUR) * 1e3
+        ) / 1e3;
     } else {
-      transformX = (x) => dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").local();
+      transformX = (x) => dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").valueOf();
     }
 
     const basePath = unit
@@ -674,36 +790,46 @@ function Chart(props) {
     const columnSegment = dataSourceColumn ? `/${dataSourceColumn}` : "";
     const url = `${basePath}${columnSegment}?${queryParams}`;
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      const initialSeriesMap = {};
-      for (const [index, unitName] of data["series"].entries()) {
-        for (const item of data["data"][index]) {
-          const name = mapPartitionedSeriesName(unitName, item.angle);
-          if (!shouldIncludeUnit(name)) {
-            continue;
-          }
-          if (!initialSeriesMap[name]) {
-            initialSeriesMap[name] = { data: [], name, color: getUnitColor(name) };
-          }
-          initialSeriesMap[name].data.push({ y: item.y, x: transformX(item.x) });
+    async function getHistoricalDataFromServer() {
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (isCancelled) {
+          return;
         }
+        const initialSeriesMap = {};
+        for (const [index, unitName] of data["series"].entries()) {
+          for (const item of data["data"][index]) {
+            const name = mapPartitionedSeriesName(unitName, item.angle);
+            if (!shouldIncludeUnit(name)) {
+              continue;
+            }
+            if (!initialSeriesMap[name]) {
+              initialSeriesMap[name] = { data: [], name, color: getUnitColor(name) };
+            }
+            initialSeriesMap[name].data.push({ y: item.y, x: transformX(item.x) });
+          }
+        }
+        for (const series of Object.values(initialSeriesMap)) {
+          series.data.sort((a, b) => a.x - b.x);
+        }
+        pendingPointsRef.current = new Map();
+        setSeriesMap(initialSeriesMap);
+        setFetched(true);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+        console.log(error);
+        setFetched(true);
       }
-      for (const series of Object.values(initialSeriesMap)) {
-        series.data.sort((a, b) => a.x - b.x);
-      }
-      setSeriesMap(initialSeriesMap);
-      setFetched(true);
-    } catch (error) {
-      console.log(error);
-      setFetched(true);
     }
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, getUnitColor, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
-  useEffect(() => {
     getHistoricalDataFromServer();
-  }, [getHistoricalDataFromServer]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, experimentStartTime, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
   useEffect(() => {
     if (!client || !isLiveChart) {
@@ -720,16 +846,14 @@ function Chart(props) {
         unsubscribeFromTopic(topicPath, "Chart");
       });
     };
-  }, [client, experiment, isLiveChart, onMessage, subscribeToTopic, topics, unit, unsubscribeFromTopic]);
+  }, [client, experiment, isLiveChart, subscribeToTopic, topics, unit, unsubscribeFromTopic]);
 
   const exportMenuOpen = Boolean(exportAnchorEl);
   const chartStateKey = names.join("-");
 
-  const legendRows = legendLayout.rows;
-  const legendItemsPerRow = legendLayout.itemsPerRow;
-  const legendRowHeight = legendLayout.rowHeight;
-  const legendBottomPadding = 40 + legendRows * legendRowHeight;
-  const chartHeight = 285 + legendRows * legendRowHeight;
+  const legendHeight = legendLayout.rows * LEGEND_ROW_HEIGHT;
+  const legendBottomPadding = AXIS_LABEL_SPACE + legendHeight;
+  const chartHeight = LEGEND_Y + legendHeight;
 
   return (
     <Box ref={chartContainerRef} sx={{ position: "relative" }}>
@@ -738,7 +862,7 @@ function Chart(props) {
         style={{ parent: { width: "100%" } }}
         title={title}
         domainPadding={10}
-        padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: 50 }}
+        padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: PLOT_TOP }}
         events={legendEvents}
         height={chartHeight}
         width={chartWidth}
@@ -749,6 +873,8 @@ function Chart(props) {
             zoomDimension={"x"}
             responsive={true}
             voronoiBlacklist={["parent"]}
+            // Stop the tooltip just above the legend, so hovering legend entries doesn't show it.
+            voronoiPadding={{ top: 5, left: 5, right: 5, bottom: legendHeight + 5 }}
             labels={createToolTip}
             labelComponent={
               <VictoryTooltip
@@ -829,19 +955,18 @@ function Chart(props) {
         />
         <VictoryLegend
           x={70}
-          y={chartHeight - legendBottomPadding + 40}
+          y={LEGEND_Y}
+          // victory-legend reads titleComponent.props directly; React 19 drops its defaultProps here.
           titleComponent={<VictoryLabel />}
-          symbolSpacer={6}
-          itemsPerRow={legendItemsPerRow}
+          symbolSpacer={LEGEND_SYMBOL_SPACER}
+          itemsPerRow={legendLayout.itemsPerRow}
           name="legend"
-          borderPadding={{ right: 8 }}
           orientation="horizontal"
-          cursor="pointer"
-          gutter={15}
-          rowGutter={5}
+          gutter={LEGEND_GUTTER}
+          rowGutter={LEGEND_ROW_GUTTER}
           style={{
-            labels: { fontSize: 13 },
-            data: { stroke: "#485157", strokeWidth: 0.5, size: 6.5, cursor: "pointer" },
+            labels: { fontSize: LEGEND_FONT_SIZE, cursor: "pointer" },
+            data: { stroke: chartTheme.legendSwatchStroke, strokeWidth: 0.5, size: LEGEND_SYMBOL_SIZE, cursor: "pointer" },
           }}
           data={legendItems}
           width={chartWidth}

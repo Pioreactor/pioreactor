@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import typing as t
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -302,3 +304,43 @@ def test_is_rate_limited_allows_after_expiry(monkeypatch: pytest.MonkeyPatch) ->
     assert not is_rate_limited(job_name, expire_time_seconds=1.0)
     assert not is_rate_limited(job_name, expire_time_seconds=1.0)
     assert is_rate_limited(job_name, expire_time_seconds=1.0)
+
+
+def test_load_background_job_descriptors_skips_unreadable_files(tmp_path: Path) -> None:
+    job_dir = tmp_path / "ui" / "jobs"
+    job_dir.mkdir(parents=True)
+    (job_dir / "good.yaml").write_text(
+        """\
+display_name: Job
+job_name: good_job
+display: false
+published_settings: []
+""",
+        encoding="utf-8",
+    )
+    (job_dir / "broken.yaml").symlink_to(tmp_path / "missing.yaml")
+    errors: list[str] = []
+
+    descriptors = load_background_job_descriptors(tmp_path, report_error=errors.append)
+
+    assert [descriptor.job_name for descriptor in descriptors] == ["good_job"]
+    assert any("broken.yaml" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "descriptor_dir,load",
+    [
+        ("ui/settings", load_settings_collection_descriptors),
+        ("ui/automations/dosing", partial(load_automation_descriptors, automation_type="dosing")),
+    ],
+)
+def test_descriptor_loaders_skip_unreadable_files(
+    tmp_path: Path, descriptor_dir: str, load: t.Callable[..., list]
+) -> None:
+    directory = tmp_path / descriptor_dir
+    directory.mkdir(parents=True)
+    (directory / "broken.yaml").symlink_to(tmp_path / "missing.yaml")
+    errors: list[str] = []
+
+    assert load(tmp_path, report_error=errors.append) == []
+    assert any("broken.yaml" in error for error in errors)

@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from "dayjs";
@@ -19,14 +20,16 @@ import {DisplayProfile} from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
 import CodeIcon from '@mui/icons-material/Code';
 import AddIcon from '@mui/icons-material/Add';
-import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import UploadIcon from '@mui/icons-material/Upload';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { RunningProfilesProvider, useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate, useParams } from 'react-router';
 import SelectButton from "./components/SelectButton";
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import ExperimentProfileIcon from './components/ExperimentProfileIcon';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
@@ -35,6 +38,10 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
+import { saveNewExperimentProfile } from "./utils/experimentProfiles";
+import { textIcon } from "./theme";
+import EmptyState from "./components/EmptyState";
+import LoadingState from "./components/LoadingState";
 
 dayjs.extend(utc);
 
@@ -42,6 +49,13 @@ const INITIAL_START_PROFILE_STATE = {
   error: "",
   profileFilename: "",
   dryRun: false,
+};
+
+const INITIAL_UPLOAD_STATE = {
+  pending: false,
+  error: "",
+  code: "",
+  filename: "",
 };
 
 /**
@@ -62,6 +76,8 @@ function RunExperimentProfilesContent({
   const confirm = useConfirm();
   const navigate = useNavigate();
   const { startProfile } = useRunningProfiles();
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState(null);
+  const closeMenu = () => setMenuAnchorEl(null);
 
   const [startProfileState, startProfileAction, startInFlight] = React.useActionState(async () => {
     if (!selectedExperimentProfileRecord) {
@@ -96,11 +112,12 @@ function RunExperimentProfilesContent({
       : "";
 
   const onSelectExperimentProfileChange = (e) => {
-    navigate(`/experiment-profiles/${e.target.value}`)
+    navigate(`/experiment-profiles/${encodeURIComponent(e.target.value)}`)
 
   };
 
   const deleteProfile = () => {
+    closeMenu();
     confirm({
       title: `Delete this profile?`,
       description: "This action is permanent.",
@@ -108,7 +125,8 @@ function RunExperimentProfilesContent({
       confirmationButtonProps: { color: "primary", variant: "contained" },
       cancellationButtonProps: { color: "secondary" },
     })
-      .then(() => {
+      .then(({ confirmed }) => {
+        if (!confirmed) return;
         fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
           method: "DELETE",
         }).then(res => {
@@ -124,8 +142,12 @@ function RunExperimentProfilesContent({
     setViewSource(!viewSource)
   };
 
+  const profileSourceReady =
+    selectedExperimentProfile !== "" && !selectedProfileDetail.loading && !selectedProfileDetail.error;
+
   const duplicate = () => {
-    if (!selectedExperimentProfile || selectedProfileDetail.loading || selectedProfileDetail.error) {
+    closeMenu();
+    if (!profileSourceReady) {
       return;
     }
 
@@ -136,6 +158,19 @@ function RunExperimentProfilesContent({
         initialFilename: `${baseName}_copy`,
       },
     });
+  };
+
+  const download = () => {
+    closeMenu();
+    const blob = new Blob([selectedProfileDetail.source], { type: "application/x-yaml" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", selectedExperimentProfile);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -174,7 +209,7 @@ function RunExperimentProfilesContent({
             disabled={selectedExperimentProfile === ""}
             onClick={getSourceAndView}
           >
-            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+            <CodeIcon fontSize="small" sx={textIcon}/>
             {viewSource ? "View preview" : "View source"}
           </Button>
           <Button
@@ -182,37 +217,36 @@ function RunExperimentProfilesContent({
             size="small"
             color="primary"
             aria-label="edit source code"
-            to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
+            to={`/experiment-profiles/${encodeURIComponent(selectedExperimentProfile || "")}/edit`}
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >
-            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+            <EditIcon fontSize="small" sx={textIcon}/>
             Edit
           </Button>
-          <Button
-            variant="text"
-            size="small"
-            color="primary"
-            aria-label="duplicate profile"
-            onClick={duplicate}
-            sx={{ mr: "5px" }}
-            disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
-          >
-            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
-            Duplicate
-          </Button>
-          <Button
-            variant="text"
-            size="small"
-            color="secondary"
-            aria-label="delete profile"
-            onClick={deleteProfile}
-            sx={{ mr: "5px" }}
-            disabled={selectedExperimentProfile === ''}
-          >
-            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
-            Delete
-          </Button>
+          <span>
+            <IconButton
+              color="primary"
+              size="small"
+              aria-label={`More actions for ${selectedExperimentProfileRecord?.profile.experiment_profile_name ?? "profile"}`}
+              disabled={selectedExperimentProfile === ''}
+              onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </span>
+          <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={closeMenu}>
+            <MenuItem onClick={duplicate} disabled={!profileSourceReady}>
+              Duplicate
+            </MenuItem>
+            <MenuItem onClick={download} disabled={!profileSourceReady}>
+              Download
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={deleteProfile} sx={{ color: "secondary.main" }}>
+              Delete
+            </MenuItem>
+          </Menu>
         </Box>
       </Grid>
       <Grid size={12}>
@@ -289,7 +323,7 @@ function RunProfilesContainer(props) {
 
 function RunningProfilesContainer() {
   const confirm = useConfirm();
-  const { runningProfiles, loading, stopProfile } = useRunningProfiles();
+  const { runningProfiles, loading, error, stopProfile } = useRunningProfiles();
 
   const onStop = (job_id) => {
     confirm({
@@ -299,7 +333,10 @@ function RunningProfilesContainer() {
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
     })
-      .then(() => stopProfile(job_id))
+      .then(({ confirmed }) => {
+        if (!confirmed) return;
+        return stopProfile(job_id);
+      })
       .catch(() => {});
   };
 
@@ -311,12 +348,13 @@ function RunningProfilesContainer() {
             Profiles running
           </Typography>
           {loading && (
-            <Box sx={{ textAlign: "center", mt: 2 }}>
-              <CircularProgress size={33}/>
-            </Box>
+            <LoadingState label="Loading running profiles" />
           )}
-          {!loading && runningProfiles.length === 0 && (
-            <Typography variant="body2" component="p" color="textSecondary">No profiles are currently running.</Typography>
+          {!loading && error && (
+            <Alert severity="error">Unable to load running profiles. Refresh the page to try again.</Alert>
+          )}
+          {!loading && !error && runningProfiles.length === 0 && (
+            <EmptyState>No profiles are currently running.</EmptyState>
           )}
           {!loading && runningProfiles.length > 0 && (
             <Table size="small" sx={{ mt: 0 }}>
@@ -366,6 +404,7 @@ function RunningProfilesContainer() {
 function Profiles(props) {
   const { experimentMetadata } = useExperiment();
   const { profileFilename } = useParams();
+  const navigate = useNavigate();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
   const [viewSource, setViewSource] = React.useState(false);
@@ -380,6 +419,8 @@ function Profiles(props) {
   const [recentRuns, setRecentRuns] = React.useState([]);
   const [recentLoading, setRecentLoading] = React.useState(false);
   const [recentError, setRecentError] = React.useState("");
+  const [profilesVersion, setProfilesVersion] = React.useState(0);
+  const [uploadState, setUploadState] = React.useState(INITIAL_UPLOAD_STATE);
 
   const selectedExperimentProfile = React.useMemo(() => {
     const availableFiles = Object.keys(experimentProfilesAvailable);
@@ -443,9 +484,45 @@ function Profiles(props) {
   );
 
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
+
+  const uploadProfile = async (event) => {
+    const file = event.target.files?.[0];
+    // reset so choosing the same file again still fires onChange
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    const filename = file.name.replace(/\.ya?ml$/i, "");
+    setUploadState({ ...INITIAL_UPLOAD_STATE, pending: true });
+    let code = "";
+    try {
+      code = await file.text();
+      await saveNewExperimentProfile(code, filename);
+    } catch (error) {
+      setUploadState({
+        pending: false,
+        error: error?.message || "Unable to upload experiment profile.",
+        code,
+        filename,
+      });
+      return;
+    }
+
+    setUploadState(INITIAL_UPLOAD_STATE);
+    setProfilesVersion((version) => version + 1);
+    navigate(`/experiment-profiles/${encodeURIComponent(`${filename}.yaml`)}`);
+  };
+
+  const openUploadInEditor = () => {
+    navigate('/experiment-profiles/new', {
+      state: {
+        initialCode: uploadState.code,
+        initialFilename: uploadState.filename,
+      },
+    });
+  };
 
   const fetchRecentRuns = React.useCallback(() => {
     // Wait until we know the experiment to avoid hitting `/undefined/...`
@@ -502,7 +579,7 @@ function Profiles(props) {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [profilesVersion]);
 
   React.useEffect(() => {
     fetchRecentRuns();
@@ -569,7 +646,7 @@ function Profiles(props) {
   }, [selectedExperimentProfile]);
 
   return (
-    <RunningProfilesProvider experiment={experimentMetadata.experiment} leaderHostname={props.leaderHostname}>
+    <RunningProfilesProvider experiment={experimentMetadata.experiment}>
       <Grid container spacing={2}>
         <Grid
           size={{
@@ -587,8 +664,23 @@ function Profiles(props) {
                   sx={{  mr: "0px" }}
                   color="primary"
                 >
-                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+                  <AddIcon fontSize="small" sx={textIcon}/>
                   Create new profile
+                </Button>
+                <Button
+                  component="label"
+                  color="primary"
+                  loading={uploadState.pending}
+                >
+                  <UploadIcon fontSize="small" sx={textIcon}/>
+                  Upload profile
+                  <input
+                    hidden
+                    type="file"
+                    accept=".yaml,.yml"
+                    onChange={uploadProfile}
+                    disabled={uploadState.pending}
+                  />
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />
                 <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
@@ -596,6 +688,21 @@ function Profiles(props) {
             )}
           />
         </Grid>
+
+        {uploadState.error && (
+          <Grid size={12}>
+            <Alert
+              severity="error"
+              action={(
+                <Button color="inherit" size="small" onClick={openUploadInEditor}>
+                  Open in editor
+                </Button>
+              )}
+            >
+              {uploadState.error}
+            </Alert>
+          </Grid>
+        )}
 
         {/* Left side: For selecting a profile or running a new profile */}
         <Grid

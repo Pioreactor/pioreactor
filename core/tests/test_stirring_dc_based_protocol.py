@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from datetime import timezone
-from threading import Event
+from unittest.mock import MagicMock
 
 import pytest
 from pioreactor.calibrations.protocols import stirring_dc_based
@@ -116,55 +116,67 @@ def test_on_session_abort_aggregates_stirring_cleanup_errors(
         stirring_dc_based.DCBasedStirringProtocol.on_session_abort(_dummy_session())
 
 
-def test_collect_stirring_measurements_interrupts_on_exit_event(
+@pytest.fixture
+def stirring_measurement_hardware(
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class DummyLifecycle:
-        def __init__(self) -> None:
-            self.exit_event = Event()
-            self.exit_event.set()
-            self.mqtt_client = type("MQTT", (), {"publish": lambda *args, **kwargs: None})()
+) -> tuple[MagicMock, MagicMock, MagicMock]:
+    lifecycle = MagicMock()
+    lifecycle.__enter__.return_value = lifecycle
+    lifecycle.exit_event.wait.return_value = False
+    rpm_calculator = MagicMock()
+    rpm_calculator.__enter__.return_value = rpm_calculator
+    stirrer = MagicMock()
+    stirrer.__enter__.return_value = stirrer
 
-        def __enter__(self) -> "DummyLifecycle":
-            return self
-
-        def __exit__(self, _exc_type, exc, _tb) -> None:
-            return
-
-    class DummyRpmCalculator:
-        def setup(self) -> None:
-            return
-
-        def estimate(self, seconds_to_observe: float) -> float:
-            return 0.0
-
-        def __enter__(self) -> "DummyRpmCalculator":
-            return self
-
-        def __exit__(self, _exc_type, exc, _tb) -> None:
-            return
-
-    class DummyStirrer:
-        def __init__(self, *args, **kwargs) -> None:
-            self.duty_cycle = 0.0
-
-        def start_stirring(self) -> None:
-            return
-
-        def set_duty_cycle(self, dc: float) -> None:
-            self.duty_cycle = dc
-
-        def __enter__(self) -> "DummyStirrer":
-            return self
-
-        def __exit__(self, _exc_type, exc, _tb) -> None:
-            return
-
-    monkeypatch.setattr(stirring_dc_based, "managed_lifecycle", lambda *args, **kwargs: DummyLifecycle())
+    monkeypatch.setattr(stirring_dc_based, "managed_lifecycle", lambda *args, **kwargs: lifecycle)
     monkeypatch.setattr(stirring_dc_based, "is_pio_job_running", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(stirring_dc_based.stirring, "RpmFromFrequency", DummyRpmCalculator)
-    monkeypatch.setattr(stirring_dc_based.stirring, "Stirrer", DummyStirrer)
-    monkeypatch.setattr(stirring_dc_based, "linspace", lambda start, end, n: [start])
+    monkeypatch.setattr(stirring_dc_based, "is_testing_env", lambda: False)
+    monkeypatch.setattr(stirring_dc_based.stirring, "RpmFromFrequency", lambda: rpm_calculator)
+    monkeypatch.setattr(stirring_dc_based.stirring, "Stirrer", lambda *args, **kwargs: stirrer)
+    return lifecycle, rpm_calculator, stirrer
+
+
+def test_collect_stirring_measurements_interrupts_on_exit_event(
+    stirring_measurement_hardware: tuple[MagicMock, MagicMock, MagicMock],
+) -> None:
+    lifecycle, rpm_calculator, stirrer = stirring_measurement_hardware
+    lifecycle.exit_event.wait.return_value = True
 
     with pytest.raises(InterruptedError, match="Stirring calibration aborted"):
         stirring_dc_based.collect_stirring_measurements(min_dc=10.0, max_dc=20.0)
+
+    rpm_calculator.estimate.assert_not_called()
+    rpm_calculator.__exit__.assert_called_once()
+    stirrer.__exit__.assert_called_once()
+    lifecycle.__exit__.assert_called_once()
+
+
+def test_collect_stirring_measurements_reports_no_positive_rpm(
+    stirring_measurement_hardware: tuple[MagicMock, MagicMock, MagicMock],
+) -> None:
+    lifecycle, rpm_calculator, stirrer = stirring_measurement_hardware
+    rpm_calculator.estimate.return_value = 0.0
+
+    with pytest.raises(ValueError) as exc_info:
+        stirring_dc_based.collect_stirring_measurements(min_dc=10.0, max_dc=20.0)
+
+    assert str(exc_info.value) == (
+        "No positive RPM readings were detected between 10% and 20% duty cycle. "
+        "Check that the stirring motor turns and the heating PCB is connected."
+    )
+    assert rpm_calculator.estimate.call_count == 15
+    rpm_calculator.__exit__.assert_called_once()
+    stirrer.__exit__.assert_called_once()
+    lifecycle.__exit__.assert_called_once()
+
+
+def test_collect_stirring_measurements_keeps_positive_rpm_pairs(
+    stirring_measurement_hardware: tuple[MagicMock, MagicMock, MagicMock],
+) -> None:
+    _, rpm_calculator, _ = stirring_measurement_hardware
+    rpm_calculator.estimate.side_effect = [0.0, 100.0, 200.0, 0.0, 300.0] * 3
+
+    dcs, rpms = stirring_dc_based.collect_stirring_measurements(min_dc=10.0, max_dc=20.0)
+
+    assert dcs == [17.5, 15.0, 10.0, 12.5, 15.0, 20.0, 17.5, 15.0, 10.0]
+    assert rpms == [100.0, 200.0, 300.0] * 3

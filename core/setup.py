@@ -7,7 +7,7 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 CORE_REQUIREMENTS = [
     "click==8.5.0",
-    "paho-mqtt==2.1.0",
+    "paho-mqtt==2.2.0",
     "colorlog==6.10.1",
     "msgspec==0.22.0",
     "crudini==0.9.6",
@@ -15,13 +15,14 @@ CORE_REQUIREMENTS = [
     "blinker==1.9.0",
     "Flask==3.1.3",
     "flup6==1.1.1",
-    "huey==3.4.0",
+    "huey==3.5.3",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
-    "MarkupSafe==3.0.3",
-    "python-dotenv==1.2.3",
-    "Werkzeug==3.1.8",
+    "MarkupSafe==3.0.4",
+    "python-dotenv==1.2.4",
+    "Werkzeug==3.1.9",
     "packaging==26.3",
+    "mcp-utils-msgspec==3.0.1",
     # preinstalled on base images
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"
@@ -31,14 +32,11 @@ CORE_REQUIREMENTS = [
 ]
 
 
-LEADER_REQUIREMENTS: list[str] = [
-    "mcp-utils-msgspec==3.0.1",
-]
-
-
-WORKER_REQUIREMENTS = [
+# Every unit can be a leader, so leader dependencies live in CORE_REQUIREMENTS. This
+# extra is for machines with Pioreactor hardware attached, regardless of role.
+HARDWARE_REQUIREMENTS = [
     "numpy==2.3.2",
-    "grpredict==26.4.7",
+    "grpredict==26.11.2",
     "Adafruit-Blinka==9.1.0",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "adafruit-circuitpython-busdevice==5.2.9",
@@ -87,14 +85,16 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     entry_points="""
         [console_scripts]
-        pio=pioreactor.cli.pio:pio
+        pio=pioreactor.cli:main
         pios=pioreactor.cli.pios:pios
         pioreactor-fcgi=pioreactor.web.fcgi:main
     """,
     python_requires=">=3.13",
     extras_require={
-        "worker": WORKER_REQUIREMENTS,
-        "leader_worker": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,
-        "leader": LEADER_REQUIREMENTS,
+        "hardware": HARDWARE_REQUIREMENTS,
+        # role-named aliases, kept for existing images, installers, and updates to or from older releases
+        "worker": HARDWARE_REQUIREMENTS,
+        "leader_worker": HARDWARE_REQUIREMENTS,
+        "leader": [],
     },
 )

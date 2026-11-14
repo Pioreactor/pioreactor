@@ -13,6 +13,7 @@ const experiments = [
   {
     experiment: "latest-exp",
     created_at: "2026-03-03T12:00:00Z",
+    started_at: "2026-03-03T12:00:00Z",
     description: "Latest description",
     delta_hours: 1,
     worker_count: 0,
@@ -21,6 +22,7 @@ const experiments = [
   {
     experiment: "second-exp",
     created_at: "2026-03-02T12:00:00Z",
+    started_at: "2026-03-02T12:00:00Z",
     description: "Second description",
     delta_hours: 2,
     worker_count: 0,
@@ -29,6 +31,7 @@ const experiments = [
   {
     experiment: "third-exp",
     created_at: "2026-03-01T12:00:00Z",
+    started_at: "2026-03-01T12:00:00Z",
     description: null,
     delta_hours: 3,
     worker_count: 0,

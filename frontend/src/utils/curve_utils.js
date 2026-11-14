@@ -1,3 +1,11 @@
+export function includedCalibrationPoints(calibration) {
+  return (calibration?.recorded_data?.x || []).flatMap((x, index) => (
+    calibration.included == null || calibration.included[index]
+      ? [{ x, y: calibration.recorded_data.y[index] }]
+      : []
+  ));
+}
+
 export function evaluatePolynomial(x, coeffs) {
   if (!coeffs || Array.isArray(coeffs) || !Array.isArray(coeffs.coefficients)) {
     return null;
@@ -69,7 +77,7 @@ export function evaluateCurve(x, curveData) {
 }
 
 export function generateCurveData(calibration, stepCount = 50) {
-  const xValues = calibration?.recorded_data?.x;
+  const xValues = includedCalibrationPoints(calibration).map(({ x }) => x);
   const curveData = calibration?.curve_data_;
 
   if (!Array.isArray(xValues) || xValues.length === 0) {

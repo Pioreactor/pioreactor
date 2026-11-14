@@ -14,6 +14,28 @@ compatibility. New Pioreactor clients should use the canonical method above.
 Compatibility aliases should remain covered by route-contract tests until an
 explicit deprecation and removal plan is published.
 
+## Experiment timestamps
+
+Experiment metadata includes two required timestamps. `created_at` records when
+the record was created and remains unchanged. `started_at` is editable scientific
+time zero; new experiments initialize both to the same server timestamp.
+
+`PATCH /api/experiments/<experiment>` accepts `started_at` as an RFC 3339 timestamp
+with a timezone. The server stores it in canonical UTC with millisecond precision
+and returns refreshed metadata, including `delta_hours` measured from this start.
+It can be moved forward or backward without deleting readings. Experiment list
+ordering continues to use `created_at`; the latest experiment remains the most
+recently inserted record.
+
+Historical time-series cutoffs and media-rate summaries use `started_at`.
+Recent-log visibility continues to use `created_at`, and camera visibility is
+unchanged. Their elapsed-time labels use scientific time zero. Exports use
+`hours_since_experiment_started` in place of `hours_since_experiment_created`; changing
+the start does not implicitly filter exported rows. Running job state is unchanged.
+
+The upcoming release migrates existing experiments, backfilling `started_at` from
+`created_at`. Wheel-only installs need the database migration before using this API.
+
 ## Intended worker identity
 
 Leader-to-unit HTTP mutations send `X-Pioreactor-Target: <unit hostname>`.
@@ -24,8 +46,7 @@ individual hostname, never `$broadcast`.
 
 The header is optional for direct API clients: requests without it retain their
 existing behavior. Read requests are unchanged. This guards accidental address
-reuse, not authentication, and assumes workers run a version supporting the
-check; older workers may ignore the header.
+reuse, not authentication.
 
 Covered callers include Huey fanout, direct leader API proxies (including
 unit-specific config, calibration sessions, camera files, and archive imports),
@@ -33,14 +54,34 @@ USB plugin installation HTTP commands, `pios` HTTP commands, cluster job stops,
 and experiment-profile starts/stops. An HTTP 409 from `pios update app` must not
 trigger its SSH fallback.
 
-The frontend also supplies the configured leader hostname for direct, leader-local
-`/unit_api` mutations: USB mount/eject, profile start/stop, long-running job and
-web-server restarts, and system archive import. It does not send these mutations
-until the target hostname is available; read requests remain unchanged.
+The frontend does not send the header. Its `/unit_api` requests are same-origin,
+so they always reach the unit that served the page.
 
 SSH and rsync operations are outside this HTTP contract, including shared-config
 sync, `pios cp`, and staging USB plugin files before installation. They need a
 separate destination guard. Inventory cleanup uses
-`POST /unit_api/system/cleanup_after_inventory_removal` with the same optional header;
-it only stops worker jobs and removes shared config. The leader's
+`POST /unit_api/cluster/leave` with the same optional header;
+the worker undoes its join (stops jobs, removes shared config and its chrony source) and reboots. The leader's
 `DELETE /api/workers/<unit>` owns deletion of the inventory database record.
+
+## Fanout failures and safe retries
+
+`retryable` means it is safe to repeat the original request. A missing response,
+HTTP 5xx, or unreadable response to a mutation does not establish that the
+mutation failed before execution. These ambiguous failures return
+`retryable: false`, `outcome: "unknown"`, and `recovery_action: "check_state"`.
+Inspect unit state before deciding what to do next; do not automatically resubmit
+the mutation. Generic fanout task exceptions and missing results are also
+conservative because they do not establish whether execution occurred.
+
+If a worker already accepted a task, interrupted polling returns
+`retryable: false`, `outcome: "unknown"`, and `recovery_action: "poll_task"`.
+The `operation` object retains `unit`, `task_id` (when supplied), and
+`result_url_path`. That path is relative to the **worker**, not the leader:
+GET it on `operation.unit`. For registered workers, clients can alternatively
+GET `/api/workers/<unit>/task_results/<task_id>` on the leader.
+Repeat these read requests to observe the existing operation; do not repeat the
+original mutation. A polling failure does not cancel the worker task.
+
+Transient failures of initial GET requests remain retryable. No idempotency-key
+or command-deduplication guarantee is provided by this contract.

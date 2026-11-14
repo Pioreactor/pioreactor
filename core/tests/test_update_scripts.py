@@ -180,7 +180,7 @@ def test_raw_od_angle_migration(tmp_path: Path) -> None:
         ),
         "bash": (
             '#!/bin/bash\ncase "$1" in '
-            "*/10_install_od_defaults.sh|*/20_install_bootfs_plugins.sh|*/30_install_bootfs_files.sh) "
+            "*/10_install_od_defaults.sh|*/10_huey_faster_idle_pickup.sh) "
             'exit 0;; esac\nexec /bin/bash "$@"\n'
         ),
     }
@@ -189,18 +189,10 @@ def test_raw_od_angle_migration(tmp_path: Path) -> None:
         command.write_text(contents)
         command.chmod(0o755)
     env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "TEST_DATABASE": str(database)}
-    # Keep the merged PWM descriptor installation inside the test's temporary directory.
     update_script = tmp_path / "update.sh"
-    update_script.write_text(
-        (SCRIPT_DIRECTORY / "update.sh")
-        .read_text()
-        .replace("/home/pioreactor/.pioreactor/ui/settings", str(tmp_path / "settings"))
-    )
-    asset = "ui_settings_13_pwms.yaml"
-    (tmp_path / asset).write_bytes((SCRIPT_DIRECTORY / asset).read_bytes())
+    update_script.write_text((SCRIPT_DIRECTORY / "update.sh").read_text())
     for _ in range(2):
         subprocess.run(["bash", str(update_script)], env=env, check=True, capture_output=True)
-        assert (tmp_path / "settings/13_pwms.yaml").read_bytes() == (SCRIPT_DIRECTORY / asset).read_bytes()
         with sqlite3.connect(database) as connection:
             assert connection.execute("SELECT od_reading, angle FROM raw_od_readings").fetchall() == [
                 (0.25, None)

@@ -7,6 +7,7 @@ import math
 import typing as t
 from datetime import datetime
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from msgspec import field
 from msgspec import Meta
@@ -19,6 +20,7 @@ from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
 from pioreactor.utils.files import is_valid_unix_filename
+from pioreactor.utils.timing import current_utc_datetime
 
 
 T = t.TypeVar("T")
@@ -109,6 +111,7 @@ class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):
 
     message: str | None = None
     data: dict | None = None
+    timestamp: t.Annotated[datetime, Meta(tz=True)] = field(default_factory=current_utc_datetime)
 
     def display(self) -> str:
         if self.message:
@@ -237,6 +240,16 @@ class Voltage(JSONPrintedStruct):
     voltage: pt.Voltage
 
 
+class BioreactorValue(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    value: float
+
+
+class PWMDutyCycles(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    channels: dict[pt.PwmChannel, float]
+
+
 class BioreactorVariableDefinition(Struct, frozen=True):
     key: str
     minimum: float
@@ -258,10 +271,27 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     x: str
     y: str
     recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
+    included: list[bool] | None = None
 
     def __post_init__(self) -> None:
         if len(self.recorded_data["x"]) != len(self.recorded_data["y"]):
             raise ValueError("Lists in `recorded_data` should have the same lengths")
+        if self.included is not None:
+            if len(self.included) != len(self.recorded_data["x"]) or any(
+                type(value) is not bool for value in self.included
+            ):
+                raise ValueError("Inclusion mask must contain one boolean per recorded measurement.")
+            if not any(self.included):
+                raise ValueError("Include at least one recorded measurement.")
+
+    def included_recorded_data(self) -> dict[t.Literal["x", "y"], list[float]]:
+        """Return the observations used by the curve, retaining all original rows on the artifact."""
+        if self.included is None:
+            return self.recorded_data
+        return {
+            axis: [value for value, included in zip(values, self.included) if included]
+            for axis, values in self.recorded_data.items()
+        }
 
     @property
     def calibration_type(self) -> str:
@@ -283,11 +313,20 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         device_dir = out_file.parent
         device_dir.mkdir(parents=True, exist_ok=True)
 
-        # Serialize to YAML
-        with out_file.open("wb") as f:
-            f.write(yaml_encode(self))
+        self.__post_init__()
+        # Replace the complete artifact so a failed write never truncates a valid calibration.
+        payload = yaml_encode(self)
+        with NamedTemporaryFile(dir=device_dir, prefix=".calibration-", delete=False) as f:
+            temporary_path = Path(f.name)
+            try:
+                f.write(payload)
+                f.flush()
+                temporary_path.chmod(out_file.stat().st_mode & 0o777 if out_file.exists() else 0o644)
+                temporary_path.replace(out_file)
+            finally:
+                temporary_path.unlink(missing_ok=True)
 
-        logger.info(f"Saved calibration {self.calibration_name} to {out_file}")
+        logger.info(f"Saved {device} calibration `{self.calibration_name}` to {out_file}")
         return str(out_file)
 
     def set_as_active_calibration_for_device(self, device: str) -> None:
@@ -303,7 +342,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         with local_persistent_storage("active_calibrations") as c:
             c[device] = calibration_name
 
-        logger.info(f"Set {self.calibration_name} as active calibration for {device}")
+        logger.info(f"Set {device} calibration `{self.calibration_name}` as active")
 
     def remove_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
@@ -315,7 +354,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         with local_persistent_storage("active_calibrations") as c:
             if c.get(device) == calibration_name:
                 del c[device]
-                logger.info(f"Removed {self.calibration_name} as active calibration for {device}")
+                logger.info(f"Removed {device} calibration `{self.calibration_name}` as active")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.calibrations import CALIBRATION_PATH
@@ -386,46 +425,35 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         else:
             raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
-        if len(self.recorded_data["x"]) == 0:
+        recorded_x = self.included_recorded_data()["x"]
+        if len(recorded_x) == 0:
             from math import inf
 
             min_X, max_X = -inf, inf
         else:
-            min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
+            min_X, max_X = min(recorded_x), max(recorded_x)
 
         if len(plausible_sols_) == 0:
             raise exc.NoSolutionsFoundError("No solutions found")
         elif len(plausible_sols_) == 1:
             sol = plausible_sols_[0]
+        else:
+            # closest solution can be inside or outside domain.
+            sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
 
-            if not enforce_bounds:
-                return round(sol, 10)
+        if not enforce_bounds:
+            return round(sol, 10)
 
-            # if we are here, we let the downstream code decide how to proceed
-
-            domain_tolerance = 1e-12  # numpy.roots can return a solution like -1e-16 for a true zero root due to floating‑point noise.
-            if min_X <= sol <= max_X:
-                return round(sol, 10)
-            elif sol < min_X and abs(sol - min_X) <= domain_tolerance:
-                return round(min_X, 10)
-            elif sol > max_X and abs(sol - max_X) <= domain_tolerance:
-                return round(max_X, 10)
-            elif sol < min_X:
-                raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
-            else:
-                raise exc.SolutionAboveDomainError(f"Solution above domain [{min_X}, {max_X}]")
-
-        # what do we do with multiple solutions?
-        closest_sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
-        # closet sol can be inside or outside domain. If inside, happy path:
-        if (min_X <= closest_sol <= max_X) or not enforce_bounds:
-            return round(closest_sol, 10)
+        # numpy.roots can return a solution like -1e-16 for a true zero root due to floating‑point noise.
+        domain_tolerance = 1e-12
+        if min_X - domain_tolerance <= sol <= max_X + domain_tolerance:
+            return round(min(max(sol, min_X), max_X), 10)
 
         # if we are here, we let the downstream code decide how to proceed
-        elif closest_sol < min_X:
-            raise exc.SolutionBelowDomainError("Solution below domain")
+        elif sol < min_X:
+            raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
         else:
-            raise exc.SolutionAboveDomainError("Solution below domain")
+            raise exc.SolutionAboveDomainError(f"Solution above domain [{min_X}, {max_X}]")
 
     def is_active(self, device: str) -> bool:
         from pioreactor.utils import local_persistent_storage
@@ -463,7 +491,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         with out_file.open("wb") as f:
             f.write(yaml_encode(self))
 
-        logger.info(f"Saved estimator {self.estimator_name} to {out_file}")
+        logger.info(f"Saved estimator `{self.estimator_name}` to {out_file}")
         return str(out_file)
 
     def set_as_active_calibration_for_device(self, device: str) -> None:
@@ -479,7 +507,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         with local_persistent_storage("active_estimators") as c:
             c[device] = estimator_name
 
-        logger.info(f"Set {self.estimator_name} as active estimator for {device}")
+        logger.info(f"Set estimator `{self.estimator_name}` as active for {device}")
 
     def remove_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
@@ -491,7 +519,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         with local_persistent_storage("active_estimators") as c:
             if c.get(device) == estimator_name:
                 del c[device]
-                logger.info(f"Removed {self.estimator_name} as active estimator for {device}")
+                logger.info(f"Removed estimator `{self.estimator_name}` as active for {device}")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.estimators import ESTIMATOR_PATH
@@ -726,7 +754,8 @@ class ExportDatasetsRequest(Struct, forbid_unknown_fields=True):
     datasets: list[str]
     experiment: str
     partition_by_unit: bool
-    partition_by_experiment: bool
+    # Ignored. Exports cover one experiment, so files are always named by it. Accepted so older UIs keep working.
+    partition_by_experiment: bool = True
     start_time: t.Annotated[datetime, Meta(tz=True)] | None = None
     end_time: t.Annotated[datetime, Meta(tz=True)] | None = None
 
@@ -747,6 +776,7 @@ class CreateExperimentRequest(Struct, forbid_unknown_fields=True):
 
 
 class UpdateExperimentRequest(Struct, forbid_unknown_fields=True):
+    started_at: t.Annotated[datetime, Meta(tz=True)] | UnsetType = UNSET
     description: str | None | UnsetType = UNSET
     tags: list[str] | UnsetType = UNSET
 
@@ -754,6 +784,8 @@ class UpdateExperimentRequest(Struct, forbid_unknown_fields=True):
 class UpdateExperimentChartPreferencesRequest(Struct, forbid_unknown_fields=True):
     overview_chart_keys: list[str] | None | UnsetType = UNSET
     pioreactor_chart_keys: list[str] | None | UnsetType = UNSET
+    # Replaces every chosen Overview line color for the experiment; units left out use automatic colors.
+    overview_unit_colors: dict[str, str] | UnsetType = UNSET
 
 
 class UpsertUnitLabelRequest(Struct, forbid_unknown_fields=True):
@@ -818,6 +850,12 @@ class InstallPluginFromLeaderCopyRequest(Struct, forbid_unknown_fields=True):
     filename: str
 
 
+class UpdateCalibrationMeasurementsRequest(Struct, forbid_unknown_fields=True):
+    included: list[bool]
+    y_values: list[float] | None = None
+    x_values: list[float] | None = None
+
+
 class CreateCalibrationRequest(Struct, forbid_unknown_fields=True):
     calibration_data: str
     set_as_active: bool = False
@@ -830,6 +868,7 @@ class StartCalibrationSessionRequest(Struct, forbid_unknown_fields=True):
 
 class AdvanceCalibrationSessionRequest(Struct, forbid_unknown_fields=True):
     inputs: dict[str, t.Any] = {}
+    expected_step_id: str | None = None
 
 
 class UpdateJobSettingsRequest(Struct, forbid_unknown_fields=True):
@@ -874,6 +913,11 @@ class ChangeWorkerStatusRequest(Struct, forbid_unknown_fields=True):
 class ChangeWorkerModelRequest(Struct, forbid_unknown_fields=True):
     model_name: str
     model_version: str
+
+
+class LeaveClusterRequest(Struct, forbid_unknown_fields=True):
+    # The leader removing a unit stops its activities; a unit leaving on its own asks for them to be stopped first.
+    stop_activities: bool = False
 
 
 class AddWorkerToExperimentRequest(Struct, forbid_unknown_fields=True):

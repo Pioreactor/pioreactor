@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from 'dayjs';
@@ -19,6 +20,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useExperiment } from './providers/ExperimentContext';
 import SelectButton from './components/SelectButton';
+import { textIcon } from "./theme";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -211,7 +213,7 @@ function ExperimentSummaryForm(props) {
               label="Experiment name"
               value={expName}
               required
-              sx={{mt: 0, mb: 0, width: { xs: "100%", md: "50%" }}}
+              sx={{mt: 0, mb: 0, width: { xs: "100%", lg: "50%" }}}
               onChange={onExpNameChange}
               helperText={helperText}
               />
@@ -293,7 +295,7 @@ function ExperimentSummaryForm(props) {
                     value={populateExperimentName}
                     textPrefix={(
                       <React.Fragment>
-                        <ContentCopyIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} />
+                        <ContentCopyIcon fontSize="small" sx={textIcon} />
                         {"Populate from "}
                       </React.Fragment>
                     )}
@@ -360,9 +362,7 @@ function StartNewExperimentContainer() {
 function StartNewExperiment(props) {
 
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title])
+  useDocumentTitle(props.title);
   return (
     <Grid container spacing={2} >
       <Grid

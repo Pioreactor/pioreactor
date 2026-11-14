@@ -13,8 +13,8 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp when the relative IR LED intensity diagnostic was logged.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   relative_intensity: Relative IR LED intensity used for OD normalization.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   relative_intensity: ratio

@@ -31,6 +31,16 @@ def test_validate_field_bounds_uses_custom_max_error() -> None:
         session_flow._validate_field_bounds(fields, {"count": 5})
 
 
+@pytest.mark.parametrize("value", [2.5, -2.5, float("nan"), float("inf")])
+def test_integer_inputs_reject_values_that_are_not_whole_numbers(value: float) -> None:
+    with pytest.raises(ValueError, match="expected integer"):
+        session_flow.SessionInputs({"count": value}).int("count")
+
+
+def test_integer_inputs_accept_whole_valued_json_numbers() -> None:
+    assert session_flow.SessionInputs({"count": 2.0}).int("count") == 2
+
+
 def test_prompt_for_calibration_choice_field_preserves_prompt_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -151,3 +161,41 @@ def test_prompt_for_calibration_bool_field_uses_confirm(monkeypatch: pytest.Monk
             "prompt_suffix": ":",
         }
     ]
+
+
+def test_cli_wait_step_checks_automatically_without_prompting(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.calibrations.structured_session import CalibrationSession
+
+    class WaitStep(session_flow.SessionStep):
+        step_id = "waiting"
+
+        def render(self, ctx: session_flow.SessionContext) -> session_flow.CalibrationStep:
+            return session_flow.steps.wait("Waiting", "Checking readiness", poll_interval_s=2)
+
+        def advance(self, ctx: session_flow.SessionContext) -> None:
+            ctx.data["checks"] = ctx.data.get("checks", 0) + 1
+            if ctx.data["checks"] == 3:
+                ctx.complete({"title": "Ready"})
+
+    session = CalibrationSession(
+        session_id="wait-test",
+        protocol_name="test",
+        target_device="test",
+        status="in_progress",
+        step_id="waiting",
+        data={},
+        created_at="",
+        updated_at="",
+    )
+    sleeps: list[float] = []
+    monkeypatch.setattr(session_flow.time, "sleep", sleeps.append)
+    monkeypatch.setattr(click, "prompt", lambda *args, **kwargs: pytest.fail("Unexpected prompt"))
+    session_flow.run_session_in_cli({"waiting": WaitStep}, session)
+    assert session.status == "complete"
+    assert sleeps == [2, 2, 2]
+
+
+@pytest.mark.parametrize("interval", [0, -1, float("nan"), float("inf")])
+def test_wait_interval_must_be_positive_and_finite(interval: float) -> None:
+    with pytest.raises(ValueError, match="positive and finite"):
+        session_flow.steps.wait("Waiting", "", interval)

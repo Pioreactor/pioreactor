@@ -2,6 +2,7 @@
 # test_cli.py
 import json
 import re
+import sqlite3
 import stat
 import subprocess
 import time
@@ -41,6 +42,7 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.networking import DiscoveredWorker
 from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.sqlite_cache import cache as sqlite_cache
 from tests.conftest import capture_requests
 from tests.utils import wait_for
 
@@ -118,8 +120,13 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
             result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
 
     assert result.exit_code == 0
+    # connect to the cluster's broker, not localhost: workers don't run one.
     assert captured_args == [
         "mosquitto_sub",
+        "-h",
+        config_module.mqtt_address,
+        "-p",
+        "1883",
         "-v",
         "-t",
         "pioreactor/unit/exp/dosing_events",
@@ -425,6 +432,8 @@ broker_address=local-broker
     )
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
     get_config.cache_clear()
     try:
         runner = CliRunner()
@@ -503,11 +512,70 @@ def test_pio_status_handles_unassigned_experiment(monkeypatch) -> None:
     result = runner.invoke(pio, ["status"])
 
     assert result.exit_code == 0
-    identity_line = next(line for line in result.output.splitlines() if line.startswith("identity"))
-    assert "OK" in identity_line
-    assert "experiment=" in identity_line
-    assert whoami.NO_EXPERIMENT not in identity_line
+    experiment_line = next(
+        line for line in result.output.splitlines() if line.startswith("identity:experiment")
+    )
+    assert experiment_line.split() == ["identity:experiment", "OK"]
     assert "worker is not assigned to an experiment" not in result.output
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_pio_status_field_returns_value(json_output: bool) -> None:
+    args = ["status", "identity:unit"] + (["--json"] if json_output else [])
+    result = CliRunner().invoke(pio, args)
+
+    assert result.exit_code == 0
+    if json_output:
+        assert json.loads(result.output) == {
+            "status": "OK",
+            "checks": [{"name": "identity:unit", "status": "OK", "details": whoami.get_unit_name()}],
+        }
+    else:
+        assert result.output == f"{whoami.get_unit_name()}\n"
+
+
+def test_pio_status_rejects_unknown_field() -> None:
+    result = CliRunner().invoke(pio, ["status", "unknown"])
+
+    assert result.exit_code == 2
+    assert "Unknown status field: unknown" in result.output
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize(
+    ("field", "target", "expected_status"),
+    [
+        ("identity:experiment", "pioreactor.whoami.get_assigned_experiment_name", "WARN"),
+        ("cluster:workers", "pioreactor.cli.status_checks.get_workers_in_inventory", "WARN"),
+        ("jobs:running", "pioreactor.utils.job_manager.JobManager.count_running_jobs", "FAIL"),
+    ],
+)
+def test_pio_status_field_lookup_failure_exits_nonzero(
+    monkeypatch: pytest.MonkeyPatch,
+    json_output: bool,
+    field: str,
+    target: str,
+    expected_status: str,
+) -> None:
+    def raise_lookup_error(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("lookup unavailable")
+
+    monkeypatch.setattr("pioreactor.whoami.am_I_leader", lambda: True)
+    monkeypatch.setattr(target, raise_lookup_error)
+
+    args = ["status", field] + (["--json"] if json_output else [])
+    result = CliRunner().invoke(pio, args)
+
+    assert result.exit_code == 1
+    if json_output:
+        payload = json.loads(result.output)
+        assert payload["status"] == expected_status
+        assert len(payload["checks"]) == 1
+        assert payload["checks"][0]["name"] == field
+        assert payload["checks"][0]["status"] == expected_status
+        assert "lookup unavailable" in payload["checks"][0]["details"]
+    else:
+        assert "lookup unavailable" in result.output
 
 
 def test_pio_status_json_outputs_machine_readable_checks() -> None:
@@ -521,10 +589,16 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
 
     checks = payload["checks"]
     assert isinstance(checks, list)
-    identity_check = next(check for check in checks if check["name"] == "identity")
-    assert set(identity_check) == {"name", "status", "details"}
-    assert identity_check["status"] in {"OK", "WARN", "FAIL"}
-    assert "unit=" in identity_check["details"]
+    identity_checks = [check for check in checks if check["name"].startswith("identity:")]
+    assert [check["name"] for check in identity_checks] == [
+        "identity:unit",
+        "identity:role",
+        "identity:experiment",
+    ]
+    for check in identity_checks:
+        assert set(check) == {"name", "status", "details"}
+        assert check["status"] == "OK"
+    assert identity_checks[0]["details"] == whoami.get_unit_name()
 
     model_check = next(check for check in checks if check["name"] == "model")
     assert model_check["status"] == "OK"
@@ -538,7 +612,7 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
     }
 
 
-def test_pio_status_counts_long_running_jobs() -> None:
+def test_pio_status_excludes_long_running_jobs() -> None:
     with JobManager() as job_manager:
         job_manager.register_and_set_running(
             unit=whoami.get_unit_name(),
@@ -567,7 +641,7 @@ def test_pio_status_counts_long_running_jobs() -> None:
     assert running_jobs_check == {
         "name": "jobs:running",
         "status": "OK",
-        "details": "count=2",
+        "details": "count=1",
     }
 
 
@@ -641,6 +715,25 @@ def test_pio_status_warns_on_model_hardware_mismatch(monkeypatch: pytest.MonkeyP
         "status": "WARN",
         "details": "missing I2C devices at 0x48",
     }
+
+
+@pytest.mark.parametrize("is_leader", [True, False])
+@pytest.mark.parametrize("include_self", [True, False])
+def test_pio_status_counts_non_self_workers(
+    monkeypatch: pytest.MonkeyPatch, is_leader: bool, include_self: bool
+) -> None:
+    workers = ("worker1", "worker2") + ((whoami.get_unit_name(),) if include_self else ())
+    monkeypatch.setattr("pioreactor.whoami.am_I_leader", lambda: is_leader)
+    monkeypatch.setattr("pioreactor.cli.status_checks.get_workers_in_inventory", lambda: workers)
+
+    result = CliRunner().invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    checks = json.loads(result.output)["checks"]
+    worker_checks = [check for check in checks if check["name"] == "cluster:workers"]
+    assert worker_checks == (
+        [{"name": "cluster:workers", "status": "OK", "details": "2"}] if is_leader else []
+    )
 
 
 def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:
@@ -952,6 +1045,46 @@ def test_pio_repair_does_not_check_mqtt_to_db_streaming_on_workers(
     ] in commands
 
 
+def test_pio_cache_list_combines_sorts_and_deduplicates_names(tmp_path: Path) -> None:
+    temporary_path = tmp_path / "temporary.sqlite"
+    persistent_path = tmp_path / "persistent.sqlite"
+    config = get_config()
+
+    with temporary_config_change(config, "storage", "temporary_cache", str(temporary_path)):
+        with temporary_config_change(config, "storage", "persistent_cache", str(persistent_path)):
+            with sqlite_cache("shared", str(temporary_path)) as c:
+                c[12] = 0.5
+            with sqlite_cache("shared", str(persistent_path)) as c:
+                c[("experiment", "setting")] = "value"
+            with sqlite_cache("other", str(persistent_path)) as c:
+                c["key"] = "value"
+            with sqlite_cache("temporary_only", str(temporary_path)):
+                pass
+
+            result = CliRunner().invoke(pio, ["cache", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines() == ["other", "shared", "temporary_only"]
+
+
+def test_pio_cache_list_skips_missing_stores_and_non_cache_tables(tmp_path: Path) -> None:
+    temporary_path = tmp_path / "missing.sqlite"
+    persistent_path = tmp_path / "persistent.sqlite"
+    config = get_config()
+    with sqlite3.connect(persistent_path) as conn:
+        conn.execute("CREATE TABLE unrelated (id INTEGER)")
+        conn.execute("CREATE TABLE cacheish (id INTEGER)")
+        conn.execute("CREATE TABLE cache_empty (key BLOB, value BLOB)")
+
+    with temporary_config_change(config, "storage", "temporary_cache", str(temporary_path)):
+        with temporary_config_change(config, "storage", "persistent_cache", str(persistent_path)):
+            result = CliRunner().invoke(pio, ["cache", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert result.output == "empty\n"
+    assert not temporary_path.exists()
+
+
 def test_pio_cache_view_without_key_shows_all_keys() -> None:
     cache_name = "test_pio_cache_view_without_key_shows_all_keys"
 
@@ -1225,7 +1358,7 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
         lambda units, experiments: ["unit1"],
     )
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: "unit1.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fake_post_into)
 
     result = CliRunner().invoke(
         pios,
@@ -1247,6 +1380,7 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
             "unit1.local",
             "/unit_api/plugins/install",
             {
+                "body": None,
                 "headers": {"X-Pioreactor-Target": "unit1"},
                 "json": {
                     "args": ["pioreactor-air-bubbler"],
@@ -1441,7 +1575,7 @@ def test_pios_run_requests_with_config_override() -> None:
 
 def test_pios_run_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
-        "pioreactor.cli.pios.post_into",
+        "pioreactor.pubsub.post_into",
         lambda *_args, **_kwargs: Response(
             "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring",
             409,
@@ -1616,6 +1750,56 @@ def test_pio_update_app_allows_release_archive_sql_step_failure(monkeypatch: pyt
     assert any(command[:2] == ["sudo", "sqlite3"] for command in run_calls)
 
 
+@pytest.mark.parametrize("is_leader", [True, False])
+def test_pio_update_app_cleans_up_staged_release_archives(
+    monkeypatch: pytest.MonkeyPatch, is_leader: bool
+) -> None:
+    from pioreactor.cli.pio import build_staged_release_archive_location
+    from pioreactor.cli.pio import get_update_app_commands
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: is_leader)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    source = build_staged_release_archive_location("release_26.11.0.zip")
+
+    commands, _ = get_update_app_commands(None, "pioreactor/pioreactor", source, None)
+    commands_by_argv = {tuple(command): priority for command, priority, _ in commands}
+
+    sweep = next(command for command in commands_by_argv if command[:2] == ("sudo", "find"))
+    assert commands_by_argv[sweep] < 0
+    assert sweep[-3:] == ("-path", source, "-delete")
+    # the leader keeps its archive: its update task copies it to workers, then removes it.
+    assert (("sudo", "rm", "-f", source) in commands_by_argv) is (not is_leader)
+
+
+def test_pio_update_app_never_removes_a_usb_release_archive(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.cli.pio import get_update_app_commands
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    source = "/run/pioreactor/usb/usb-1/release_26.11.0.zip"
+
+    commands, _ = get_update_app_commands(None, "pioreactor/pioreactor", source, None)
+
+    assert not any(source in command and command[1] == "rm" for command, _, _ in commands)
+
+
+def test_pio_update_app_parses_version_from_archive_filename_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    import tempfile
+
+    from pioreactor.cli.pio import get_update_app_commands
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    source = "/home/pioreactor/release_archives/release_26.11.0.zip"
+
+    commands, version_installed = get_update_app_commands(None, "pioreactor/pioreactor", source, None)
+
+    assert version_installed == "26.11.0"
+    assert ["sudo", "rm", "-rf", f"{tempfile.gettempdir()}/release_26.11.0"] in [
+        command for command, _, _ in commands
+    ]
+
+
 def test_pio_update_app_rejects_malicious_branch() -> None:
     runner = CliRunner()
 
@@ -1689,7 +1873,7 @@ def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
     def record_ssh(_address: str, command: str) -> None:
         commands.append(command)
 
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fail_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fail_post_into)
     monkeypatch.setattr("pioreactor.cli.pios.ssh", record_ssh)
 
     result = runner.invoke(
@@ -1714,7 +1898,7 @@ def test_pios_update_app_identity_rejection_does_not_fall_back_to_ssh(
             b'{"error":"Worker hostname mismatch"}',
         )
     )
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", request)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", request)
     monkeypatch.setattr("pioreactor.cli.pios.ssh", ssh)
 
     result = CliRunner().invoke(pios, ["update", "app", "--units", "unit1", "-y"])
@@ -1760,7 +1944,7 @@ def test_pios_update_app_explicit_units_include_leader_when_named(
     monkeypatch.setattr("pioreactor.cli.pios.get_workers_in_inventory", lambda: ("worker1",))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fake_post_into)
 
     result = runner.invoke(
         pios,
@@ -1816,7 +2000,7 @@ def test_pios_update_app_experiments_include_leader_when_assigned(
     monkeypatch.setattr("pioreactor.cli.pios.get_active_workers_in_inventory", lambda: ("leader", "worker1"))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fake_post_into)
 
     result = runner.invoke(
         pios,
@@ -1867,7 +2051,7 @@ def test_pios_jobs_list_requests_history_endpoint(monkeypatch) -> None:
         captured.append((address, endpoint))
         return DummyResponse()
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     runner = CliRunner()
     result = runner.invoke(pios, ["jobs", "list", "--units", "unit1"])
@@ -1901,7 +2085,7 @@ def test_pios_jobs_list_running_requests_running_endpoint(monkeypatch) -> None:
         captured.append((address, endpoint))
         return DummyResponse()
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     runner = CliRunner()
     result = runner.invoke(pios, ["jobs", "list", "running", "--units", "unit1"])
@@ -1955,7 +2139,7 @@ def test_pios_jobs_list_partitions_output_by_unit(monkeypatch) -> None:
         assert endpoint == "/unit_api/jobs"
         return responses[address]
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     runner = CliRunner()
     result = runner.invoke(pios, ["jobs", "list", "--units", "unit1", "--units", "unit2"])
@@ -2002,7 +2186,7 @@ database={db_path}
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr(
-        "pioreactor.cli.pios.get_from",
+        "pioreactor.pubsub.get_from",
         lambda address, endpoint, **_kwargs: Response(
             f"http://{address}:4999{endpoint}",
             200,
@@ -2298,7 +2482,7 @@ def test_pios_system_actions_dispatch_explicit_leader_targets(
     )
     monkeypatch.setattr("pioreactor.cli.pios.resolve_all_worker_units", resolve_all_worker_units)
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", post_into)
 
     ctx = click.Context(command, allow_extra_args=True)
     ctx.forward(command, yes=True, units=selected_units, experiments=())
@@ -2336,7 +2520,7 @@ def test_pios_system_actions_keep_worker_targets_worker_only(
         "pioreactor.cli.pios.resolve_all_worker_units", lambda _units, _experiments: ("worker1",)
     )
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", post_into)
 
     ctx = click.Context(command, allow_extra_args=True)
     ctx.forward(command, yes=True, units=selected_units, experiments=())
@@ -2369,7 +2553,7 @@ def test_pio_blink_surfaces_structured_api_error(monkeypatch) -> None:
 
 def test_pios_reboot_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
-        "pioreactor.cli.pios.post_into",
+        "pioreactor.pubsub.post_into",
         lambda *_args, **_kwargs: Response(
             "http://unit1.local:4999/unit_api/system/reboot",
             409,

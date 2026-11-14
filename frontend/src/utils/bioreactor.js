@@ -25,6 +25,11 @@ export function parseNumericValue(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function parseBioreactorPayload(message) {
+  const payloadString = message.toString();
+  return payloadString ? parseNumericValue(JSON.parse(payloadString).value) : null;
+}
+
 export function getBioreactorFallbackValue(config, key, descriptor = null) {
   const parsedDescriptorDefault = parseNumericValue(descriptor?.default);
   if (parsedDescriptorDefault !== null) {

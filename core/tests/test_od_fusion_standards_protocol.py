@@ -17,7 +17,9 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.od_fusion import FUSION_ANGLES
+from pioreactor.whoami import get_testing_experiment_name
 
 
 @contextmanager
@@ -191,6 +193,27 @@ def test_start_fusion_session_seeds_expected_session_data(monkeypatch: pytest.Mo
     assert session.data["channel_angle_map"] == {"1": "45", "2": "90", "3": "135"}
     assert session.data["records"] == []
     assert session.data["standards"] == []
+
+
+def test_start_fusion_session_clears_stale_ir_led_reference_anchor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        od_fusion_standards,
+        "get_pioreactor_model",
+        lambda: SimpleNamespace(model_name="pioreactor_20ml_XR"),
+    )
+    monkeypatch.setattr(od_fusion_standards, "is_pio_job_running", lambda _jobs: [False, False])
+    testing_experiment = get_testing_experiment_name()
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        cache[testing_experiment] = 1e-5
+
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
+        with _temporary_config_section(
+            "od_config.photodiode_channel", {"1": "45", "2": "90", "3": "135", "4": "180"}
+        ):
+            od_fusion_standards.start_fusion_session()
+
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        assert testing_experiment not in cache
 
 
 def test_measure_fusion_standard_for_session_filters_executor_payload() -> None:

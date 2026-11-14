@@ -2,7 +2,7 @@
 """
 Registry of built-in and user-provided Pioreactor models.
 """
-from msgspec import ValidationError
+from msgspec import DecodeError
 from msgspec.structs import replace
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.paths import get_dot_pioreactor_path
@@ -117,7 +117,7 @@ def load_contrib_model_definitions() -> list[Model]:
         try:
             m = yaml_decode(file.read_bytes(), type=Model)
             models.append(tag_contrib(m))
-        except ValidationError as e:
+        except (DecodeError, OSError) as e:
             from pioreactor.logging import create_logger
 
             create_logger("models", experiment="$experiment").error(

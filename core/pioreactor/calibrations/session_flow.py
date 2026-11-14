@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import math
+import time
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -58,7 +60,7 @@ def _parse_float_input(name: Str, value: object) -> Float:
 def _parse_int_input(name: Str, value: object) -> int:
     if isinstance(value, int):
         return value
-    if isinstance(value, float):
+    if isinstance(value, float) and value.is_integer():
         return int(value)
     if isinstance(value, str):
         try:
@@ -247,6 +249,38 @@ class SessionInputs:
             except ValueError as exc:
                 raise ValueError(f"Invalid '{name}', expected list of numbers.") from exc
         raise ValueError(f"Invalid '{name}', expected list of numbers.")
+
+    def data_table(self, name: Str, columns: list[dict[Str, Any]]) -> list[dict[Str, Any]]:
+        """
+        Parse an edited data table. Each returned row holds the editable columns as floats and
+        `include` as a bool. Read-only columns are dropped: the step owns those values.
+        """
+        value = self._get_raw(name)
+        if not isinstance(value, list):
+            raise ValueError(f"Invalid '{name}', expected a list of rows.")
+        editable_columns = [column for column in columns if column.get("editable")]
+        rows: list[dict[Str, Any]] = []
+        for row_number, raw_row in enumerate(value, start=1):
+            if not isinstance(raw_row, dict):
+                raise ValueError(f"Invalid '{name}', expected each row to be an object.")
+            row: dict[Str, Any] = {}
+            for column in editable_columns:
+                key, label = column["key"], column.get("label", column["key"])
+                cell = raw_row.get(key)
+                if cell is None or cell == "":
+                    raise ValueError(f"Row {row_number}: '{label}' is missing.")
+                try:
+                    numeric = _parse_float_input(key, cell)
+                except ValueError as exc:
+                    raise ValueError(f"Row {row_number}: '{label}' must be a number.") from exc
+                minimum = column.get("minimum")
+                if minimum is not None and numeric < minimum:
+                    raise ValueError(f"Row {row_number}: '{label}' must be >= {minimum}.")
+                row[key] = numeric
+            include = raw_row.get("include", True)
+            row["include"] = include if isinstance(include, bool) else str(include).lower() == "true"
+            rows.append(row)
+        return rows
 
 
 class SessionContext:
@@ -506,6 +540,21 @@ class FieldBuilder:
             default=default,
         )
 
+    def data_table(
+        self,
+        name: Str,
+        columns: list[dict[Str, Any]],
+        rows: list[dict[Str, Any]],
+        label: Str | None = None,
+    ) -> CalibrationStepField:
+        return CalibrationStepField(
+            name=name,
+            label=label or name,
+            field_type="data_table",
+            columns=columns,
+            default=rows,
+        )
+
 
 class StepBuilder:
     def info(self, title: Str, body: Str) -> CalibrationStep:
@@ -516,6 +565,18 @@ class StepBuilder:
 
     def action(self, title: Str, body: Str) -> CalibrationStep:
         return CalibrationStep(step_id="", step_type="action", title=title, body=body)
+
+    def wait(self, title: Str, body: Str, poll_interval_s: float = 5.0) -> CalibrationStep:
+        """Poll advance() until it selects another step, without a user prompt.
+
+        Each advance must be a short, bounded check. Keep accumulated observations
+        in ctx.data so waiting can resume after a browser reload.
+        """
+        if not math.isfinite(poll_interval_s) or poll_interval_s <= 0:
+            raise ValueError("Wait polling interval must be positive and finite.")
+        return CalibrationStep(
+            step_id="", step_type="wait", title=title, body=body, poll_interval_s=poll_interval_s
+        )
 
     def result(self, result: dict[Str, Any]) -> CalibrationStep:
         return CalibrationStep(
@@ -630,7 +691,16 @@ def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession)
     engine = SessionEngine(step_registry=with_terminal_steps(step_registry), session=session, mode="cli")
     while engine.session.status == "in_progress":
         step = engine.get_step()
+        if step.fields and all(field.field_type == "data_table" for field in step.fields):
+            # Editing tables is UI-only for now: the CLI keeps the rows as recorded and moves on.
+            engine.advance({field.name: field.default for field in step.fields})
+            continue
         render_step_for_cli(step)
+
+        if step.step_type == "wait":
+            time.sleep(step.poll_interval_s)
+            engine.advance({})
+            continue
 
         inputs: dict[Str, object] = {}
         if step.fields:

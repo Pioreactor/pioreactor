@@ -7,6 +7,7 @@ from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
+from pioreactor import pubsub
 from pioreactor.mureq import Response
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.pubsub import publish
@@ -30,6 +31,12 @@ def _clear_test_artifacts(test_name: str) -> None:
         cache.empty()
 
     with local_intermittent_storage("leds") as cache:
+        cache.empty()
+
+    with local_persistent_storage("pioreactor_model") as cache:
+        cache.empty()
+
+    with local_persistent_storage("unit_active") as cache:
         cache.empty()
 
     with local_persistent_storage("active_calibrations") as cache:
@@ -123,7 +130,16 @@ def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
     mock_get = mocker.patch(
         "pioreactor.cluster_management.get_from_leader", autospec=True, side_effect=mock_get_response
     )
-    mocker.patch("pioreactor.actions.leader.experiment_profile.get_from_leader", new=mock_get)
+
+    # whoami's live experiment lookup asks the leader directly; leave pubsub's other leader requests alone.
+    real_pubsub_get_from_leader = pubsub.get_from_leader
+
+    def mock_pubsub_get_from_leader(endpoint, *args, **kwargs):
+        if re.search(r"/api/workers/[^/]+/experiment$", endpoint):
+            return mock_get_response(endpoint)
+        return real_pubsub_get_from_leader(endpoint, *args, **kwargs)
+
+    mocker.patch("pioreactor.pubsub.get_from_leader", side_effect=mock_pubsub_get_from_leader)
 
     return mock_get
 

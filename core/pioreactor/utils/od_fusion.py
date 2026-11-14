@@ -379,18 +379,19 @@ def compute_fused_od(
         scale = low_conc_scales.get(angle, 1.0)
         return 1.0 * (1.0 - t) + scale * t
 
-    # The curves are unchanged throughout this search. Validate and convert once,
-    # but keep the arrays local so the next estimate sees any estimator changes.
-    parsed_mu = {
-        angle: parse_piecewise_cubic_data(estimator.mu_splines[angle], structs.AkimaFitData, "akima_data")
-        for angle in estimator.angles
-    }
-    parsed_sigma = {
-        angle: parse_piecewise_cubic_data(
+    # Validate once per estimate so later calls see estimator changes. The search
+    # evaluates scalar polynomials, where Python floats avoid NumPy scalar overhead.
+    parsed_mu: dict[pt.PdAngle, tuple[list[float], list[list[float]]]] = {}
+    parsed_sigma: dict[pt.PdAngle, tuple[list[float], list[list[float]]]] = {}
+    for angle in estimator.angles:
+        knots, coefficients = parse_piecewise_cubic_data(
+            estimator.mu_splines[angle], structs.AkimaFitData, "akima_data"
+        )
+        parsed_mu[angle] = knots.tolist(), coefficients.tolist()
+        knots, coefficients = parse_piecewise_cubic_data(
             estimator.sigma_splines_log[angle], structs.AkimaFitData, "akima_data"
         )
-        for angle in estimator.angles
-    }
+        parsed_sigma[angle] = knots.tolist(), coefficients.tolist()
 
     def nll(logc: float) -> float:
         # Negative log-likelihood assuming independent Gaussian residuals per angle:

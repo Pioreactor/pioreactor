@@ -99,20 +99,18 @@ function App() {
 
 function MainSite() {
   const [config, setConfig] = React.useState({})
-  const [configLoaded, setConfigLoaded] = React.useState(false)
 
   React.useEffect(() => {
-    getConfig(setConfig).finally(() => setConfigLoaded(true));
+    getConfig(setConfig);
   }, [])
 
-  const cameraUIEnabled = config.camera?.enabled === "1";
 
   return (
     <Box sx={{display: 'flex'}}>
       <ErrorBoundary>
         <ExperimentProvider>
-          <SideNavAndHeader cameraUIEnabled={cameraUIEnabled} />
-          <Box component="main" sx={{flexGrow: 1, paddingTop: { xs: 14, sm: 9 }, paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+          <SideNavAndHeader />
+          <Box component="main" sx={{flexGrow: 1, minWidth: 0, paddingTop: { xs: 14, sm: 9 }, paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
                 <React.Suspense fallback={<RouteFallback />}>
@@ -123,8 +121,8 @@ function MainSite() {
                     <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
                     <Route path="/plugins/:pioreactorUnit/" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
                     <Route path="/experiments" element={<Experiments title="Pioreactor ~ Experiments"/>}/>
-                    <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles" leaderHostname={config['cluster.topology']?.leader_hostname}/>}/>
-                    <Route path="/experiment-profiles/:profileFilename/" element={<Profiles title="Pioreactor ~ Experiment profiles" leaderHostname={config['cluster.topology']?.leader_hostname}/>}/>
+                    <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
+                    <Route path="/experiment-profiles/:profileFilename/" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
                     <Route path="/experiment-profiles/new" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
                     <Route path="/experiment-profiles/:profileFilename/edit" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                     <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
@@ -143,18 +141,9 @@ function MainSite() {
                     <Route path="/protocols/:pioreactorUnit" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                     <Route path="/protocols/:pioreactorUnit/:device" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                     <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
-                    <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor" cameraUIEnabled={cameraUIEnabled}/>}/>
-                    {!configLoaded ? (
-                      <React.Fragment>
-                        <Route path="/cameras" element={<RouteFallback />}/>
-                        <Route path="/cameras/:pioreactorUnit" element={<RouteFallback />}/>
-                      </React.Fragment>
-                    ) : cameraUIEnabled ? (
-                      <React.Fragment>
-                        <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras"/>}/>
-                        <Route path="/cameras/:pioreactorUnit" element={<CameraStills title="Pioreactor ~ Camera snapshots"/>}/>
-                      </React.Fragment>
-                    ) : null}
+                    <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
+                    <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras"/>}/>
+                    <Route path="/cameras/:pioreactorUnit" element={<CameraStills title="Pioreactor ~ Camera snapshots"/>}/>
                     <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                     <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                     <Route path="/logs" element={<Logs title="Pioreactor ~ Experiment logs"/>}/>

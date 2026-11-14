@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { compareNatural } from "./naturalSort";
 
 export const COVERAGE_STATUS = {
   ACTIVE: "active",
@@ -42,7 +43,7 @@ function getUnitKeys(availableByUnit, activeByUnit) {
       ...Object.keys(availableByUnit || {}),
       ...Object.keys(activeByUnit || {}),
     ]),
-  ).sort();
+  ).sort(compareNatural);
 }
 
 export function deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit) {
@@ -90,7 +91,7 @@ export function deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit) {
         cells[unit][device] = {
           status: COVERAGE_STATUS.ACTIVE,
           calibrationName: activeCalibrationName,
-          detailPath: `/calibrations/${unit}/${device}/${activeCalibrationName}`,
+          detailPath: `/calibrations/${unit}/${device}/${encodeURIComponent(activeCalibrationName)}`,
           note: "Active calibration is configured for this device.",
         };
         return;

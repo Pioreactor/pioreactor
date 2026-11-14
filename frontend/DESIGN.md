@@ -92,7 +92,14 @@ labels follow the active scheme; liquid and active hardware colours retain their
 meaning and use contrasting labels. Chart
 axes, labels, tooltips, and controls follow the active scheme; series keep their
 hue with a brightness lift in dark mode. PNG and SVG exports carry the active
-chart colours and background so they remain readable outside the UI.
+chart colours and background so they remain readable outside the UI. Data-series colors
+should maintain at least 3:1 contrast against the chart surface. Units take palette
+colours in sorted order, so the first eight entries must stay clearly distinct from
+each other, including under red-green colour blindness; keep the first three fixed
+and put near-duplicates at the end. Sensor-partitioned
+charts also encode angles with line patterns (90° solid, 45° long dash, 135° short
+dash, 180° dash-dot) or scatter shapes (circle, triangle, square, diamond).
+Legends always use circular color swatches, regardless of line or scatter rendering.
 
 ### Typography
 
@@ -278,6 +285,8 @@ from surrounding prose.
 | Experiment collection | `ExperimentsIcon` |
 | Calibration | `CalibrationIcon` |
 | Estimator | `EstimatorIcon` |
+| Plugin | `PluginIcon` |
+| Plugin collection | `PluginsIcon` |
 | Experiment profile | `ExperimentProfileIcon` |
 
 Standard Pioreactor label:
@@ -318,6 +327,21 @@ Rules:
   `All assigned Pioreactors`.
 - Do not use a Chip for arbitrary prose.
 - Tags use small `variant="outlined"` Chips and do not need entity icons.
+- Use `src/components/PluginChip.jsx` for plugin attribution, such as
+  `Installed by` or `Provided by` labels. The Chip links to the Plugins page
+  for `unit` when a Pioreactor is in context, and for the leader otherwise.
+- Log messages mark entity names with backticks, such as ``Saved calibration
+  `od-cal-1` ``. `LogMessage` renders these as compact inline Chips: Pioreactors
+  are recognized from the cluster's units or a preceding `Pioreactor`, `worker`,
+  or `unit`; experiments, calibrations, estimators, and plugins from the
+  preceding word `experiment`, `calibration`, `estimator`, or `plugin`, and
+  experiments also by the row's experiment. Plugin Chips link to the Plugins
+  page for the row's Pioreactor. Other backticked text renders as inline code.
+  Calibration Chips link to the calibration page when the message supplies an
+  built-in device key immediately before `calibration` (e.g. ``Saved media_pump
+  calibration `pump-1` ``) and the row supplies a Pioreactor unit. Messages
+  without a device and plugin device keys remain calibration labels.
+  Copying a log row copies the raw message.
 
 Exceptions:
 
@@ -436,6 +460,14 @@ Rules:
   term needs explanation.
 - Align prose and identifiers left. Align numeric values right. Keep one
   alignment convention per column.
+- Calibration protocol tables and recorded-data tables use up to three decimal
+  places by default (including voltage, OD, duration, and volume), one for RPM,
+  and two for duty-cycle percentages. Omit trailing zeroes so counts stay whole
+  numbers. Show nonzero values smaller than the displayed decimal resolution
+  in scientific notation with three significant digits.
+  Editable cells show full precision while focused and compact values otherwise.
+  Format only the display; retain full precision in input state, submitted and
+  saved measurements, calculations, and downloads.
 - Compact data rows normally use about `6px` vertical cell padding. Rows with
   descriptions may use about `10px`.
 - Empty, loading, and error states occupy the table region; they must not cause
@@ -490,15 +522,15 @@ before the label. Use the small icon size, vertically center the icon against
 the text, and leave `3px` of horizontal space around it:
 
 ```jsx
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
+import { textIcon } from "./theme"; // { verticalAlign: "middle", margin: "0px 3px" }
 
 <Button variant="text" onClick={openSearch}>
   <SearchIcon fontSize="small" sx={textIcon} /> Search jobs and automations
 </Button>
 ```
 
-Reuse one local `textIcon` style object when a file has multiple text-button
-icons. Do not use MUI's `startIcon` for this pattern.
+Import the shared `textIcon` style from `src/theme`; do not redefine it
+locally. Do not use MUI's `startIcon` for this pattern.
 
 Contained primary page actions may use MUI's `endIcon` for a conventional
 commit or launch icon, such as Save, Export, Upload, Update, or Run. This
@@ -514,6 +546,11 @@ actions, whose icons remain inline before the label.
   Remove, Stop, Clear, or Unassign.
 - **IconButton:** compact universal actions only. It must have an `aria-label`
   and usually a tooltip.
+- **Overflow menu:** a `MoreVert` (⋮) `IconButton` with `color="primary"` and
+  `size="small"`, labelled `More actions for <name>`. It opens a `Menu` of
+  plain-text `MenuItem`s; put destructive items last, after a `Divider`, with
+  `sx={{ color: "secondary.main" }}`. Use it when a toolbar or table row has
+  more secondary actions than fit.
 
 ### Time terminology
 
@@ -557,10 +594,11 @@ Rules:
 
 ## Dialogs
 
-- Every dialog must have a visible close `IconButton` in the top-right corner.
-  The icon must be MUI's `CloseIcon`.
-- The close `IconButton` uses MUI's default size. Do not set `size="large"` on
-  ordinary dialog close controls.
+- Every dialog must have a visible close control in the top-right corner. Use
+  `src/components/DialogCloseButton.jsx` inside the `DialogTitle`; it owns the
+  `CloseIcon`, the `Close` accessible name, the default size, the position, and
+  the `text.secondary` colour. Pass `onClick`, and `disabled` while an active
+  operation blocks closing.
 - Standard MUI Escape and backdrop dismissal should remain enabled unless the
   flow deliberately requires an explicit decision or an active operation must
   be aborted safely.
@@ -583,6 +621,9 @@ Rules:
   must include `{ color: "secondary" }`.
 - Long-running work must show immediate progress and prevent duplicate
   submission.
+- Protocol dialogs disable all form fields, selectors, editable table cells,
+  and inclusion checkboxes as soon as an operation starts. Keep Abort available;
+  restore the entered values and controls if the operation fails.
 
 ## Feedback and state
 
@@ -612,14 +653,32 @@ Rules:
 - Use a `Backdrop` only when the user truly must not interact with the page
   until the operation completes. Backdrops should be used very rarely.
 - Reserve content space for loading states to avoid layout shifts.
+- Overview cards use `LoadingState` for a centred spinner in a reserved area
+  while fetching data. Show `EmptyState` only after a successful empty response,
+  and an error `Alert` when fetching fails.
 - Empty states should explain what is empty and, when useful, provide the next
   action.
+- Use `src/components/EmptyState.jsx` for an empty page region, card, or
+  table body: centred secondary `body2` text in a short reserved area. Put a
+  next-action link inside the message. Inside a table, render it in a full-width
+  cell. Do not use an info `Alert` for emptiness; Alerts report errors,
+  warnings, and unmet requirements.
+- A page whose primary content is empty may show an illustration above the same
+  secondary `body2` text, as the logs pages do.
 
 ## Responsive and accessible behavior
 
 - Page headers and action groups must wrap instead of overflowing.
 - Tables must scroll horizontally inside their container, not widen the whole
   page.
+- The permanent side navigation (230px) is visible from `md` (900px) up, so a
+  `md` column split leaves each column about 300px narrower than the viewport
+  suggests. Side-by-side page columns, such as the 7/5 chart and side-panel
+  split, use `lg` (1200px). Below `lg` they stack, and controls that act on the
+  stacked content move above it.
+- The `main` element has `minWidth: 0`. Never let one wide child, such as a
+  table or a `<pre>`, set the page width; give that child its own scroll
+  container.
 - Standalone touch controls should provide at least a 44px hit area.
 - Dense table links and Chips may be visually compact, but must have clear
   spacing, visible keyboard focus, and must not be the only tiny target for a
@@ -641,7 +700,8 @@ Rules:
   focused shared component.
 - A shared component should encode a settled rule, not hide unresolved design
   differences.
-- `PageHeader` owns standard page headers. `TableRows.jsx` owns zebra and
+- `PageHeader` owns standard page headers. `DialogCloseButton` owns dialog
+  close controls. `EmptyState` owns empty-region messages. `TableRows.jsx` owns zebra and
   navigable rows; `LogTableCells.jsx` owns log-cell spacing and severity fills.
   Use zebra rows for log entries, leaving time-gap separators as plain rows.
 - Do not inspect or edit `core/pioreactor/web/static/`; it is generated output.

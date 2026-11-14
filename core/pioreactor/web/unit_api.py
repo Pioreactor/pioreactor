@@ -28,6 +28,7 @@ from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
+from pioreactor import exc
 from pioreactor import structs
 from pioreactor import whoami
 from pioreactor.background_jobs.base import format_with_optional_units
@@ -53,18 +54,26 @@ from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
+from pioreactor.cluster_membership import check_can_leave
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import normalize_ini_text
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import TARGET_UNIT_HEADER
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
+from pioreactor.unit_active import is_locally_active
+from pioreactor.unit_active import save_local_active
+from pioreactor.unit_model import get_local_model
+from pioreactor.unit_model import save_local_model
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import usb as usb_utils
+from pioreactor.utils.clock import is_clock_synchronized
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
@@ -103,8 +112,8 @@ def check_mutation_target() -> None:
     if request.method not in {"POST", "PATCH", "PUT", "DELETE"}:
         return
 
-    expected_hostname = request.headers.get("X-Pioreactor-Target")
-    # Direct API clients may omit the header; cluster callers supply the intended unit.
+    expected_hostname = request.headers.get(TARGET_UNIT_HEADER)
+    # Direct API clients may omit the header; cluster callers use the pubsub *_unit helpers, which send it.
     if expected_hostname is not None and expected_hostname != HOSTNAME:
         abort_with(
             409,
@@ -182,6 +191,63 @@ def get_system_ipv4() -> ResponseReturnValue:
     return attach_cache_control(jsonify({"ipv4_address": get_ip()}), max_age=0)
 
 
+@unit_api_bp.route("/model", methods=["GET"])
+def get_unit_model() -> ResponseReturnValue:
+    model = get_local_model()
+    if model is None:
+        abort_with(404, "No model assigned to this unit.")
+    model_name, model_version = model
+    # The unit's registry is authoritative, so include its definition for the leader's mirror.
+    definition = get_registered_models().get((model_name, model_version))
+    return {
+        **(to_builtins(definition) if definition is not None else {}),
+        "model_name": model_name,
+        "model_version": model_version,
+    }, 200
+
+
+@unit_api_bp.route("/model", methods=["PUT"])
+def set_unit_model() -> ResponseReturnValue:
+    body = decode_request_body(structs.ChangeWorkerModelRequest)
+    try:
+        save_local_model(body.model_name, body.model_version)
+    except exc.UnknownModelAssignedError as error:
+        abort_with(400, str(error))
+    except RuntimeError as error:
+        abort_with(409, str(error))
+    tasks.check_model_hardware(body.model_name, body.model_version)
+    publish_to_log(
+        f"Set `{HOSTNAME}` to {body.model_name}, {body.model_version}.",
+        task="worker_model",
+        level="INFO",
+    )
+    return {"model_name": body.model_name, "model_version": body.model_version}, 200
+
+
+@unit_api_bp.route("/active", methods=["GET"])
+def get_unit_active() -> ResponseReturnValue:
+    return {"is_active": int(is_locally_active())}, 200
+
+
+@unit_api_bp.route("/active", methods=["PUT"])
+def set_unit_active() -> ResponseReturnValue:
+    body = decode_request_body(structs.ChangeWorkerStatusRequest)
+    if body.is_active not in (0, 1):
+        abort_with(400, "Invalid status. Status must be integer 0 or 1.")
+    is_active = bool(body.is_active)
+    save_local_active(is_active, stop_activities=False)
+    if not is_active:
+        # Stopping LEDs runs a `pio` command, too slow to wait for here.
+        tasks.kill_jobs_task(all_jobs=True)
+    tasks.report_active_to_leader(is_active)
+    publish_to_log(
+        f"Set `{HOSTNAME}` to {'Active' if is_active else 'Inactive'}.",
+        task="worker_status",
+        level="INFO",
+    )
+    return {"is_active": int(is_active)}, 200
+
+
 @unit_api_bp.route("/hardware/check", methods=["POST", "PATCH"])
 def check_hardware_for_model() -> DelayedResponseReturnValue:
     """
@@ -230,7 +296,7 @@ def update_camera_settings() -> ResponseReturnValue:
     previous_enabled = camera_auto_capture_is_enabled()
     updated_enabled = set_camera_auto_capture_enabled(body.auto_capture_enabled)
     logger.debug(
-        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on {HOSTNAME} "
+        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on `{HOSTNAME}` "
         f"(was {'enabled' if previous_enabled else 'disabled'})."
     )
     return jsonify(
@@ -254,7 +320,7 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
             {
                 "unit": HOSTNAME,
                 "experiment": experiment,
-                "stills": [to_builtins(still) for still in metadata],
+                "stills": to_builtins(metadata),
             }
         ),
         max_age=0,
@@ -361,7 +427,7 @@ def delete_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
             remediation="Refresh the experiment camera stills list.",
         )
 
-    logger.debug(f"User deleted camera snapshot {image_id} on {HOSTNAME} for experiment {experiment}.")
+    logger.debug(f"User deleted camera snapshot {image_id} on `{HOSTNAME}` for experiment `{experiment}`.")
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
         experiment,
@@ -407,8 +473,8 @@ def rename_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
         )
 
     logger.debug(
-        f"User renamed camera snapshot {image_id} to {new_image_id} on {HOSTNAME} "
-        f"for experiment {experiment}."
+        f"User renamed camera snapshot {image_id} to {new_image_id} on `{HOSTNAME}` "
+        f"for experiment `{experiment}`."
     )
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
@@ -422,7 +488,7 @@ def rename_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
 def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
     logger.debug(
-        f"User requested all camera snapshots on {HOSTNAME} for experiment `{experiment}` to be downloaded."
+        f"User requested all camera snapshots on `{HOSTNAME}` for experiment `{experiment}` to be downloaded."
     )
     archive_file = NamedTemporaryFile(
         prefix=f"{HOSTNAME}_camera_stills_",
@@ -442,7 +508,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
                     {
                         "unit": HOSTNAME,
                         "experiment": experiment,
-                        "stills": [to_builtins(still) for still in metadata],
+                        "stills": to_builtins(metadata),
                     },
                     indent=2,
                 ),
@@ -455,7 +521,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
 
         logger.debug(
             f"Sending {number_of_stills_in_archive} camera snapshot"
-            f"{'s' if number_of_stills_in_archive != 1 else ''} from {HOSTNAME} "
+            f"{'s' if number_of_stills_in_archive != 1 else ''} from `{HOSTNAME}` "
             f"for experiment `{experiment}`."
         )
 
@@ -545,6 +611,9 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
 def _normalize_task_error_message(message: str) -> str:
     if not message:
         return message
+
+    if message.startswith("RateLimitExceeded("):
+        return "Too many requests for this operation. Wait a moment, then try again."
 
     exception_name, open_paren, remainder = message.partition("(")
     if not open_paren or not remainder.endswith(")"):
@@ -656,13 +725,6 @@ def _get_unit_specific_config_path() -> Path:
     return get_dot_pioreactor_path() / "unit_config.ini"
 
 
-def _normalize_ini_text(code: str) -> str:
-    # https://github.com/Pioreactor/pioreactor/issues/539
-    code = code.replace(chr(8211), chr(45))
-    code = code.replace(chr(8212), chr(45))
-    return code
-
-
 def _read_config_text(path: Path) -> str:
     if not path.exists():
         return ""
@@ -670,7 +732,7 @@ def _read_config_text(path: Path) -> str:
 
 
 def _validate_ini_text(code: str) -> str:
-    normalized = _normalize_ini_text(code)
+    normalized = normalize_ini_text(code)
     parser = ConfigParserMod()
     parser.read_string(normalized)
     return normalized
@@ -1072,9 +1134,14 @@ def remove_file() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api_bp.route("/system/cleanup_after_inventory_removal", methods=["POST"])
-def cleanup_after_inventory_removal() -> ResponseReturnValue:
-    """Stop jobs and remove shared config after removal from inventory."""
+@unit_api_bp.route("/cluster/leave", methods=["POST"])
+def leave_cluster() -> DelayedResponseReturnValue:
+    """
+    Leave this unit's cluster, then reboot. See `pio cluster leave`.
+
+    Optional JSON body: {"stop_activities": true} stops running activities; without it,
+    they must be stopped first.
+    """
     disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
     if disallow_file.is_file():
         abort_with(
@@ -1084,9 +1151,13 @@ def cleanup_after_inventory_removal() -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
         )
 
-    tasks.kill_jobs_task(all_jobs=True)
-    tasks.rm(str(get_dot_pioreactor_path() / "config.ini"))
-    return {"status": "accepted"}, 202
+    body = decode_request_body(structs.LeaveClusterRequest) if request.data else structs.LeaveClusterRequest()
+    try:
+        check_can_leave(body.stop_activities)
+    except RuntimeError as error:
+        abort_with(409, str(error))
+
+    return create_task_response(tasks.leave_cluster_and_reboot(body.stop_activities))
 
 
 # GET clock time
@@ -1094,7 +1165,12 @@ def cleanup_after_inventory_removal() -> ResponseReturnValue:
 def get_clock_time() -> ResponseReturnValue:
     try:
         current_time = current_utc_timestamp()
-        return jsonify({"status": "success", "clock_time": current_time}), 200
+        return (
+            jsonify(
+                {"status": "success", "clock_time": current_time, "synchronized": is_clock_synchronized()}
+            ),
+            200,
+        )
     except Exception as e:
         abort_with(
             500,
@@ -1280,25 +1356,15 @@ def is_manual_dosing_volume_unsafe(
     if addition_ml < 0:
         return False
 
-    model_name = env.get("MODEL_NAME")
-    model_version = env.get("MODEL_VERSION")
-
-    if model_name and model_version:
-        try:
-            safety_threshold_ml = get_registered_models()[
-                (model_name, model_version)
-            ].reactor_max_fill_volume_ml
-        except KeyError:
-            # Current invariant: manual dosing fails closed when this worker
-            # cannot resolve the supplied model metadata locally.
-            abort_with(
-                400,
-                "Unknown Pioreactor model.",
-                cause=f"Unknown model '{model_name}' with version '{model_version}'.",
-                remediation="Assign a model available on this worker before dosing.",
-            )
-    else:
-        safety_threshold_ml = whoami.get_pioreactor_model(whoami.get_unit_name()).reactor_max_fill_volume_ml
+    try:
+        safety_threshold_ml = whoami.get_pioreactor_model().reactor_max_fill_volume_ml
+    except (exc.NoModelAssignedError, exc.UnknownModelAssignedError, exc.NoWorkerFoundError) as error:
+        abort_with(
+            400,
+            "Unknown Pioreactor model.",
+            cause=str(error),
+            remediation="Assign a model available on this worker before dosing.",
+        )
 
     current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
 
@@ -1545,15 +1611,6 @@ def get_settings_descriptors() -> ResponseReturnValue:
 ### PLUGINS
 
 
-def _canonicalize_package_name(raw: str) -> str:
-    # normalize to something close to pip's canonical form for comparison
-    name = raw.strip()
-    for sep in ("[", "==", ">=", "<=", "~=", "!=", ">", "<"):
-        if sep in name:
-            name = name.split(sep, 1)[0]
-    return name.replace("_", "-").lower()
-
-
 @unit_api_bp.route("/plugins/installed", methods=["GET"])
 def get_installed_plugins() -> ResponseReturnValue:
     result = tasks.list_plugins_installed()
@@ -1631,13 +1688,6 @@ def install_plugin() -> DelayedResponseReturnValue:
             remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
         )
 
-    # allowlist = _load_plugin_allowlist()
-    # if not allowlist:
-    #    abort_with(
-    #        403,
-    #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
-    #    )
-
     body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if not body.args:
@@ -1654,13 +1704,6 @@ def install_plugin() -> DelayedResponseReturnValue:
             cause=f"Received {len(body.args)} plugin arguments.",
             remediation="Provide exactly one plugin name in args.",
         )
-
-    # requested_plugin = _canonicalize_package_name(body.args[0])
-    # if requested_plugin not in allowlist:
-    #    abort_with(
-    #        403,
-    #        f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
-    #    )
 
     source = body.options.get("source")
     version = body.options.get("version")
@@ -1830,6 +1873,16 @@ def create_calibration(device: str) -> ResponseReturnValue:
         _validate_storage_path_component(device, "device")
         _validate_storage_path_component(calibration_name, "calibration_name")
 
+        if isinstance(calibration_data, structs.ODCalibration):
+            expected_device = f"od{calibration_data.angle}"
+            if device != expected_device:
+                abort_with(
+                    400,
+                    f"Use device `{expected_device}` for this {calibration_data.angle}° OD calibration.",
+                )
+        elif device == "od":
+            abort_with(400, "`od` is a protocol target, not a calibration storage device.")
+
         path = calibration_data.path_on_disk_for_device(device)
         save_result = tasks.save_file(str(path), raw_yaml)
 
@@ -1860,6 +1913,18 @@ def create_calibration(device: str) -> ResponseReturnValue:
             cause="Unable to save calibration file.",
             remediation="Check file permissions and server logs.",
         )
+
+
+@unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["PATCH"])
+def update_calibration_measurements(device: str, calibration_name: str) -> DelayedResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
+    body = decode_request_body(structs.UpdateCalibrationMeasurementsRequest)
+    return create_task_response(
+        tasks.update_calibration_measurements(
+            device, calibration_name, body.included, body.y_values, body.x_values
+        )
+    )
 
 
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
@@ -1914,20 +1979,26 @@ def get_all_calibrations() -> ResponseReturnValue:
         )
 
     all_calibrations: dict[str, list[dict[str, Any]]] = {}
+    # Keep each device's active selection consistent throughout this response.
+    active_names: dict[str, object] = {}
 
     with local_persistent_storage("active_calibrations") as cache:
         for file in sorted(calibration_dir.glob("*/*.yaml")):
             try:
                 device = file.parent.name
                 cal = to_builtins(yaml_decode(file.read_bytes(), type=AllCalibrations))
-                cal["is_active"] = cache.get(device) == cal["calibration_name"]
+                if device not in active_names:
+                    active_names[device] = cache.get(device)
+                cal["is_active"] = active_names[device] == cal["calibration_name"]
                 cal["pioreactor_unit"] = HOSTNAME
                 if device in all_calibrations:
                     all_calibrations[device].append(cal)
                 else:
                     all_calibrations[device] = [cal]
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_calibrations")
+                publish_to_error_log(
+                    f"Error reading {device} calibration `{file.stem}`: {e}", "get_all_calibrations"
+                )
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
@@ -1958,7 +2029,8 @@ def get_all_active_calibrations() -> ResponseReturnValue:
                 all_calibrations[device] = cal
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading {cal_file_path.stem}: {e}", "get_all_active_calibrations"
+                    f"Error reading {device} calibration `{cal_file_path.stem}`: {e}",
+                    "get_all_active_calibrations",
                 )
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
@@ -1987,7 +2059,7 @@ def get_all_active_estimators() -> ResponseReturnValue:
                 all_estimators[device] = estimator
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading {estimator_file_path.stem}: {e}", "get_all_active_estimators"
+                    f"Error reading estimator `{estimator_file_path.stem}`: {e}", "get_all_active_estimators"
                 )
 
     return attach_cache_control(jsonify(all_estimators), max_age=10)
@@ -2001,13 +2073,17 @@ def get_all_estimators() -> ResponseReturnValue:
         return attach_cache_control(jsonify({}), max_age=10)
 
     all_estimators: dict[str, list[dict[str, Any]]] = {}
+    # Keep each device's active selection consistent throughout this response.
+    active_names: dict[str, object] = {}
 
     with local_persistent_storage("active_estimators") as cache:
         for file in sorted(estimator_dir.glob("*/*.yaml")):
             try:
                 device = file.parent.name
                 estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
-                estimator["is_active"] = cache.get(device) == estimator.get("estimator_name")
+                if device not in active_names:
+                    active_names[device] = cache.get(device)
+                estimator["is_active"] = active_names[device] == estimator.get("estimator_name")
                 estimator["pioreactor_unit"] = HOSTNAME
                 estimator["device"] = device
                 if device in all_estimators:
@@ -2015,7 +2091,7 @@ def get_all_estimators() -> ResponseReturnValue:
                 else:
                     all_estimators[device] = [estimator]
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_estimators")
+                publish_to_error_log(f"Error reading estimator `{file.stem}`: {e}", "get_all_estimators")
 
     return attach_cache_control(jsonify(all_estimators), max_age=10)
 
@@ -2273,7 +2349,9 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
                 cal["pioreactor_unit"] = HOSTNAME
                 calibrations.append(cal)
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_calibrations_by_device")
+                publish_to_error_log(
+                    f"Error reading {device} calibration `{file.stem}`: {e}", "get_calibrations_by_device"
+                )
 
     return attach_cache_control(jsonify(calibrations), max_age=10)
 
@@ -2299,7 +2377,9 @@ def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
             cal["pioreactor_unit"] = HOSTNAME
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
-            publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")
+            publish_to_error_log(
+                f"Error reading {device} calibration `{calibration_path.stem}`: {e}", "get_calibration"
+            )
             abort_with(
                 500,
                 "Failed to read calibration file.",
@@ -2354,7 +2434,7 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             estimator["device"] = device
             return attach_cache_control(jsonify(estimator), max_age=10)
         except Exception as e:
-            publish_to_error_log(f"Error reading {estimator_path.stem}: {e}", "get_estimator")
+            publish_to_error_log(f"Error reading estimator `{estimator_path.stem}`: {e}", "get_estimator")
             abort_with(
                 500,
                 "Failed to read estimator file.",

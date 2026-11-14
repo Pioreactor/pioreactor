@@ -5,6 +5,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
+import CalibrationSessionDataTable from "./CalibrationSessionDataTable";
 
 
 function shouldHideField(step, field) {
@@ -15,7 +16,7 @@ function shouldHideField(step, field) {
 }
 
 
-export default function CalibrationSessionFields({ step, values, onFieldChange }) {
+export default function CalibrationSessionFields({ step, values, onFieldChange, disabled = false }) {
   if (!Array.isArray(step?.fields) || step.fields.length === 0) {
     return null;
   }
@@ -29,7 +30,7 @@ export default function CalibrationSessionFields({ step, values, onFieldChange }
         if (field.field_type === "bool") {
           const options = field.options?.length > 0 ? field.options : ["yes", "no"];
           return (
-            <FormControl key={field.name} fullWidth size="small">
+            <FormControl key={field.name} fullWidth size="small" disabled={disabled}>
               <FormLabel>{field.label}</FormLabel>
               <Select
                 value={values[field.name] ?? "no"}
@@ -44,9 +45,20 @@ export default function CalibrationSessionFields({ step, values, onFieldChange }
             </FormControl>
           );
         }
+        if (field.field_type === "data_table") {
+          return (
+            <CalibrationSessionDataTable
+              key={field.name}
+              field={field}
+              rows={values[field.name]}
+              onChange={(rows) => onFieldChange(field.name, rows)}
+              disabled={disabled}
+            />
+          );
+        }
         if (field.field_type === "choice") {
           return (
-            <FormControl key={field.name} fullWidth size="small">
+            <FormControl key={field.name} fullWidth size="small" disabled={disabled}>
               <FormLabel>{field.label}</FormLabel>
               <Select
                 value={values[field.name] ?? ""}
@@ -69,6 +81,7 @@ export default function CalibrationSessionFields({ step, values, onFieldChange }
             key={field.name}
             fullWidth
             size="small"
+            disabled={disabled}
             label={field.label}
             value={values[field.name] ?? ""}
             helperText={helperText || " "}

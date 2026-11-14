@@ -3,6 +3,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Alert from "@mui/material/Alert";
 import React, { useState, useEffect } from 'react';
 
 import Table from '@mui/material/Table';
@@ -14,15 +15,53 @@ import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from "./PioreactorsIcon"
+import EmptyState from "./EmptyState";
+import LoadingState from "./LoadingState";
 import { useMQTT } from '../providers/MQTTContext';
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
+import { parseBioreactorPayload } from "../utils/bioreactor";
+import { byUnit, sortNatural } from "../utils/naturalSort";
 
 
-function MediaCard({experiment, relabelMap, activeUnits}) {
+function MediaCard({experiment, startedAt, relabelMap}) {
+  const [historicalUnits, setHistoricalUnits] = useState(null);
+  const [assignmentsError, setAssignmentsError] = useState(false);
   const [throughputByUnit, setThroughputByUnit] = useState({});
-  const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
+  const [rates, setRates] = useState(null);
+  const [ratesError, setRatesError] = useState(false);
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+
+  useEffect(() => {
+    let isCancelled = false;
+    setHistoricalUnits(null);
+    setAssignmentsError(false);
+
+    async function getHistoricalUnits() {
+      try {
+        const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/historical_worker_assignments`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch assignment history");
+        }
+        const assignments = await response.json();
+        if (!isCancelled) {
+          setHistoricalUnits(sortNatural(assignments.map(byUnit)));
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setAssignmentsError(true);
+        }
+      }
+    }
+
+    if (experiment) {
+      getHistoricalUnits();
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [experiment]);
 
   useEffect(() => {
     if (!experiment || !client) {
@@ -37,11 +76,11 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
       if (!message || !topic) return;
 
       const topicParts = topic.toString().split('/');
-      const payload = Number.parseFloat(message.toString());
+      const payload = parseBioreactorPayload(message);
       const unit = topicParts[1];
       const throughputKey = topicParts.at(-1) === 'cumulative_alt_media_added_ml' ? 'altMedia' : 'media';
 
-      if (Number.isNaN(payload)) {
+      if (payload === null) {
         return;
       }
 
@@ -63,13 +102,24 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
 
   useEffect(() => {
     let isCancelled = false;
+    setRates(null);
+    setRatesError(false);
 
     async function getRecentRates() {
-      const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates`);
-      const data = await response.json();
-
-      if (!isCancelled) {
-        setRates(data);
+      try {
+        const query = new URLSearchParams({ started_at: startedAt });
+        const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates?${query}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch media rates");
+        }
+        const data = await response.json();
+        if (!isCancelled) {
+          setRates(data);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setRatesError(true);
+        }
       }
     }
 
@@ -80,7 +130,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     return () => {
       isCancelled = true;
     };
-  }, [experiment]);
+  }, [experiment, startedAt]);
 
   function relabelUnit(unit) {
     return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;
@@ -101,11 +151,17 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Dosing</Box>
         </Typography>
 
-        {activeUnits.length === 0 && (
-            <Typography variant="body2" component="p" color="textSecondary">No Pioreactors are currently assigned.</Typography>
+        {assignmentsError ? (
+          <Alert severity="error">Unable to load Pioreactor assignment history. Refresh the page to try again.</Alert>
+        ) : ratesError ? (
+          <Alert severity="error">Unable to load dosing rates. Refresh the page to try again.</Alert>
+        ) : historicalUnits === null || rates === null ? (
+          <LoadingState label="Loading dosing data" />
+        ) : historicalUnits.length === 0 && (
+          <EmptyState>No Pioreactors have been assigned to this experiment.</EmptyState>
         )}
 
-        {activeUnits.length > 0 && (
+        {!assignmentsError && !ratesError && rates && historicalUnits?.length > 0 && (
         <TableContainer sx={{ maxHeight: '300px', width: '100%', overflowY: 'auto' }}>
           <Table size="small" aria-label="media throughput">
             <TableHead>
@@ -121,7 +177,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
             </TableHead>
             <TableBody>
 
-              {activeUnits.map((unit) => (
+              {historicalUnits.map((unit) => (
                 <TableRow key={unit}>
                   <TableCell sx={{ padding: '6px 0px' }} component="th" scope="row">
                   <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(unit)} clickable component={Link} to={"/pioreactors/" + unit} data-pioreactor-unit={unit} />
@@ -135,10 +191,10 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
                 </TableRow>
               ))}
 
-              {activeUnits.length > 1 &&
+              {historicalUnits.length > 1 &&
               <TableRow key="all">
                 <TableCell sx={{ padding: '6px 0px' }} component="th" scope="row">
-                  <Chip size="small" icon={<PioreactorsIcon/>} label="All assigned Pioreactors" sx={{backgroundColor: uiColors.surface}} />
+                  <Chip size="small" icon={<PioreactorsIcon/>} label="Total" sx={{backgroundColor: uiColors.surface}} />
                 </TableCell>
                 <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                   {totals.media.toFixed(1)}mL ({rates.all.mediaRate.toFixed(1)}mL/h)

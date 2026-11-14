@@ -91,9 +91,13 @@ class LightDarkCycle(LEDAutomationJob):
         super().on_sleeping()
         self._cancel_phase_timer()
 
-    def on_sleeping_to_ready(self) -> None:
-        super().on_sleeping_to_ready()
-        self._run_and_schedule_next_phase()
+    def ready(self) -> None:
+        was_sleeping = self.state == self.SLEEPING
+        super().ready()
+        # Reschedule here, not in on_sleeping_to_ready: the state is still sleeping there,
+        # so run_once and the phase timer would both skip.
+        if was_sleeping:
+            self._run_and_schedule_next_phase()
 
     def on_disconnected(self) -> None:
         self._cancel_phase_timer()

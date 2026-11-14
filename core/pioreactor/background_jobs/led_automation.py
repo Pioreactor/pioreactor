@@ -59,7 +59,7 @@ class LEDAutomationJob(AutomationJob):
 
         """
         attempts = 6
-        for _ in range(attempts):
+        for attempt in range(attempts):
             success = led_intensity(
                 {channel: intensity},
                 unit=self.unit,
@@ -72,7 +72,8 @@ class LEDAutomationJob(AutomationJob):
                 self.edited_channels.add(channel)
                 return True
 
-            time.sleep(0.5)
+            if attempt < attempts - 1:
+                time.sleep(0.5)
 
         self.logger.warning(f"{self.automation_name} was unable to update channel {channel}.")
         return False

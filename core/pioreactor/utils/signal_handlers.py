@@ -30,6 +30,7 @@ class callable_stack:
         call_original_handler_after_callbacks: bool = False,
     ) -> None:
         self._callables: list[Callable[..., None]] = []
+        self.is_running = False
         self.default = default_function_if_empty
         self.original_handler = original_handler
         self.call_original_handler_after_callbacks = call_original_handler_after_callbacks
@@ -50,16 +51,25 @@ class callable_stack:
         return not self._callables
 
     def __call__(self, *args: object) -> None:
-        if not self._callables:
-            self.default(*args)
+        # systemd may send SIGTERM again while a shutdown callback is running.
+        # Finish that callback rather than re-entering cleanup or raising an interrupt.
+        if self.is_running:
             return
 
-        while self._callables:
-            function = self._callables.pop()
-            function(*args)
+        self.is_running = True
+        try:
+            if not self._callables:
+                self.default(*args)
+                return
 
-        if self.call_original_handler_after_callbacks and callable(self.original_handler):
-            self.original_handler(*args)
+            while self._callables:
+                function = self._callables.pop()
+                function(*args)
+
+            if self.call_original_handler_after_callbacks and callable(self.original_handler):
+                self.original_handler(*args)
+        finally:
+            self.is_running = False
 
 
 def append_signal_handler(signal_value: signal.Signals, new_callback: Callable[..., None]) -> None:
@@ -108,7 +118,9 @@ def remove_signal_handler(signal_value: signal.Signals, callback_to_remove: Call
 
     current_callback.remove(callback_to_remove)
 
-    if current_callback.is_empty:
+    # A popped callback still owns the signal until it finishes. Temporary
+    # resources created and closed inside it must not restore SIG_DFL mid-cleanup.
+    if current_callback.is_empty and not current_callback.is_running:
         signal.signal(signal_value, current_callback.original_handler)
     else:
         signal.signal(signal_value, current_callback)

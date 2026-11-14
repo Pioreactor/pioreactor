@@ -10,7 +10,6 @@ import Divider from "@mui/material/Divider";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
@@ -19,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material"
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CancelIcon from "@mui/icons-material/Cancel";
-import CloseIcon from "@mui/icons-material/Close";
 import CalibrationIcon from "./CalibrationIcon";
 import { alpha, keyframes, styled } from "@mui/material/styles";
 import { useConfirm } from "material-ui-confirm";
@@ -46,9 +44,10 @@ import {
 } from "../utils/jobs";
 import { fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 import { experimentPathSegment } from "../utils/url";
+import DialogCloseButton from "./DialogCloseButton";
+import { textIcon } from "../theme";
 
 export const TOPIC_SIGNATURE_SEPARATOR = "\u0000";
-export const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 export function getPioreactorCardMonitorTopics({ unit, experiment }) {
   if (!unit || !experiment) {
@@ -100,9 +99,10 @@ export function ButtonStopProcess({ experiment, unit = "$broadcast", disabled = 
       confirmationText: "Confirm",
       confirmationButtonProps: { autoFocus: true, variant: "contained", color: "primary" },
       cancellationButtonProps: { color: "secondary" },
-    }).then(() =>
-      fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, { method: "POST" })
-    ).catch(() => {});
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
+      return fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, { method: "POST" });
+    }).catch(() => {});
   };
 
   return (
@@ -236,18 +236,7 @@ export function CalibrateDialog({
             <Tab label="Estimators" />
             <Tab label="Blanks" />
           </Tabs>
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <TabPanel value={tabValue} index={2}>
@@ -329,7 +318,7 @@ export function CalibrateDialog({
                             sx={{ maxWidth: "300px" }}
                             clickable
                             component={Link}
-                            to={`/estimators/${unit}/${device}/${estimatorName}`}
+                            to={`/estimators/${unit}/${device}/${encodeURIComponent(estimatorName)}`}
                           />
                         </TableCell>
                         <TableCell align="left" sx={{ padding: "6px 0px" }}>
@@ -385,7 +374,7 @@ export function CalibrateDialog({
                             clickable
                             component={Link}
                             sx={{ maxWidth: "300px" }}
-                            to={`/calibrations/${unit}/${device}/${calName}`}
+                            to={`/calibrations/${unit}/${device}/${encodeURIComponent(calName)}`}
                           />
                         </TableCell>
                         <TableCell align="left" sx={{ padding: "6px 0px" }}>
@@ -641,9 +630,9 @@ const SELF_TEST_GROUPS = [
   },
 ];
 
-function getAvailableSelfTestGroupsForKeys(keys, cameraEnabled) {
+function getAvailableSelfTestGroupsForKeys(keys, cameraDetected) {
   const availableKeys = new Set(keys);
-  const groups = cameraEnabled
+  const groups = cameraDetected
     ? [...SELF_TEST_GROUPS, {
       title: "Camera",
       tests: [{ key: "test_camera_capture", label: "Camera captures an image" }],
@@ -657,20 +646,20 @@ function getAvailableSelfTestGroupsForKeys(keys, cameraEnabled) {
     .filter((group) => group.tests.length > 0);
 }
 
-export function getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraEnabled) {
+export function getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraDetected) {
   if (!selfTestSettings) {
     return [];
   }
-  return getAvailableSelfTestGroupsForKeys(Object.keys(selfTestSettings), cameraEnabled);
+  return getAvailableSelfTestGroupsForKeys(Object.keys(selfTestSettings), cameraDetected);
 }
 
-export function getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, cameraEnabled) {
+export function getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, cameraDetected) {
   if (!selfTestDefinition) {
     return [];
   }
   return getAvailableSelfTestGroupsForKeys(
     selfTestDefinition.published_settings.map((field) => field.key),
-    cameraEnabled,
+    cameraDetected,
   );
 }
 
@@ -767,7 +756,7 @@ export function UnitSettingDisplay(props) {
       return <Box sx={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </Box>;
     }
 
-    const pwmDcs = JSON.parse(value);
+    const pwmDcs = JSON.parse(value).channels;
     const PWMMap = props.config["PWM"] || {};
     const renamed1 = PWMMap[1] ? PWMMap[1].replace("_", " ") : null;
     const renamed2 = PWMMap[2] ? PWMMap[2].replace("_", " ") : null;

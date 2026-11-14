@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -21,6 +22,8 @@ import 'prismjs/components/prism-ini';
 
 import dayjs from "dayjs";
 import { useParams, useNavigate } from 'react-router';
+import { textIcon } from "./theme";
+import { byUnit, compareNatural } from "./utils/naturalSort";
 
 
 const CURRENT_VERSION = "__current__";
@@ -228,8 +231,8 @@ function EditableCodeDiv() {
         }
 
         const unitTargets = json
-          .map((entry) => entry.pioreactor_unit)
-          .sort()
+          .map(byUnit)
+          .sort(compareNatural)
           .map((unit) => ({ name: `${unit} unit config`, value: unit }));
 
         setState(prev => {
@@ -323,10 +326,10 @@ function EditableCodeDiv() {
 
   return (
     <React.Fragment>
-      <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
+      <Box sx={{ m: "10px", display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "space-between" }}>
         <FormControl>
           <div>
-            <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config target:</FormLabel>
+            <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config:</FormLabel>
             <Select
               labelId="configTargetSelect"
               variant="standard"
@@ -459,7 +462,7 @@ function EditConfigContainer(){
             onClick={handleDownloadConfigurations}
             loading={downloading}
           >
-            <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
+            <DownloadIcon fontSize="small" sx={textIcon} />
             Download all configurations
           </Button>
         )}
@@ -479,9 +482,7 @@ function EditConfigContainer(){
 
 
 function EditConfig(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title])
+    useDocumentTitle(props.title);
     return (
       <Grid container spacing={2} >
         <Grid

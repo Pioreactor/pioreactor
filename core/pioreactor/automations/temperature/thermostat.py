@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Any
 
-from pioreactor.automations.events import UpdatedHeaterDC
 from pioreactor.background_jobs.temperature_automation import classproperty
 from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.config import config
@@ -55,7 +54,7 @@ class Thermostat(TemperatureAutomationJob):
         super().on_disconnected()
         self.pid.clean_up()
 
-    def execute(self) -> UpdatedHeaterDC:
+    def execute(self) -> None:
         assert self.latest_temperature is not None
         output = self.pid.update(
             self.latest_temperature, dt=1
@@ -64,15 +63,7 @@ class Thermostat(TemperatureAutomationJob):
         self.update_heater_with_delta(output)
         self.logger.debug(f"PID output = {output}")
 
-        return UpdatedHeaterDC(
-            f"delta_dc={output}",
-            data={
-                "current_dc": self.heater_duty_cycle,
-                "delta_dc": output,
-                "target_temperature": self.target_temperature,
-                "latest_temperature": self.latest_temperature,
-            },
-        )
+        return
 
     def set_target_temperature(self, target_temperature: float | str) -> None:
         """

@@ -1,3 +1,4 @@
+import useDocumentTitle from "./hooks/useDocumentTitle";
 import PageHeader from "./components/PageHeader";
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams,  useNavigate,  Link } from "react-router";
@@ -8,7 +9,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Alert from '@mui/material/Alert';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import IconButton from '@mui/material/IconButton';
 import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
@@ -23,7 +23,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableRow,
 } from "@mui/material";
 import PioreactorIcon from "./components/PioreactorIcon"
@@ -36,10 +35,11 @@ import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import DisplaySourceCode from "./components/DisplaySourceCode";
-import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
+import CalibrationMeasurements from "./components/CalibrationMeasurements";
 
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function formatPolynomial(coefficients) {
     const superscripts = {
@@ -157,16 +157,17 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   const deleteCalibration = async () => {
     let confirmed = false;
     try {
-      await confirm({
+      const result = await confirm({
         description: 'Deleting this calibration will remove it from disk. This is irreversible.',
         title: `Delete calibration ${calibrationName}?`,
         confirmationText: "Confirm",
         confirmationButtonProps: {color: "primary", variant: "contained"},
         cancellationButtonProps: {color: "secondary"},
       });
+      if (!result.confirmed) return;
       confirmed = true;
 
-      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`, {
+      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/calibrations/${device}/${encodeURIComponent(calibrationName)}`, {
         fetchOptions: { method: "DELETE" },
       });
       assertUnitTaskResultSucceeded(
@@ -184,8 +185,8 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   };
 
   return (
-    <Button sx={{ mr: "0px"}} color="secondary" onClick={deleteCalibration}>
-       <DeleteOutlineIcon fontSize="small"/> Delete
+    <Button color="secondary" onClick={deleteCalibration}>
+      <DeleteOutlineIcon fontSize="small" sx={textIcon} /> Delete
     </Button>
 )}
 
@@ -212,24 +213,13 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
         disabled={disabled}
         onClick={openAndLoad}
       >
-        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+        <CodeIcon fontSize="small" sx={textIcon}/>
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ pr: 6 }}>
           YAML description for calibration {calibrationName}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <DisplaySourceCode sourceCode={yamlText} />
@@ -267,7 +257,7 @@ function DownloadCalibrationYaml({ pioreactorUnit, calibrationName, calibration,
       disabled={disabled}
       onClick={downloadCalibration}
     >
-      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+      <DownloadIcon fontSize="small" sx={textIcon}/>
       Download calibration
     </Button>
   );
@@ -281,13 +271,11 @@ function SingleCalibrationPage(props) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
+  useDocumentTitle(props.title);
 
   const fetchSingleCalibration = useCallback(async () => {
     setLoading(true);
-    const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${encodeURIComponent(calibrationName)}`;
     try {
       const data = await fetchTaskResult(apiUrl)
       try {
@@ -321,7 +309,7 @@ function SingleCalibrationPage(props) {
   }
 
   const handleSetActive = async () => {
-    const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${calibrationName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${encodeURIComponent(calibrationName)}`;
     try {
       const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
       assertUnitTaskResultSucceeded(
@@ -404,7 +392,7 @@ function SingleCalibrationPage(props) {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", overflowWrap: "anywhere" }}>
-            Calibration: {calibrationName}
+            Calibration: <span style={{ userSelect: "all" }}>{calibrationName}</span>
           </Typography>
           {isActive && (
             <Chip
@@ -448,6 +436,7 @@ function SingleCalibrationPage(props) {
         calibrationName={calibrationName}
         calibration={calibration}
         loading={loading}
+        onSaved={(saved) => { setCalibration(saved); showSnackbar("Calibration recalculated and saved."); }}
       />
 
       <Snackbar
@@ -463,7 +452,7 @@ function SingleCalibrationPage(props) {
 }
 
 
-function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, calibration, loading } ) {
+function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, calibration, loading, onSaved } ) {
   const unitsColorMap = new ColorCycler(colors)
   if (loading) {
     return (
@@ -487,9 +476,6 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
     calibration_type,
     created_at,
     curve_data_,
-    x,
-    y,
-    recorded_data,
     is_active,
   } = calibration;
 
@@ -504,7 +490,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="h6" component="h2">Calibration data</Typography>
                   {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyCalibrationYamlToClipboard}>
-                    <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as YAML
+                    <ContentCopyOutlinedIcon fontSize="small" sx={textIcon}/> Copy as YAML
                   </Button>*/}
                 </Box>
                 <Table size="small">
@@ -565,7 +551,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                         <TableCell>{calibration_type}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell><strong>Fit curve</strong></TableCell>
+                        <TableCell><strong>Calibration curve</strong></TableCell>
                         <TableCell>
                           {formatCurve(curve_data_)}
                         </TableCell>
@@ -574,32 +560,14 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                   </Table>
               </Box>
 
-              <Box sx={{ px: 5, mt: 5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" component="h2">Recorded data</Typography>
-                  {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyRecordedDataCsvToClipboard}>
-                    <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as CSV
-                  </Button>*/}
-                </Box>
-                <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>{x}</TableCell>
-                        <TableCell>{y}</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {recorded_data.x.map((xVal, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{xVal}</TableCell>
-                          <TableCell>{recorded_data.y[idx]}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              </Box>
+              <CalibrationMeasurements
+                key={`${pioreactorUnit}/${device}/${calibrationName}`}
+                calibration={calibration}
+                unit={pioreactorUnit}
+                device={device}
+                name={calibrationName}
+                onSaved={onSaved}
+              />
           </CardContent>
       </Card>
     </Grid>

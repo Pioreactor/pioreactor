@@ -182,6 +182,14 @@ def test_boolean_retry_uses_independent_default_kwargs() -> None:
     assert seen_kwargs == [{"marker": None}, {"marker": None}]
 
 
+def test_boolean_retry_does_not_sleep_after_the_last_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("pioreactor.utils.time.sleep", sleeps.append)
+
+    assert boolean_retry(lambda: False, retries=3, sleep_for=0.25) is False
+    assert sleeps == [0.25, 0.25]
+
+
 def test_summable_dict_with_list_values() -> None:
     first = SummableDict({"a": [1.0, 2.0], "b": [3.0]})
     second = SummableDict({"a": [4.0], "c": [5.0, 6.0]})

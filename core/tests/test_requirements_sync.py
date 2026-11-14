@@ -49,13 +49,8 @@ def parse_setup_extras(path: Path) -> dict[str, list[str]]:
                     assert isinstance(key.value, str)
                     if isinstance(value, ast.Name):
                         extras[key.value] = parse_setup_list(path, value.id)
-                    elif isinstance(value, ast.BinOp):
-                        assert isinstance(value.op, ast.Add)
-                        assert isinstance(value.left, ast.Name)
-                        assert isinstance(value.right, ast.Name)
-                        extras[key.value] = parse_setup_list(path, value.left.id) + parse_setup_list(
-                            path, value.right.id
-                        )
+                    elif isinstance(value, ast.List):
+                        extras[key.value] = [ast.literal_eval(elt) for elt in value.elts]
                     else:
                         raise AssertionError(f"Unsupported extra value for {key.value}")
                 return extras
@@ -68,23 +63,22 @@ def test_requirements_files_match_setup_py() -> None:
     setup_py_path = repo_root / "core" / "setup.py"
 
     core = parse_setup_list(setup_py_path, "CORE_REQUIREMENTS")
-    worker = parse_setup_list(setup_py_path, "WORKER_REQUIREMENTS")
-    leader = parse_setup_list(setup_py_path, "LEADER_REQUIREMENTS")
+    hardware = parse_setup_list(setup_py_path, "HARDWARE_REQUIREMENTS")
 
     assert set(parse_requirements(req_dir / "requirements.txt")) == set(core)
-    assert set(parse_requirements(req_dir / "requirements_worker.txt")) == set(core + worker)
-    assert set(parse_requirements(req_dir / "requirements_leader.txt")) == set(core + leader)
-    assert set(parse_requirements(req_dir / "requirements_leader_worker.txt")) == set(core + worker + leader)
+    assert set(parse_requirements(req_dir / "requirements_hardware.txt")) == set(core + hardware)
 
 
-def test_setup_py_leader_extra_is_leader_only() -> None:
+def test_setup_py_role_extras_are_aliases() -> None:
+    # every unit can become a leader, so the only real extra is hardware; the role-named
+    # extras stay for older images, installers and updates across releases.
     repo_root = Path(__file__).resolve().parent.parent.parent
     setup_py_path = repo_root / "core" / "setup.py"
 
-    worker = parse_setup_list(setup_py_path, "WORKER_REQUIREMENTS")
-    leader = parse_setup_list(setup_py_path, "LEADER_REQUIREMENTS")
+    hardware = parse_setup_list(setup_py_path, "HARDWARE_REQUIREMENTS")
     extras = parse_setup_extras(setup_py_path)
 
-    assert set(extras["leader"]) == set(leader)
-    assert set(extras["leader"]).isdisjoint(worker)
-    assert set(extras["leader_worker"]) == set(leader + worker)
+    assert set(extras["hardware"]) == set(hardware)
+    assert set(extras["worker"]) == set(hardware)
+    assert set(extras["leader_worker"]) == set(hardware)
+    assert extras["leader"] == []
