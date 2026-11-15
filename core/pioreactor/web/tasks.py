@@ -918,7 +918,8 @@ def calibration_measure_standard(
         sorted(channel_angle_map.keys()),
     )
     typed_map = {
-        cast(pt.PdChannel, channel): cast(pt.PdAngle, angle) for channel, angle in channel_angle_map.items()
+        cast(pt.PdChannel, channel): cast(pt.ObservationAngle, angle)
+        for channel, angle in channel_angle_map.items()
     }
     voltages = _measure_standard(
         rpm=rpm,

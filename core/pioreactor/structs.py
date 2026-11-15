@@ -553,6 +553,17 @@ class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
     x: str = "OD600"
 
 
+class ExternalODCalibration(CalibrationBase, kw_only=True, tag="external_od"):
+    """Maps an external OD device's uncalibrated signal to OD600.
+
+    Invariant: stored under the calibration device `od_<driver>`, so a curve is only
+    ever loaded for the driver whose signal it was fit on.
+    """
+
+    x: str = "OD600"
+    y: str = "Signal"
+
+
 class ODFusionEstimator(EstimatorBase, kw_only=True, tag="od_fused_estimator"):
     ir_led_intensity: float
     angles: list[pt.PdAngle]
@@ -592,6 +603,7 @@ AnyCalibration = (
     | SimplePeristalticPumpCalibration
     | ODCalibration
     | OD600Calibration
+    | ExternalODCalibration
     | CalibrationBase
 )
 

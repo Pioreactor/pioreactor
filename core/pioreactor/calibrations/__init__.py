@@ -46,6 +46,11 @@ def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirri
     pass
 
 
+@overload
+def load_active_calibration(device: str) -> structs.AnyCalibration | None:
+    pass
+
+
 def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
     with local_persistent_storage("active_calibrations") as c:
         active_cal_name = c.get(device)

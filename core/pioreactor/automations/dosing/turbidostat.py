@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Any
 from typing import cast
 
+from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
@@ -14,6 +15,7 @@ from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.estimators import load_active_estimator
+from pioreactor.od_devices import external_od_calibration_device
 from pioreactor.utils.timing import current_utc_datetime
 
 SETTLING_TIME_SECONDS = 30.0
@@ -69,6 +71,10 @@ class Turbidostat(DosingAutomationJob):
         return self._resolved_od_channel
 
     def _resolve_od_channel(self, *, warn_on_multiple: bool = True) -> pt.PdChannel:
+        if not hardware.uses_photodiodes():
+            # External OD devices publish one signal on logical channel 1.
+            return "1"
+
         channels = config["od_config.photodiode_channel"]
         signal_channels: list[pt.PdChannel] = []
         for channel, angle in channels.items():
@@ -110,7 +116,12 @@ class Turbidostat(DosingAutomationJob):
             return False
 
     def _has_active_od_calibration_for_resolved_angle(self) -> bool:
-        od_device = cast(pt.ODCalibrationDevices, f"od{self._od_angle}")
+        od_hardware = hardware.get_od_hardware_config()
+        od_device = (
+            f"od{self._od_angle}"
+            if od_hardware.driver == "photodiodes"
+            else external_od_calibration_device(od_hardware.driver)
+        )
         try:
             return load_active_calibration(od_device) is not None
         except Exception as e:
@@ -180,7 +191,8 @@ class Turbidostat(DosingAutomationJob):
         if biomass_signal != "auto":
             return biomass_signal
 
-        if self._has_active_od_fused_estimator():
+        # od_fused is only published from photodiode readings.
+        if hardware.uses_photodiodes() and self._has_active_od_fused_estimator():
             return "od_fused"
 
         if self._has_active_od_calibration_for_resolved_angle():

@@ -939,7 +939,7 @@ def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(hardware, "hardware_version_info", (1, 2))
-    monkeypatch.setattr(hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
+    monkeypatch.setattr(hardware, "get_required_i2c_addresses_for_model", lambda *_args: {0x48})
     monkeypatch.setattr(hardware, "is_i2c_device_present", lambda address: address == 0x48)
 
     assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.1") == {"status": "ok"}

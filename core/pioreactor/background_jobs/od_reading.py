@@ -103,6 +103,7 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.od_devices import create_od_device
+from pioreactor.od_devices import external_od_calibration_device
 from pioreactor.od_devices import ExternalODDevice
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import publish
@@ -872,6 +873,63 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
         return 1.0, raw_readings
 
 
+def calibrate_signal_within_recorded_range(
+    calibration_data: structs.CalibrationBase,
+    observed_signal: float,
+    warn: Callable[[str], None],
+    signal_unit: str = "",
+) -> pt.OD:
+    """Invert a signal -> OD curve, clamping signals that fall outside its recorded range.
+
+    `warn` receives a message whenever the signal was clamped; callers rate-limit it.
+    """
+    try:
+        recorded_data = calibration_data.included_recorded_data()
+        recorded_ods = recorded_data["x"]
+        recorded_signals = recorded_data["y"]
+        min_OD, max_OD = min(recorded_ods), max(recorded_ods)
+        signal_od_pairs = list(zip(recorded_signals, recorded_ods))
+        min_signal, od_at_min_signal = min(signal_od_pairs, key=lambda pair: pair[0])
+        max_signal, od_at_max_signal = max(signal_od_pairs, key=lambda pair: pair[0])
+    except ValueError:
+        # can only really occur if data is missing
+        min_OD, max_OD = 0.0, 100_000.0
+        min_signal, max_signal = 0.0, 100_000.0
+        od_at_min_signal, od_at_max_signal = min_OD, max_OD
+
+    def clamp_to_recorded_extrema() -> pt.OD:
+        if observed_signal <= min_signal:
+            return od_at_min_signal
+        elif observed_signal >= max_signal:
+            return od_at_max_signal
+        # if the observed signal lies between the smallest and largest recorded signals but the solver still says “out of
+        # domain” (e.g., non‑monotonic curve giving no valid root in-bounds), we can’t map it normally. In that unlikely situation we snap the
+        # result to whichever recorded signal end (min or max) is nearest to the observed signal, rather than picking an arbitrary side
+        return (
+            od_at_min_signal
+            if abs(observed_signal - min_signal) < abs(observed_signal - max_signal)
+            else od_at_max_signal
+        )
+
+    calibrated_range = (
+        f"Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], "
+        f"{signal_unit or 'signal'}=[{min_signal:0.3g}, {max_signal:0.3g}]. "
+        f"Observed {observed_signal:0.3g}{signal_unit}, which would map outside the allowed values."
+    )
+
+    try:
+        return calibration_data.y_to_x(observed_signal, enforce_bounds=True)
+    except exc.NoSolutionsFoundError:
+        warn(f"No solution found for calibrated signal. Trimming signal. {calibrated_range}")
+    except exc.SolutionBelowDomainError:
+        below_or_outside = "below" if observed_signal <= min_signal else "outside of"
+        warn(f"Signal {below_or_outside} suggested calibration range. Trimming signal. {calibrated_range}")
+    except exc.SolutionAboveDomainError:
+        above_or_outside = "above" if observed_signal >= max_signal else "outside of"
+        warn(f"Signal {above_or_outside} suggested calibration range. Trimming signal. {calibrated_range}")
+    return clamp_to_recorded_extrema()
+
+
 class HydratedCalibrationModel:
     def __init__(
         self,
@@ -1043,56 +1101,9 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             return True
 
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
-            try:
-                recorded_data = calibration_data.included_recorded_data()
-                recorded_ods = recorded_data["x"]
-                recorded_voltages = recorded_data["y"]
-                min_OD, max_OD = min(recorded_ods), max(recorded_ods)
-                voltage_od_pairs = list(zip(recorded_voltages, recorded_ods))
-                min_voltage, od_at_min_voltage = min(voltage_od_pairs, key=lambda pair: pair[0])
-                max_voltage, od_at_max_voltage = max(voltage_od_pairs, key=lambda pair: pair[0])
-            except ValueError:
-                # can only really occur if data is missing
-                min_OD, max_OD = 0.0, 100_000.0
-                min_voltage, max_voltage = 0.0, 100_000.0
-                od_at_min_voltage, od_at_max_voltage = min_OD, max_OD
-
-            def clamp_to_recorded_extrema() -> pt.OD:
-                if observed_voltage <= min_voltage:
-                    return od_at_min_voltage
-                elif observed_voltage >= max_voltage:
-                    return od_at_max_voltage
-                # if the observed voltage lies between the smallest and largest recorded voltages but the polynomial solver still says “out of
-                # domain” (e.g., non‑monotonic curve giving no valid root in-bounds), we can’t map it normally. In that unlikely situation we snap the
-                # result to whichever recorded voltage end (min or max) is nearest to the observed voltage, rather than picking an arbitrary side
-                return (
-                    od_at_min_voltage
-                    if abs(observed_voltage - min_voltage) < abs(observed_voltage - max_voltage)
-                    else od_at_max_voltage
-                )
-
-            try:
-                return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
-            except exc.NoSolutionsFoundError:
-                if self._should_warn_about_bounds():
-                    self.logger.warning(
-                        f"No solution found for calibrated signal. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                    )
-                return clamp_to_recorded_extrema()
-            except exc.SolutionBelowDomainError:
-                if self._should_warn_about_bounds():
-                    below_or_above = "below" if observed_voltage <= min_voltage else "outside of"
-                    self.logger.warning(
-                        f"Signal {below_or_above} suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                    )
-                return clamp_to_recorded_extrema()
-            except exc.SolutionAboveDomainError:
-                if self._should_warn_about_bounds():
-                    above_or_outside = "above" if observed_voltage >= max_voltage else "outside of"
-                    self.logger.warning(
-                        f"Signal {above_or_outside} suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                    )
-                return clamp_to_recorded_extrema()
+            return calibrate_signal_within_recorded_range(
+                calibration_data, observed_voltage, self._warn_about_bounds, signal_unit="V"
+            )
 
         return HydratedCalibrationModel(
             calibration_name=calibration_data.calibration_name,
@@ -1106,6 +1117,10 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             self._last_bound_warning_at = now
             return True
         return False
+
+    def _warn_about_bounds(self, message: str) -> None:
+        if self._should_warn_about_bounds():
+            self.logger.warning(message)
 
     def __call__(self, od_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
         calibrated_od_readings = structs.PhotodiodeODReadings(ods={}, timestamp=od_readings.timestamp)
@@ -1680,28 +1695,63 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
 
 
 class ExternalODReader(ODReader[ExternalODDevice]):
-    """Wrap a plugin's single observation for the shared OD publication loop."""
+    """Wrap a plugin's single observation for the shared OD publication loop.
+
+    Invariant: a Pioreactor calibration is only ever applied to the device's uncalibrated signal.
+    """
+
+    def __init__(
+        self,
+        device_factory: Callable[[], ExternalODDevice],
+        unit: str,
+        experiment: str,
+        interval: float | None,
+        calibration: structs.ExternalODCalibration | None = None,
+    ) -> None:
+        # Assigned first: super().__init__() may start the timer that reads them.
+        self.calibration = calibration
+        self._last_bound_warning_at: float | None = None
+        super().__init__(device_factory, unit, experiment, interval)
 
     def initialize_device(self) -> None:
         self.acquisition = "continuous"
+        if self.calibration is not None:
+            self.logger.debug(f"OD setup: calibration `{self.calibration.calibration_name}`.")
         self.device.start()
 
     def _acquire_readings(self) -> structs.ODReadings | None:
         reading = self.device.read()
         if reading is None:
             return None
+        value, calibrated = reading.value, reading.calibrated
+        if self.calibration is not None:
+            if reading.calibrated:
+                raise exc.CalibrationError(
+                    f"OD calibration `{self.calibration.calibration_name}` was created on the device's uncalibrated signal, "
+                    "but the device now applies its own calibration. Clear the active calibration, or the device's."
+                )
+            value = calibrate_signal_within_recorded_range(
+                self.calibration, reading.value, self._warn_about_bounds
+            )
+            calibrated = True
         return structs.ODReadings(
             timestamp=reading.timestamp,
             ods={
                 "1": structs.ODReading(
                     timestamp=reading.timestamp,
-                    od=reading.value,
+                    od=value,
                     channel="1",
                     angle=self.device.angle,
-                    calibrated=1 if reading.calibrated else 0,
+                    calibrated=1 if calibrated else 0,
                 ),
             },
         )
+
+    def _warn_about_bounds(self, message: str) -> None:
+        now = time()
+        if self._last_bound_warning_at is None or (now - self._last_bound_warning_at) > 300:
+            self._last_bound_warning_at = now
+            self.logger.warning(message)
 
 
 class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
@@ -1863,6 +1913,25 @@ def start_od_reading(
             ),
         )
 
+    return start_external_od_reading(interval=interval, unit=unit, experiment=experiment)
+
+
+def start_external_od_reading(
+    *,
+    interval: float | None = None,
+    unit: pt.Unit | None = None,
+    experiment: pt.Experiment | None = None,
+    calibration: bool | structs.ExternalODCalibration = True,
+) -> ExternalODReader:
+    """Start the external OD device selected in od.yaml.
+
+    calibration=True applies the driver's active OD calibration, if one exists. False publishes
+    the device's own signal, which is what calibration protocols measure.
+    """
+    od_hardware = hardware.get_od_hardware_config()
+    if od_hardware.driver == "photodiodes":
+        raise exc.HardwareError("External OD acquisition requires an external driver in od.yaml.")
+
     maybe_job_id = get_running_pio_job_id("od_reading")
     if maybe_job_id is not None:
         raise exc.JobPresentError(f"od_reading is already running (job_id={maybe_job_id}). Skipping.")
@@ -1870,11 +1939,33 @@ def start_od_reading(
     if interval is not None and interval <= 0:
         raise ValueError("interval must be positive.")
 
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
+
+    calibration_to_use: structs.ExternalODCalibration | None = None
+    if calibration is True:
+        from pioreactor.calibrations import load_active_calibration
+
+        calibration_device = external_od_calibration_device(od_hardware.driver)
+        active_calibration = load_active_calibration(calibration_device)
+        if active_calibration is not None and not isinstance(
+            active_calibration, structs.ExternalODCalibration
+        ):
+            message = (
+                f"{calibration_device} calibration `{active_calibration.calibration_name}` has wrong type."
+            )
+            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
+            raise exc.CalibrationError(message)
+        calibration_to_use = active_calibration
+    elif isinstance(calibration, structs.ExternalODCalibration):
+        calibration_to_use = calibration
+
     return ExternalODReader(
         lambda: create_od_device(od_hardware, create_logger("od_reading", unit=unit, experiment=experiment)),
         unit=unit,
         experiment=experiment,
         interval=interval,
+        calibration=calibration_to_use,
     )
 
 

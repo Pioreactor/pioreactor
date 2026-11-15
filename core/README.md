@@ -49,10 +49,35 @@ ODDeviceReading(timestamp=acquisition_time, value=value, calibrated=False)
 The timestamp is a timezone-aware datetime. The value is one consistently
 selected optical signal. Optical-output correction belongs to the device;
 normalization by the experiment's initial reading belongs to Pioreactor's growth
-model. `calibrated` describes whether the device applied a calibration to the
-returned value; it does not request another Pioreactor calibration. Select the
-output at startup and keep it fixed through sleep/resume. The device does not
-publish MQTT or provide growth estimates.
+model. `calibrated` describes whether the device applied its own calibration to
+the returned value. Select the output at startup and keep it fixed through
+sleep/resume. The device does not publish MQTT or provide growth estimates.
+
+## Calibrating an external device
+
+The OD600 standards protocol measures whichever OD hardware the unit selects. On
+a unit with an external driver the protocol's device is `od_<driver>` (for
+example `od_turbidvision`), in the UI or with:
+
+```sh
+pio calibrations run --device od_turbidvision
+```
+
+It saves an `ExternalODCalibration` (signal → OD600) under that device. While it
+is active, `od_reading` publishes OD600 on `od1`/`ods` with `calibrated: 1`, and
+the turbidostat's `auto` biomass signal resolves to `od`.
+
+Invariants:
+
+- Storage is keyed by driver, so a curve is only loaded for the driver whose
+  signal it was fit on.
+- A Pioreactor calibration is only fit on, and applied to, the device's
+  uncalibrated signal. A device that applies its own calibration is rejected by
+  the protocol, and by `od_reading` while a Pioreactor calibration is active.
+- Signals outside the standards' range clamp to it, as for photodiodes.
+
+`start_external_od_reading(calibration=False)` publishes the device's own signal;
+`start_od_reading()` applies the active calibration.
 
 All primary MQTT readings use one `ODReading` shape: `timestamp`, `od`,
 `channel`, `angle`, and `calibrated` (`0` for uncalibrated, `1` for calibrated).
@@ -87,7 +112,7 @@ has its own acquisition interface.
 reference correction, blanking, calibration, and fusion together. Its diagnostics
 use the existing photodiode message types, not a generic optional-fields blob.
 External devices never enter this pipeline. Photodiode-specific blanking and
-calibration reject external devices, and photodiode self-tests are omitted.
+fusion calibration reject external devices, and photodiode self-tests are omitted.
 
 The OD job publishes its source separately. Existing SQL tables store the
 value and angle. The upcoming update adds `angle` to `raw_od_readings`. The chart

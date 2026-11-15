@@ -31,7 +31,7 @@ class ExternalODDevice(Protocol):
         """Read the device"""
 
     def close(self) -> None:
-        """End acquisition and release resources, whether running or paused."""
+        """End acquisition and release resources, whether running, paused or never started."""
 
 
 type DeviceFactory = Callable[[dict[str, Any], CustomLogger], ExternalODDevice]
@@ -42,6 +42,11 @@ def register_od_device(name: str, factory: DeviceFactory) -> None:
     if name == "photodiodes":
         raise ValueError("The photodiode implementation is built in.")
     _factories[name] = factory
+
+
+def external_od_calibration_device(driver: str) -> str:
+    """Calibration device name for an external driver's signal, e.g. `od_turbidvision`."""
+    return f"od_{driver}"
 
 
 def create_od_device(config: ODHardwareConfig, logger: CustomLogger) -> ExternalODDevice:
