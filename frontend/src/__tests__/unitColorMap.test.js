@@ -19,3 +19,16 @@ test("units seen later, like ones only in chart history, take unused colors", ()
   expect(colorMap.unit9).toBe(colors[2]);
   expect(colorMap.unit9).toBe(colors[2]);
 });
+
+test.each([0, colors.length, colors.length + 5])(
+  "cycles colors after palette exhaustion with %i units seeded initially",
+  (seedCount) => {
+    const units = Array.from({ length: colors.length * 2 + 3 }, (_, index) => `unit${index + 1}`);
+    const colorMap = createUnitColorMap(units.slice(0, seedCount));
+
+    units.forEach((unit, index) => {
+      expect(colorMap[unit]).toBe(colors[index % colors.length]);
+      expect(colorMap[unit]).toBe(colors[index % colors.length]);
+    });
+  },
+);

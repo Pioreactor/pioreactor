@@ -29,7 +29,7 @@ import PioreactorsIcon from './PioreactorsIcon';
 //import Icon2x2Grid from './Icon2x2Grid';
 import PluginsIcon from './PluginsIcon';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import ConfigurationIcon from './ConfigurationIcon';
 import ExperimentProfileIcon from './ExperimentProfileIcon';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
@@ -506,7 +506,7 @@ export default function SideNavAndHeader() {
             >
 
                 <MenuItem
-                  icon={<SettingsOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  icon={<ConfigurationIcon sx={{fontSize: "27px", color: isSelected("/config") ? uiColors.primary : uiColors.navIcon}}/> }
                   component={<Link to="/config" className="link" />}
                   active={isSelected("/config")}
 

@@ -53,12 +53,13 @@ const unitColorChoices = colors.slice(0, 16);
 
 // Chosen colors win. Other units keep their usual slot (sorted unit N gets colors[N-1]) unless a chosen
 // color took it; those units, and units first seen later (e.g. only in chart history), take the first
-// unused color.
+// unused color, cycling through the palette once all colors are used.
 function createUnitColorMap(units, chosenColors = {}) {
   const resolved = { ...chosenColors };
   const used = new Set(Object.values(chosenColors));
+  let fallbackIndex = 0;
   const nextUnusedColor = () => {
-    const color = colors.find((candidate) => !used.has(candidate)) ?? colors[used.size % colors.length];
+    const color = colors.find((candidate) => !used.has(candidate)) ?? colors[fallbackIndex++ % colors.length];
     used.add(color);
     return color;
   };
