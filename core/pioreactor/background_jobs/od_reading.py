@@ -80,6 +80,7 @@ import random
 import threading
 import types
 from collections.abc import Mapping
+from collections.abc import Sequence
 from statistics import fmean
 from time import monotonic
 from time import sleep
@@ -103,11 +104,13 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.od_devices import create_od_device
-from pioreactor.od_devices import external_od_calibration_device
-from pioreactor.od_devices import ExternalODDevice
+from pioreactor.od_devices import od_calibration_device
+from pioreactor.od_devices import ODDevice
+from pioreactor.od_devices import PHOTODIODE_DRIVER
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
+from pioreactor.structs import artifact_path_component
 from pioreactor.utils import argextrema
 from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import local_intermittent_storage
@@ -930,30 +933,214 @@ def calibrate_signal_within_recorded_range(
     return clamp_to_recorded_extrema()
 
 
+def photodiode_signal_scale(ir_led_intensity: float) -> str:
+    """Photodiode signals scale with IR LED intensity, so calibrations record it."""
+    return f"IR LED intensity {float(ir_led_intensity)}%"
+
+
+def photodiode_outputs(
+    channel_angle_map: Mapping[pt.PdChannel, pt.PdAngle], ir_led_intensity: float
+) -> dict[pt.PdChannel, structs.ODSignal]:
+    """Each signal PD channel is one output, named by its angle."""
+    scale = photodiode_signal_scale(ir_led_intensity)
+    return {
+        channel: structs.ODSignal(name=angle, angle=angle, scale=scale)
+        for channel, angle in channel_angle_map.items()
+    }
+
+
+def calibration_signal_scale(calibration: structs.ODCalibration | structs.ExternalODCalibration) -> str:
+    if isinstance(calibration, structs.ODCalibration):
+        return photodiode_signal_scale(calibration.ir_led_intensity)
+    return calibration.signal_scale
+
+
 class HydratedCalibrationModel:
+    """One calibration curve, ready to map a signal value to OD."""
+
     def __init__(
         self,
-        calibration_name: str,
-        calibrate_signal: Callable[[pt.Voltage], pt.OD],
-        verify_reading: Callable[[structs.PhotodiodeODReading], bool],
+        calibration: structs.ODCalibration | structs.ExternalODCalibration,
+        calibrate_signal: Callable[[float], pt.OD],
     ) -> None:
-        self.calibration_name = calibration_name
+        self.calibration = calibration
+        self.calibration_name = calibration.calibration_name
         self._calibrate_signal = calibrate_signal
-        self._verify_reading = verify_reading
 
-    def __call__(self, observed_voltage: pt.Voltage) -> pt.OD:
-        return self._calibrate_signal(observed_voltage)
+    def __call__(self, observed_signal: float) -> pt.OD:
+        return self._calibrate_signal(observed_signal)
 
-    def verify(self, od_reading: structs.PhotodiodeODReading) -> bool:
-        return self._verify_reading(od_reading)
+    def check(self, channel: pt.PdChannel, signal: structs.ODSignal) -> None:
+        """Invariant: a curve is only applied to the uncalibrated signal, on the scale it was fit on."""
+        if signal.calibrated:
+            raise exc.CalibrationError(
+                f"OD calibration `{self.calibration_name}` cannot be applied to channel {channel}: "
+                "the OD device already calibrates that output. Clear the active calibration, or the device's."
+            )
+        expected_scale = calibration_signal_scale(self.calibration)
+        if signal.scale != expected_scale:
+            raise exc.CalibrationError(
+                f"OD calibration `{self.calibration_name}` was fit on {expected_scale}, but channel {channel} "
+                f"now reads on {signal.scale}. Recalibrate, restore the previous setting, or clear the active calibration."
+            )
 
 
-class CalibrationTransformerProtocol(Protocol):
-    models: dict[pt.PdChannel, HydratedCalibrationModel]
+class ODCalibrationTransformer(LoggerMixin):
+    """Applies Pioreactor calibrations to any OD device's outputs.
 
-    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None: ...
+    Invariant: a model is bound only to a channel producing the signal its calibration
+    was fit on (same driver and signal name), and is re-checked against the channel's
+    scale on every reading.
+    """
 
-    def __call__(self, batched_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings: ...
+    _logger_name = "calibration_transformer"
+
+    def __init__(self, driver: str) -> None:
+        super().__init__()
+        self.driver = driver
+        self.models: dict[pt.PdChannel, HydratedCalibrationModel] = {}
+        self._last_bound_warning_at: float | None = None
+
+    def hydrate(
+        self, calibration: structs.CalibrationBase, outputs: Mapping[pt.PdChannel, structs.ODSignal]
+    ) -> None:
+        model = self._hydrate_model(calibration)
+        for channel in self._bind(model.calibration, outputs):
+            if channel in self.models:
+                raise ValueError(f"Calibration model for channel {channel} already hydrated.")
+            model.check(channel, outputs[channel])
+            self.models[channel] = model
+
+    def _bind(
+        self,
+        calibration: structs.ODCalibration | structs.ExternalODCalibration,
+        outputs: Mapping[pt.PdChannel, structs.ODSignal],
+    ) -> list[pt.PdChannel]:
+        if isinstance(calibration, structs.ODCalibration):
+            # Photodiode calibrations belong to the PD channel they were measured on.
+            signal = outputs.get(calibration.pd_channel)
+            if signal is None or signal.name != calibration.angle:
+                raise exc.CalibrationError(
+                    f"OD calibration `{calibration.calibration_name}` was created at {calibration.angle}° on PD channel {calibration.pd_channel}, "
+                    f"but that channel is now configured as {signal.name if signal else 'unused'} in [od_config.photodiode_channel]. "
+                    "Recalibrate, restore the configuration, or clear the active calibration."
+                )
+            return [calibration.pd_channel]
+
+        if calibration.driver != self.driver:
+            raise exc.CalibrationError(
+                f"OD calibration `{calibration.calibration_name}` was fit on the `{calibration.driver}` OD device, "
+                f"but this unit uses `{self.driver}`."
+            )
+        channels = [channel for channel, signal in outputs.items() if signal.name == calibration.signal]
+        if not channels:
+            raise exc.CalibrationError(
+                f"OD calibration `{calibration.calibration_name}` is for the `{calibration.signal}` signal, "
+                f"which the `{self.driver}` OD device is not producing."
+            )
+        return channels
+
+    def _hydrate_model(self, calibration: structs.CalibrationBase) -> HydratedCalibrationModel:
+        photodiode = self.driver == PHOTODIODE_DRIVER
+        is_photodiode_calibration = (
+            isinstance(calibration, structs.ODCalibration) and calibration.y == "Voltage"
+        )
+        is_external_calibration = isinstance(calibration, structs.ExternalODCalibration)
+        if not (is_photodiode_calibration if photodiode else is_external_calibration):
+            message = f"OD calibration `{calibration.calibration_name}` has wrong type."
+            self.logger.error(message)
+            raise exc.CalibrationError(message)
+        assert isinstance(calibration, (structs.ODCalibration, structs.ExternalODCalibration))
+
+        if calibration.curve_data_.type == "poly":
+            coefficients = calibration.curve_data_.coefficients
+            higher_order_terms = coefficients[:-1]
+            if len(higher_order_terms) == 0 or all(c == 0.0 for c in higher_order_terms):
+                self.logger.warning(
+                    "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
+                )
+
+        signal_unit = "V" if photodiode else ""
+
+        def _calibrate_signal(observed_signal: float) -> pt.OD:
+            return calibrate_signal_within_recorded_range(
+                calibration, observed_signal, self._warn_about_bounds, signal_unit=signal_unit
+            )
+
+        return HydratedCalibrationModel(calibration, _calibrate_signal)
+
+    def _warn_about_bounds(self, message: str) -> None:
+        now = time()
+        if self._last_bound_warning_at is None or (now - self._last_bound_warning_at) > 300:
+            self._last_bound_warning_at = now
+            self.logger.warning(message)
+
+    def __call__(
+        self, readings: structs.ODDeviceReadings, outputs: Mapping[pt.PdChannel, structs.ODSignal]
+    ) -> tuple[dict[pt.PdChannel, structs.ODReading], dict[pt.PdChannel, structs.ODReading]]:
+        """Return (published readings, raw readings of calibrated channels)."""
+        published: dict[pt.PdChannel, structs.ODReading] = {}
+        raw: dict[pt.PdChannel, structs.ODReading] = {}
+        for channel, value in readings.values.items():
+            signal = outputs.get(channel)
+            if signal is None:
+                raise ValueError(f"OD device returned channel {channel}, which is not one of its outputs.")
+            model = self.models.get(channel)
+            if model is None:
+                published[channel] = _od_reading(
+                    readings, channel, signal, value, calibrated=signal.calibrated
+                )
+                continue
+            model.check(channel, signal)
+            raw[channel] = _od_reading(readings, channel, signal, value, calibrated=False)
+            published[channel] = _od_reading(readings, channel, signal, model(value), calibrated=True)
+        return published, raw
+
+
+def _od_reading(
+    readings: structs.ODDeviceReadings,
+    channel: pt.PdChannel,
+    signal: structs.ODSignal,
+    value: float,
+    calibrated: bool,
+) -> structs.ODReading:
+    return structs.ODReading(
+        timestamp=readings.timestamp,
+        od=value,
+        channel=channel,
+        angle=signal.angle,
+        calibrated=1 if calibrated else 0,
+    )
+
+
+type CalibrationChoice = bool | None | structs.CalibrationBase | Sequence[structs.CalibrationBase | None]
+
+
+def resolve_od_calibrations(
+    choice: CalibrationChoice, driver: str, outputs: Mapping[pt.PdChannel, structs.ODSignal]
+) -> list[structs.CalibrationBase]:
+    """True: the active calibration of each output's signal. False or None: none. Otherwise, those given."""
+    if choice is True:
+        return load_active_od_calibrations(driver, outputs)
+    if choice is False or choice is None:
+        return []
+    if isinstance(choice, structs.CalibrationBase):
+        return [choice]
+    return [item for item in choice if item is not None]
+
+
+def load_active_od_calibrations(
+    driver: str, outputs: Mapping[pt.PdChannel, structs.ODSignal]
+) -> list[structs.CalibrationBase]:
+    """One lookup per signal name: channels producing the same signal share an active calibration."""
+    from pioreactor.calibrations import load_active_calibration
+
+    calibrations: list[structs.CalibrationBase] = []
+    for name in dict.fromkeys(signal.name for signal in outputs.values()):
+        calibration = load_active_calibration(od_calibration_device(driver, name))
+        if calibration is not None:
+            calibrations.append(calibration)
+    return calibrations
 
 
 class EstimatorTransformerProtocol(Protocol):
@@ -1015,7 +1202,7 @@ class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
         if not self.od_blank:
             return od_readings
 
-        blank_corrected_ods: dict[pt.PdChannel, structs.PhotodiodeODReading] = {}
+        blank_corrected_ods: dict[pt.PdChannel, structs.RawODReading] = {}
         for channel, od_reading in od_readings.ods.items():
             blank_value = self.od_blank.get(channel, 0.0)
             blank_corrected_od = od_reading.od - blank_value
@@ -1035,114 +1222,6 @@ class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
             )
 
         return structs.PhotodiodeODReadings(timestamp=od_readings.timestamp, ods=blank_corrected_ods)
-
-
-class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
-    _logger_name = "calibration_transformer"
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.models: dict[pt.PdChannel, HydratedCalibrationModel] = {}
-
-    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
-        return
-
-    def __call__(self, batched_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
-        return batched_readings
-
-
-class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
-    _logger_name = "calibration_transformer"
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.models: dict[pt.PdChannel, HydratedCalibrationModel] = {}
-        self._last_bound_warning_at: float | None = None
-
-    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
-        if calibration_data is None:
-            self.logger.debug("No calibration available for OD, skipping.")
-            return
-
-        channel = calibration_data.pd_channel
-
-        if channel in self.models:
-            raise ValueError(f"Calibration model for channel {channel} already hydrated.")
-
-        self.models[channel] = self._hydrate_model(calibration_data)
-
-    def _hydrate_model(self, calibration_data: structs.ODCalibration) -> HydratedCalibrationModel:
-        if (
-            calibration_data.y != "Voltage"
-        ):  # don't check for OD600 - we can allow other non-OD600 calibrations
-            self.logger.error(
-                f"od{calibration_data.angle} calibration `{calibration_data.calibration_name}` has wrong type."
-            )
-            raise exc.CalibrationError(
-                f"od{calibration_data.angle} calibration `{calibration_data.calibration_name}` has wrong type."
-            )
-
-        if calibration_data.curve_data_.type == "poly":
-            coefficients = calibration_data.curve_data_.coefficients
-            higher_order_terms = coefficients[:-1]
-            if len(higher_order_terms) == 0 or all(c == 0.0 for c in higher_order_terms):
-                self.logger.warning(
-                    "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
-                )
-
-        def _verify(od_reading: structs.PhotodiodeODReading) -> bool:
-            """
-            Verify that the OD reading is within the expected bounds of the calibration.
-            """
-            if od_reading.ir_led_intensity != calibration_data.ir_led_intensity:
-                raise exc.CalibrationError(
-                    f"IR LED intensity {od_reading.ir_led_intensity} does not match calibration {calibration_data.ir_led_intensity} for channel {od_reading.channel}."
-                )
-            return True
-
-        def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
-            return calibrate_signal_within_recorded_range(
-                calibration_data, observed_voltage, self._warn_about_bounds, signal_unit="V"
-            )
-
-        return HydratedCalibrationModel(
-            calibration_name=calibration_data.calibration_name,
-            calibrate_signal=_calibrate_signal,
-            verify_reading=_verify,
-        )
-
-    def _should_warn_about_bounds(self) -> bool:
-        now = time()
-        if self._last_bound_warning_at is None or (now - self._last_bound_warning_at) > 300:
-            self._last_bound_warning_at = now
-            return True
-        return False
-
-    def _warn_about_bounds(self, message: str) -> None:
-        if self._should_warn_about_bounds():
-            self.logger.warning(message)
-
-    def __call__(self, od_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
-        calibrated_od_readings = structs.PhotodiodeODReadings(ods={}, timestamp=od_readings.timestamp)
-        for channel in od_readings.ods:
-            if channel in self.models:  # calibration exists
-                raw_od = od_readings.ods[channel]
-
-                # check if everything is okay - blows up if not.
-                self.models[channel].verify(raw_od)
-
-                calibrated_od_readings.ods[channel] = structs.CalibratedODReading(
-                    channel=raw_od.channel,
-                    angle=raw_od.angle,
-                    timestamp=raw_od.timestamp,
-                    ir_led_intensity=raw_od.ir_led_intensity,
-                    od=self.models[channel](raw_od.od),
-                    calibration_name=self.models[channel].calibration_name,
-                )
-            else:
-                calibrated_od_readings.ods[channel] = od_readings.ods[channel]
-
-        return calibrated_od_readings
 
 
 class NullEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
@@ -1239,7 +1318,11 @@ def resolve_ir_led_intensity(ir_led_intensity: float | None = None) -> float:
 
 
 class PhotodiodeODDevice(LoggerMixin):
-    """Host-controlled photodiode acquisition, illumination and optical corrections."""
+    """Host-controlled photodiode acquisition, illumination, blanking and fusion.
+
+    Implements `ODDevice`: one output per signal PD channel, named by its angle. The OD job
+    applies calibrations; fusion stays here because it combines this device's angles.
+    """
 
     # Borrowed from ODReader before start(); the job owns its lifecycle.
     pub_client: Client
@@ -1247,7 +1330,6 @@ class PhotodiodeODDevice(LoggerMixin):
     od_fused: structs.ODFused | None = None
 
     job_name = "od_reading"
-    source = "photodiodes"
 
     def __init__(
         self,
@@ -1258,7 +1340,6 @@ class PhotodiodeODDevice(LoggerMixin):
         experiment: pt.Experiment,
         ir_led_reference_tracker: IrLedReferenceTracker | None = None,
         blank_transformer: BlankTransformerProtocol | None = None,
-        calibration_transformer: CalibrationTransformerProtocol | None = None,
         estimator_transformer: EstimatorTransformerProtocol | None = None,
         ir_led_intensity: float | None = None,
     ) -> None:
@@ -1290,12 +1371,6 @@ class PhotodiodeODDevice(LoggerMixin):
         else:
             self.blank_transformer = blank_transformer  # type: ignore
 
-        if calibration_transformer is None:
-            self.logger.debug("Not using any calibration.")
-            self.calibration_transformer = NullCalibrationTransformer()
-        else:
-            self.calibration_transformer = calibration_transformer  # type: ignore
-
         if estimator_transformer is None:
             self.logger.debug("Not using any estimator.")
             self.estimator_transformer = NullEstimatorTransformer()
@@ -1304,34 +1379,18 @@ class PhotodiodeODDevice(LoggerMixin):
 
         self.adc_reader.add_external_logger(self.logger)
         self.blank_transformer.add_external_logger(self.logger)
-        self.calibration_transformer.add_external_logger(self.logger)
         self.ir_led_reference_transformer.add_external_logger(self.logger)
         self.estimator_transformer.add_external_logger(self.logger)
 
         self.channel_angle_map = channel_angle_map
         self.blank_transformer.hydrate(experiment)
 
-        calibration_status = "none"
-        if isinstance(self.calibration_transformer, CachedCalibrationTransformer):
-            configured_channels = sorted(self.channel_angle_map.keys(), key=int)
-            used_calibrations: list[str] = []
-            for channel in configured_channels:
-                model = self.calibration_transformer.models.get(channel)
-                if model is None:
-                    continue
-                used_calibrations.append(
-                    f"{model.calibration_name} (pd{channel}@{self.channel_angle_map[channel]})"
-                )
-
-            if used_calibrations:
-                calibration_status = ", ".join(used_calibrations)
-
         estimator_status = "none"
         if isinstance(self.estimator_transformer, CachedEstimatorTransformer):
             if self.estimator_transformer.estimator is not None:
                 estimator_status = self.estimator_transformer.estimator.estimator_name
 
-        self.logger.debug(f"OD setup: calibrations={calibration_status}; estimator={estimator_status}.")
+        self.logger.debug(f"OD setup: estimator={estimator_status}.")
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
 
@@ -1351,6 +1410,10 @@ class PhotodiodeODDevice(LoggerMixin):
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         self.set_interval(interval)
+
+    @property
+    def outputs(self) -> dict[pt.PdChannel, structs.ODSignal]:
+        return photodiode_outputs(self.channel_angle_map, self.ir_led_intensity)
 
     def start(self) -> None:
         if self.initialized:
@@ -1474,7 +1537,7 @@ class PhotodiodeODDevice(LoggerMixin):
 
         return raw_od_readings
 
-    def read(self) -> structs.PhotodiodeODReadings:
+    def read(self) -> structs.ODDeviceReadings:
         self.raw_readings = None
         # OD owns all LED writes through measurement and restoration. Unlocking before IR-off would
         # let a camera cleanup overwrite OD illumination or leave IR in a non-idle state.
@@ -1502,13 +1565,15 @@ class PhotodiodeODDevice(LoggerMixin):
                 self.stop_ir_led(lock_owner)
 
         self.raw_readings = raw_od_readings
-        od_readings = self.calibration_transformer(raw_od_readings)
         try:
             self.od_fused = self.estimator_transformer(raw_od_readings)
         except (exc.CalibrationError, exc.EstimatorError) as error:
             self.logger.error(f"Error in estimator transformer: {error}")
             self.od_fused = None
-        return od_readings
+        return structs.ODDeviceReadings(
+            timestamp=raw_od_readings.timestamp,
+            values={channel: reading.od for channel, reading in raw_od_readings.ods.items()},
+        )
 
     def set_interval(self, interval: float | None) -> None:
         self.ir_led_reference_transformer.set_interval(interval)
@@ -1520,8 +1585,12 @@ class PhotodiodeODDevice(LoggerMixin):
         self.pause()
 
 
-class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
-    """Schedule a device and publish its observations through the native OD activity."""
+class ODReader[DeviceT: ODDevice](BackgroundJob):
+    """Schedule a device, calibrate its outputs and publish them through the native OD activity.
+
+    calibration=True applies the active calibration of each output's signal, False publishes
+    the device's own values, and explicit calibrations are applied instead of the active ones.
+    """
 
     job_name = "od_reading"
     published_settings = {
@@ -1531,6 +1600,11 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
         "od2": {"datatype": "ODReading", "settable": False},
         "od3": {"datatype": "ODReading", "settable": False},
         "od4": {"datatype": "ODReading", "settable": False},
+        # the uncalibrated signal of each calibrated channel
+        "raw_od1": {"datatype": "ODReading", "settable": False},
+        "raw_od2": {"datatype": "ODReading", "settable": False},
+        "raw_od3": {"datatype": "ODReading", "settable": False},
+        "raw_od4": {"datatype": "ODReading", "settable": False},
         "source": {"datatype": "string", "settable": False},
         "acquisition": {"datatype": "string", "settable": False},
     }
@@ -1546,21 +1620,48 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
         unit: str,
         experiment: str,
         interval: float | None,
+        driver: str,
+        calibration: CalibrationChoice = True,
     ) -> None:
         super().__init__(unit=unit, experiment=experiment)
         self._lock = threading.RLock()
         self._set_for_iterating = threading.Event()
         for channel in ("1", "2", "3", "4"):
             setattr(self, f"od{channel}", None)
+            setattr(self, f"raw_od{channel}", None)
+        self.source = driver
+        self.calibration_transformer = ODCalibrationTransformer(driver)
+        self.calibration_transformer.add_external_logger(self.logger)
         self.device: DeviceT = device_factory()
-        self.source = self.device.source
         self.pre_read_callbacks = self._prepare_pre_callbacks()
         self.post_read_callbacks = self._prepare_post_callbacks()
+        # Outputs are declared at construction, so a calibration mismatch fails before acquisition starts.
+        self.hydrate_calibrations(calibration)
         self.initialize_device()
         self.set_interval(interval)
 
     def initialize_device(self) -> None:
         raise NotImplementedError
+
+    def hydrate_calibrations(self, calibration: CalibrationChoice) -> None:
+        outputs = self.device.outputs
+        for channel, signal in outputs.items():
+            artifact_path_component(od_calibration_device(self.source, signal.name), "signal name")
+            if channel not in ("1", "2", "3", "4"):
+                raise ValueError(f"OD device output channel {channel!r} must be one of 1, 2, 3, 4.")
+
+        try:
+            for item in resolve_od_calibrations(calibration, self.source, outputs):
+                self.calibration_transformer.hydrate(item, outputs)
+        except exc.CalibrationError as error:
+            self.logger.error(str(error))
+            raise
+
+        used = [
+            f"{model.calibration_name} (channel {channel}, {outputs[channel].name})"
+            for channel, model in sorted(self.calibration_transformer.models.items())
+        ]
+        self.logger.debug(f"OD setup: calibrations={', '.join(used) or 'none'}.")
 
     def set_interval(self, interval: float | None) -> None:
         if interval is not None and (not math.isfinite(interval) or interval <= 0):
@@ -1606,7 +1707,25 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
                     self._unblock_internal_event()
 
     def _acquire_readings(self) -> structs.ODReadings | None:
-        raise NotImplementedError
+        device_readings = self.device.read()
+        if device_readings is None:
+            return None
+        outputs = self.device.outputs
+        try:
+            published, raw = self.calibration_transformer(device_readings, outputs)
+        except exc.CalibrationError as error:
+            # Consumers must not keep observing the previous batch's calibrated values.
+            self.ods = None
+            for channel, value in device_readings.values.items():
+                setattr(self, f"od{channel}", None)
+                if channel in self.calibration_transformer.models:
+                    raw_reading = _od_reading(device_readings, channel, outputs[channel], value, False)
+                    setattr(self, f"raw_od{channel}", raw_reading)
+            self.logger.error(f"Error in calibration transformer: {error}")
+            raise
+        for channel, raw_reading in raw.items():
+            setattr(self, f"raw_od{channel}", raw_reading)
+        return structs.ODReadings(timestamp=device_readings.timestamp, ods=published)
 
     def snapshot(self, timeout: float = 60.0) -> structs.ODReadings:
         deadline = monotonic() + timeout
@@ -1694,64 +1813,12 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
         cls._post_read.append(function)
 
 
-class ExternalODReader(ODReader[ExternalODDevice]):
-    """Wrap a plugin's single observation for the shared OD publication loop.
-
-    Invariant: a Pioreactor calibration is only ever applied to the device's uncalibrated signal.
-    """
-
-    def __init__(
-        self,
-        device_factory: Callable[[], ExternalODDevice],
-        unit: str,
-        experiment: str,
-        interval: float | None,
-        calibration: structs.ExternalODCalibration | None = None,
-    ) -> None:
-        # Assigned first: super().__init__() may start the timer that reads them.
-        self.calibration = calibration
-        self._last_bound_warning_at: float | None = None
-        super().__init__(device_factory, unit, experiment, interval)
+class ExternalODReader(ODReader[ODDevice]):
+    """A plugin device that acquires on its own; the job polls for its latest reading."""
 
     def initialize_device(self) -> None:
         self.acquisition = "continuous"
-        if self.calibration is not None:
-            self.logger.debug(f"OD setup: calibration `{self.calibration.calibration_name}`.")
         self.device.start()
-
-    def _acquire_readings(self) -> structs.ODReadings | None:
-        reading = self.device.read()
-        if reading is None:
-            return None
-        value, calibrated = reading.value, reading.calibrated
-        if self.calibration is not None:
-            if reading.calibrated:
-                raise exc.CalibrationError(
-                    f"OD calibration `{self.calibration.calibration_name}` was created on the device's uncalibrated signal, "
-                    "but the device now applies its own calibration. Clear the active calibration, or the device's."
-                )
-            value = calibrate_signal_within_recorded_range(
-                self.calibration, reading.value, self._warn_about_bounds
-            )
-            calibrated = True
-        return structs.ODReadings(
-            timestamp=reading.timestamp,
-            ods={
-                "1": structs.ODReading(
-                    timestamp=reading.timestamp,
-                    od=value,
-                    channel="1",
-                    angle=self.device.angle,
-                    calibrated=1 if calibrated else 0,
-                ),
-            },
-        )
-
-    def _warn_about_bounds(self, message: str) -> None:
-        now = time()
-        if self._last_bound_warning_at is None or (now - self._last_bound_warning_at) > 300:
-            self._last_bound_warning_at = now
-            self.logger.warning(message)
 
 
 class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
@@ -1763,15 +1830,6 @@ class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
     photodiode_settings: dict[str, pt.PublishableSetting] = {
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "relative_intensity_of_ir_led": {"datatype": "json", "settable": False},
-        # below are only used if a calibration is used
-        "raw_od1": {"datatype": "RawODReading", "settable": False},
-        "raw_od2": {"datatype": "RawODReading", "settable": False},
-        "raw_od3": {"datatype": "RawODReading", "settable": False},
-        "raw_od4": {"datatype": "RawODReading", "settable": False},
-        "calibrated_od1": {"datatype": "CalibratedODReading", "settable": False},
-        "calibrated_od2": {"datatype": "CalibratedODReading", "settable": False},
-        "calibrated_od3": {"datatype": "CalibratedODReading", "settable": False},
-        "calibrated_od4": {"datatype": "CalibratedODReading", "settable": False},
         # below are used if a sensor fusion is used
         "od_fused": {"datatype": "ODFused", "settable": False},
     }
@@ -1780,13 +1838,20 @@ class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
         self.device.pub_client = self.pub_client
         self.acquisition = "scheduled"
         self.add_to_published_settings("first_od_obs_time", {"datatype": "float", "settable": False})
-        for channel in ("1", "2", "3", "4"):
-            for prefix in ("raw_od", "calibrated_od"):
-                setattr(self, f"{prefix}{channel}", None)
         for name, settings in self.photodiode_settings.items():
             self.add_to_published_settings(name, settings)
         self.device.start()
         self.ir_led_intensity = self.device.ir_led_intensity
+
+    def __init__(
+        self,
+        device_factory: Callable[[], PhotodiodeODDevice],
+        unit: str,
+        experiment: str,
+        interval: float | None,
+        calibration: CalibrationChoice = True,
+    ) -> None:
+        super().__init__(device_factory, unit, experiment, interval, PHOTODIODE_DRIVER, calibration)
 
     def set_interval(self, interval: float | None) -> None:
         if interval is not None and (not math.isfinite(interval) or interval <= 0):
@@ -1803,42 +1868,11 @@ class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
         super().after_read(readings)
         self._log_relative_intensity_of_ir_led()
 
-    def _acquire_readings(self) -> structs.ODReadings:
-        device = self.device
-        try:
-            readings = device.read()
-        except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError):
-            if device.raw_readings is not None:
-                self.ods = None
-                for channel, raw in device.raw_readings.ods.items():
-                    setattr(self, f"od{channel}", None)
-                    setattr(self, f"calibrated_od{channel}", None)
-                    setattr(self, f"raw_od{channel}", raw)
-            raise
-        self.publish_photodiode_diagnostics(readings)
-        return structs.ODReadings(
-            timestamp=readings.timestamp,
-            ods={
-                channel: structs.ODReading(
-                    timestamp=reading.timestamp,
-                    od=reading.od,
-                    channel=reading.channel,
-                    angle=reading.angle,
-                    calibrated=1 if isinstance(reading, structs.CalibratedODReading) else 0,
-                )
-                for channel, reading in readings.ods.items()
-            },
-        )
-
-    def publish_photodiode_diagnostics(self, readings: structs.PhotodiodeODReadings) -> None:
-        device = self.device
-        assert device.raw_readings is not None
-        for channel, reading in readings.ods.items():
-            if isinstance(reading, structs.CalibratedODReading):
-                setattr(self, f"raw_od{channel}", device.raw_readings.ods[channel])
-                setattr(self, f"calibrated_od{channel}", reading)
-        if device.od_fused is not None or self.od_fused is not None:
-            self.od_fused = device.od_fused
+    def _acquire_readings(self) -> structs.ODReadings | None:
+        readings = super()._acquire_readings()
+        if self.device.od_fused is not None or self.od_fused is not None:
+            self.od_fused = self.device.od_fused
+        return readings
 
     def set_ir_led_intensity(self, value: float) -> None:
         self.device.ir_led_intensity = value
@@ -1921,15 +1955,14 @@ def start_external_od_reading(
     interval: float | None = None,
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
-    calibration: bool | structs.ExternalODCalibration = True,
+    calibration: CalibrationChoice = True,
 ) -> ExternalODReader:
     """Start the external OD device selected in od.yaml.
 
-    calibration=True applies the driver's active OD calibration, if one exists. False publishes
-    the device's own signal, which is what calibration protocols measure.
+    calibration=False publishes the device's own values, which is what calibration protocols measure.
     """
     od_hardware = hardware.get_od_hardware_config()
-    if od_hardware.driver == "photodiodes":
+    if od_hardware.driver == PHOTODIODE_DRIVER:
         raise exc.HardwareError("External OD acquisition requires an external driver in od.yaml.")
 
     maybe_job_id = get_running_pio_job_id("od_reading")
@@ -1942,30 +1975,13 @@ def start_external_od_reading(
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
-    calibration_to_use: structs.ExternalODCalibration | None = None
-    if calibration is True:
-        from pioreactor.calibrations import load_active_calibration
-
-        calibration_device = external_od_calibration_device(od_hardware.driver)
-        active_calibration = load_active_calibration(calibration_device)
-        if active_calibration is not None and not isinstance(
-            active_calibration, structs.ExternalODCalibration
-        ):
-            message = (
-                f"{calibration_device} calibration `{active_calibration.calibration_name}` has wrong type."
-            )
-            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
-            raise exc.CalibrationError(message)
-        calibration_to_use = active_calibration
-    elif isinstance(calibration, structs.ExternalODCalibration):
-        calibration_to_use = calibration
-
     return ExternalODReader(
         lambda: create_od_device(od_hardware, create_logger("od_reading", unit=unit, experiment=experiment)),
         unit=unit,
         experiment=experiment,
         interval=interval,
-        calibration=calibration_to_use,
+        driver=od_hardware.driver,
+        calibration=calibration,
     )
 
 
@@ -1976,7 +1992,7 @@ def start_photodiode_od_reading(
     fake_data: bool = False,
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
-    calibration: bool | structs.ODCalibration | list[structs.ODCalibration] | None = True,
+    calibration: CalibrationChoice = True,
     estimator: bool | structs.ODFusionEstimator | None = True,
     ir_led_intensity: float | None = None,
     penalizer: float = 0.0,
@@ -2036,51 +2052,18 @@ def start_photodiode_od_reading(
     else:
         blank_transformer = NullBlankTransformer()
 
-    # Check calibrations and estimators against the IR LED intensity before hardware setup.
+    # Check calibrations and the estimator against the IR LED intensity before hardware setup.
     intensity = resolve_ir_led_intensity(ir_led_intensity)
 
-    # use an OD calibration?
-    calibrations_to_use: list[structs.ODCalibration | None]
-    if calibration is True:
-        from pioreactor.calibrations import load_active_calibration
-
-        # one lookup per angle: two channels at the same angle share a single active calibration.
-        calibrations_to_use = [load_active_calibration(f"od{angle}") for angle in dict.fromkeys(channel_angle_map.values())]  # type: ignore
-    elif isinstance(calibration, list):
-        calibrations_to_use = list(calibration)
-    elif isinstance(calibration, structs.CalibrationBase):
-        calibrations_to_use = [calibration]
-    else:
-        calibrations_to_use = []
-
-    calibration_transformer: CalibrationTransformerProtocol = (
-        CachedCalibrationTransformer() if calibration else NullCalibrationTransformer()
-    )
-
-    # Current invariant: a hydrated calibration model was created on the same PD channel, angle, and
-    # IR LED intensity that it is applied to.
-    for calibration_item in calibrations_to_use:
-        if calibration_item is None:
-            continue
-
-        configured_angle = channel_angle_map.get(calibration_item.pd_channel)
-        if configured_angle != calibration_item.angle:
-            message = (
-                f"OD calibration `{calibration_item.calibration_name}` was created at {calibration_item.angle}° on PD channel {calibration_item.pd_channel}, "
-                f"but that channel is now configured as {configured_angle or 'unused'} in [od_config.photodiode_channel]. "
-                "Recalibrate, restore the configuration, or clear the active calibration."
-            )
-            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
-            raise exc.CalibrationError(message)
-
-        if calibration_item.ir_led_intensity != intensity:
-            message = (
-                f"OD calibration `{calibration_item.calibration_name}` for channel {calibration_item.pd_channel} "
-                f"requires IR LED intensity {calibration_item.ir_led_intensity}%, but IR LED intensity is {intensity}%."
-            )
-            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
-            raise exc.CalibrationError(message)
-        calibration_transformer.hydate_models(calibration_item)
+    outputs = photodiode_outputs(channel_angle_map, intensity)
+    calibrations = resolve_od_calibrations(calibration, PHOTODIODE_DRIVER, outputs)
+    preflight = ODCalibrationTransformer(PHOTODIODE_DRIVER)
+    try:
+        for calibration_item in calibrations:
+            preflight.hydrate(calibration_item, outputs)
+    except exc.CalibrationError as error:
+        create_logger("od_reading", unit=unit, experiment=experiment).error(str(error))
+        raise
 
     # use an OD fusion estimator?
     estimator_to_use: structs.ODFusionEstimator | None = None
@@ -2116,12 +2099,9 @@ def start_photodiode_od_reading(
     else:
         estimator_transformer = NullEstimatorTransformer()
 
-    calibration_is_active = bool(calibration_transformer.models)
-    estimator_is_active = estimator_transformer.estimator is not None
-
-    # Current invariant: per-experiment OD blank correction is a raw-signal
-    # mode and is never combined with calibrations or fused estimators.
-    if blank_transformer.od_blank is not None and (calibration_is_active or estimator_is_active):
+    # Invariant: per-experiment OD blank correction is a raw-signal mode and is never
+    # combined with calibrations or fused estimators.
+    if blank_transformer.od_blank is not None and (preflight.models or estimator_transformer.estimator):
         message = f"Per-experiment OD blank correction exists for experiment {experiment!r} and is incompatible with OD calibrations and fused estimators."
         create_logger("od_reading", unit=unit, experiment=experiment).error(message)
         raise ValueError(message)
@@ -2145,13 +2125,13 @@ def start_photodiode_od_reading(
             ),
             ir_led_reference_tracker=ir_led_reference_tracker,
             blank_transformer=blank_transformer,
-            calibration_transformer=calibration_transformer,
             estimator_transformer=estimator_transformer,
             ir_led_intensity=intensity,
         ),
         unit=unit,
         experiment=experiment,
         interval=interval,
+        calibration=calibrations,
     )
 
 

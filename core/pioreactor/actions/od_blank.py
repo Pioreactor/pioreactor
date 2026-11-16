@@ -166,7 +166,7 @@ def od_blank(
                 # Current invariant: a stored OD blank never coexists with an OD calibration or fused
                 # estimator, since od_reading refuses to start with both. Refuse here, where the blank is created.
                 if (
-                    od_stream.device.calibration_transformer.models
+                    od_stream.calibration_transformer.models
                     or od_stream.device.estimator_transformer.estimator
                 ):
                     raise ValueError(

@@ -931,6 +931,16 @@ def calibration_measure_standard(
 
 
 @huey.task()
+def calibration_measure_external_standard(rpm: float, experiment: str) -> dict[str, dict[str, Any]]:
+    from pioreactor.calibrations.protocols.od_standards import _measure_external_standard
+
+    logger.debug("Starting external OD standards measurement: rpm=%s", rpm)
+    signals = _measure_external_standard(rpm=rpm, experiment=experiment)
+    logger.debug("Finished external OD standards measurement: rpm=%s", rpm)
+    return signals
+
+
+@huey.task()
 def calibration_fusion_standard_observation(
     od_value: float,
     rpm: float,
@@ -1101,6 +1111,14 @@ def _register_core_calibration_actions() -> None:
             ),
             "OD measurement",
             _voltages_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "od_standards_measure_external",
+        lambda payload: (
+            calibration_measure_external_standard(float(payload["rpm"]), payload["experiment"]),
+            "OD measurement",
+            lambda result: {"signals": result},
         ),
     )
     register_calibration_action(

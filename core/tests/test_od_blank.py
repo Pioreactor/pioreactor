@@ -34,10 +34,8 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
         cache[testing_experiment] = "999.0"
 
     class FakeODStream:
-        device = SimpleNamespace(
-            calibration_transformer=od_reading_module.NullCalibrationTransformer(),
-            estimator_transformer=od_reading_module.NullEstimatorTransformer(),
-        )
+        calibration_transformer = od_reading_module.ODCalibrationTransformer("photodiodes")
+        device = SimpleNamespace(estimator_transformer=od_reading_module.NullEstimatorTransformer())
 
         def __init__(self) -> None:
             self._count = 0
@@ -97,10 +95,8 @@ def test_od_blank_refuses_when_an_od_calibration_is_active(monkeypatch: pytest.M
     experiment = "test_od_blank_refuses_when_an_od_calibration_is_active"
 
     class FakeCalibratedODStream:
-        device = SimpleNamespace(
-            calibration_transformer=od_reading_module.CachedCalibrationTransformer(),
-            estimator_transformer=od_reading_module.NullEstimatorTransformer(),
-        )
+        calibration_transformer = od_reading_module.ODCalibrationTransformer("photodiodes")
+        device = SimpleNamespace(estimator_transformer=od_reading_module.NullEstimatorTransformer())
 
         def __enter__(self) -> "FakeCalibratedODStream":
             return self
@@ -108,7 +104,7 @@ def test_od_blank_refuses_when_an_od_calibration_is_active(monkeypatch: pytest.M
         def __exit__(self, *args: object) -> None:
             return None
 
-    FakeCalibratedODStream.device.calibration_transformer.models["2"] = object()  # type: ignore[assignment]
+    FakeCalibratedODStream.calibration_transformer.models["2"] = object()  # type: ignore[assignment]
     monkeypatch.setattr(
         od_reading_module, "start_photodiode_od_reading", lambda *args, **kwargs: FakeCalibratedODStream()
     )

@@ -144,6 +144,11 @@ def run_calibration(ctx: click.Context, device: str, protocol_name: str | None, 
     for calibration in calibrations:
         if isinstance(calibration, structs.ODCalibration):
             calibration_device = f"od{calibration.angle}"
+        elif isinstance(calibration, structs.ExternalODCalibration):
+            # Protocols target the driver; each signal's curve is stored under its own device.
+            from pioreactor.od_devices import od_calibration_device
+
+            calibration_device = od_calibration_device(calibration.driver, calibration.signal)
         else:
             calibration_device = device
 

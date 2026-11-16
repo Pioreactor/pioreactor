@@ -17,111 +17,114 @@ options:
   address: 0x69
 ```
 
+A unit selects exactly one driver, so two OD devices never run together.
 Future models can ship this file as their hardware default.
 
-## External device contract
+## One device contract
 
-A plugin registers a factory with `pioreactor.od_devices.register_od_device`.
-The factory receives the driver-owned `options` mapping and a logger. The driver
-validates its options before opening hardware and checks connectivity at startup.
-Core validates only the outer `driver`/`options` structure; its I²C compatibility
-check covers built-in hardware, not external devices. Options follow the existing
-HAT → model dictionary merging.
+Every OD device implements `pioreactor.od_devices.ODDevice`, the built-in
+photodiodes (`PhotodiodeODDevice`) included. A plugin registers a factory with
+`register_od_device`; the factory receives the driver-owned `options` mapping and
+a logger, validates the options, and does no acquisition. Core validates only the
+outer `driver`/`options` structure; its I²C compatibility check covers built-in
+hardware, not external devices.
 
-The device implements `start`, `read`, `pause`, and `close`, and declares `source`
-and `angle`. Geometry is fixed for the device lifetime: Turbid Vision declares
-`angle = "0"`; other devices can declare the supported 45°, 90°, 135°, or 180°
-geometries without changing photodiode calibration types.
-
-`start()` begins acquisition or resumes it after `pause()`. Sleeping calls
-`pause()`, which suspends acquisition while retaining resources for resuming.
-Disconnecting calls `close()`, which ends acquisition and releases resources
-whether the device is running or paused.
-
-`read()` returns `None` for no fresh measurement, or:
+A device declares `outputs`, one `ODSignal` per logical channel `"1"`–`"4"`:
 
 ```python
-from pioreactor.structs import ODDeviceReading
+from pioreactor.structs import ODSignal
 
-ODDeviceReading(timestamp=acquisition_time, value=value, calibrated=False)
+ODSignal(name="reflectance", angle="0", scale="unfiltered reflectance / optical output, API 2")
 ```
 
-The timestamp is a timezone-aware datetime. The value is one consistently
-selected optical signal. Optical-output correction belongs to the device;
-normalization by the experiment's initial reading belongs to Pioreactor's growth
-model. `calibrated` describes whether the device applied its own calibration to
-the returned value. Select the output at startup and keep it fixed through
-sleep/resume. The device does not publish MQTT or provide growth estimates.
+- `name` identifies the quantity. Photodiode outputs are named by angle (`"90"`).
+- `angle` is the observation geometry: 0°, 45°, 90°, 135° or 180°.
+- `scale` says what the numbers mean. It must change whenever the same `name`'s
+  numbers change meaning: gain, LED intensity, firmware API, units. Photodiode
+  scales record the IR LED intensity.
+- `calibrated` marks outputs the device converts itself (for example the probe's
+  own density). Pioreactor never calibrates those.
 
-## Calibrating an external device
+Outputs are declared at construction, before any acquisition. `name` and `angle`
+stay fixed while the device is open; `scale` may change between reads. Channel 1
+is the device's primary biomass signal.
 
-The OD600 standards protocol measures whichever OD hardware the unit selects. On
-a unit with an external driver the protocol's device is `od_<driver>` (for
-example `od_turbidvision`), in the UI or with:
+`start()` begins acquisition or resumes it after `pause()`. Sleeping calls
+`pause()`, which suspends acquisition while retaining resources. Disconnecting
+calls `close()`, which ends acquisition and releases resources whether the device
+is running, paused or never started. `read()` returns `None` when nothing is new,
+or one acquisition:
+
+```python
+from pioreactor.structs import ODDeviceReadings
+
+ODDeviceReadings(timestamp=acquisition_time, values={"1": value})
+```
+
+The timestamp is timezone-aware and values are finite. Optical-output correction
+belongs to the device; normalization by the experiment's initial reading belongs
+to Pioreactor's growth model. The device does not publish MQTT.
+
+## The OD job owns everything after acquisition
+
+`ODReader` schedules the device, applies calibrations, and publishes. All primary
+readings (`ods`, `od1`–`od4`) use one `ODReading` shape: `timestamp`, `od`,
+`channel`, `angle` and `calibrated` (`0` or `1`). A calibrated channel also
+publishes its uncalibrated value on `raw_od<channel>` in the same shape, and the
+leader stores it with its angle in `raw_od_readings`. `source` is the driver name.
+
+`record()` reads once; `snapshot()` waits for fresh data. Python callers normally
+use `start_od_reading(interval=5)`, which selects the hardware. `interval=None`
+leaves sampling manual. `start_photodiode_od_reading(channels, ...)` and
+`start_external_od_reading(...)` take explicit options; both accept
+`calibration=True` (active calibrations), `False` (device values), or explicit
+calibrations. `ExternalODReader` polls a plugin that acquires on its own;
+`PhotodiodeODReader` adds Eye-spy settings, scheduled acquisition and fusion.
+
+`PhotodiodeODDevice` keeps Eye-spy's illumination, ADC, reference correction,
+blanking and fusion together, because fusion combines its angles and blanking
+corrects its raw voltages. Blanking, fusion calibration, OD dodging and the
+photodiode self-tests reject or skip external devices.
+
+## Calibrations
+
+Calibrations are stored per signal, at `od_calibration_device(driver, name)`:
+`od90` for photodiodes, `od_<driver>_<name>` otherwise (for example
+`od_turbidvision_reflectance`). The job loads the active calibration of each
+output's signal and binds it before the device starts.
+
+Invariants, checked when binding and again on every reading:
+
+- A calibration only applies to the driver and signal it was fit on.
+- A calibration only applies on the scale it was fit on. A firmware rescale or
+  an IR LED intensity change stops calibrated publishing with an error instead of
+  publishing wrong OD.
+- A device-calibrated output is never calibrated again.
+- Signals outside the standards' range clamp to it.
+
+The OD600 standards protocol measures whichever hardware the unit selects. On an
+external driver its target is `od_<driver>`:
 
 ```sh
 pio calibrations run --device od_turbidvision
 ```
 
-It saves an `ExternalODCalibration` (signal → OD600) under that device. While it
-is active, `od_reading` publishes OD600 on `od1`/`ods` with `calibrated: 1`, and
-the turbidostat's `auto` biomass signal resolves to `od`.
+Starting a session needs no hardware; the first measurement discovers the
+device's uncalibrated outputs and their scales, and later measurements must match
+them. It saves one `ExternalODCalibration` per output, recording `driver`,
+`signal` and `signal_scale`. The turbidostat's `auto` biomass signal resolves to
+`od` when one of the driver's signals is calibrated, and follows channel 1.
 
-Invariants:
+## Storage and charts
 
-- Storage is keyed by driver, so a curve is only loaded for the driver whose
-  signal it was fit on.
-- A Pioreactor calibration is only fit on, and applied to, the device's
-  uncalibrated signal. A device that applies its own calibration is rejected by
-  the protocol, and by `od_reading` while a Pioreactor calibration is active.
-- Signals outside the standards' range clamp to it, as for photodiodes.
-
-`start_external_od_reading(calibration=False)` publishes the device's own signal;
-`start_od_reading()` applies the active calibration.
-
-All primary MQTT readings use one `ODReading` shape: `timestamp`, `od`,
-`channel`, `angle`, and `calibrated` (`0` for uncalibrated, `1` for calibrated).
-The integer flag is an ordinary field, preserving the existing MQTT encoding.
-There is no discriminator or hardware-specific
-metadata on `ods` or `od1`–`od4`. The source remains a job setting. Eye-spy keeps
-illumination and calibration-name metadata in its internal processing readings
-and the existing `raw_od*` / `calibrated_od*` diagnostic topics.
-
-External readings use logical channel 1 and the device-declared geometry. There
-is no external channel configuration, multi-output contract, or scheduled-acquisition
-capability. External devices are polled for their latest reading; OD dodging and
-stirring's scheduled-OD avoidance remain specific to Eye-spy.
-
-## Shared activity, separate acquisition
-
-`ODReader` owns scheduling, callbacks, iteration, MQTT publication, and lifecycle.
-`record()` reads once; `snapshot()` waits for fresh data. Python callers normally
-use `start_od_reading(interval=5)`, which selects hardware and loads configured
-photodiode channels and processing defaults. `interval=None` leaves sampling
-manual. Calibration, blanking, and tests that need explicit channel mappings or
-processing overrides use `start_photodiode_od_reading(channels, ...)`. Its options
-are keyword-only after `channels`. Direct reader construction takes a device
-factory, unit, experiment, and interval. `ExternalODReader` wraps plugin observations, while
-`PhotodiodeODReader` specializes the shared job for
-Eye-spy settings, acquisition timing, calibration failures, and diagnostics.
-The two concrete readers inherit `ODReader` and use the same activity name and
-primary MQTT topics. The plugin protocol is named `ExternalODDevice`; Eye-spy
-has its own acquisition interface.
-
-`PhotodiodeODDevice` keeps Eye-spy's multiple channels, illumination, ADC,
-reference correction, blanking, calibration, and fusion together. Its diagnostics
-use the existing photodiode message types, not a generic optional-fields blob.
-External devices never enter this pipeline. Photodiode-specific blanking and
-fusion calibration reject external devices, and photodiode self-tests are omitted.
-
-The OD job publishes its source separately. Existing SQL tables store the
-value and angle. The upcoming update adds `angle` to `raw_od_readings`. The chart
-preserves small reflectance values. Growth processing uses `ods`, rather than photodiode fusion, for the
-external device. When switching hardware, start a new experiment or clear its
-normalization cache; the growth model does not detect hardware changes.
+The upcoming update adds `angle` to `raw_od_readings`. Older photodiode workers'
+`raw_od*` payloads still parse. Growth processing uses `ods`, rather than
+photodiode fusion, for external devices. When switching hardware, start a new
+experiment or clear its normalization cache; the growth model does not detect
+hardware changes.
 
 OD charts use observation geometry, not the current photodiode configuration.
 The time-series API includes `angle` on each OD point; live charts use the MQTT
-reading's `angle`. Both OD and raw diagnostic history read geometry directly
-from their stored observations. Historical raw points predating the migration have `angle: null`
-and are labeled by channel. Upgrade the leader before using the plugin.
+reading's `angle`. Historical raw points predating the migration have
+`angle: null` and are labeled by channel. Upgrade the leader before using a
+plugin.

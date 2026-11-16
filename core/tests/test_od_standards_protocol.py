@@ -108,7 +108,7 @@ def test_build_standards_chart_metadata_handles_mismatched_lengths() -> None:
     metadata = od_standards._build_standards_chart_metadata(
         od600_values=[0.1, 0.2],
         voltages_by_channel={"1": [1.1], "2": [2.2, 2.3]},
-        channel_angle_map={"1": "45", "2": "90"},
+        series_labels=[("1", "1 (45°)"), ("2", "2 (90°)")],
     )
 
     assert metadata is not None

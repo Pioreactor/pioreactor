@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,27 +14,78 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import ExternalODReader
+from pioreactor.background_jobs.od_reading import start_external_od_reading
 from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.od_devices import od_calibration_device
 from pioreactor.od_devices import register_od_device
-from pioreactor.structs import ODDeviceReading
+from pioreactor.structs import ODDeviceReadings
+from pioreactor.structs import ODSignal
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
+REFLECTANCE = ODSignal(name="reflectance", angle="0", scale="reflectance ratio, v1")
+DENSITY = ODSignal(name="density", angle="0", scale="g/L, v1", calibrated=True)
+FLUORESCENCE = ODSignal(name="fluorescence", angle="90", scale="counts, gain 4")
+
+
+def _readings(*values: float, timestamp: datetime | None = None) -> ODDeviceReadings:
+    """Values for channels 1, 2, ... in order."""
+    return ODDeviceReadings(
+        timestamp=timestamp or current_utc_datetime(),
+        values={str(index): value for index, value in enumerate(values, start=1)},  # type: ignore[misc]
+    )
+
 
 @pytest.fixture
-def external_source(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    reader = MagicMock()
-    reader.source = "test_probe"
-    reader.angle = "0"
-    reader.read.return_value = ODDeviceReading(timestamp=current_utc_datetime(), value=7.4e-7)
-    register_od_device("test_probe", lambda hardware, logger: reader)
+def external_source(monkeypatch: pytest.MonkeyPatch) -> Iterator[MagicMock]:
+    import pioreactor.calibrations as calibrations
+
+    device = MagicMock()
+    device.outputs = {"1": REFLECTANCE}
+    device.read.return_value = _readings(7.4e-7)
+    register_od_device("test_probe", lambda options, logger: device)
     monkeypatch.setattr(
         hardware,
         "get_od_hardware_config",
         lambda *args: hardware.ODHardwareConfig(driver="test_probe", options={"address": 0x69}),
     )
-    return reader
+    # Tests opt into active calibrations explicitly.
+    monkeypatch.setattr(calibrations, "load_active_calibration", lambda device: None)
+    yield device
+
+
+def _calibration(
+    signal: ODSignal = REFLECTANCE, driver: str = "test_probe", name: str = "probe-standards"
+) -> structs.ExternalODCalibration:
+    # signal = 0.2 * OD600 + 0.05
+    return structs.ExternalODCalibration(
+        calibration_name=name,
+        calibrated_on_pioreactor_unit=get_unit_name(),
+        created_at=current_utc_datetime(),
+        curve_data_=structs.PolyFitCoefficients(coefficients=[0.2, 0.05]),
+        recorded_data={"x": [0.0, 1.0, 2.0], "y": [0.05, 0.25, 0.45]},
+        driver=driver,
+        signal=signal.name,
+        signal_scale=signal.scale,
+    )
+
+
+def _activate(monkeypatch: pytest.MonkeyPatch, active: dict[str, Any]) -> list[str]:
+    """Serve `active` as the active calibrations by device, recording each lookup."""
+    import pioreactor.calibrations as calibrations
+
+    requested: list[str] = []
+
+    def load_active_calibration(device: str) -> Any:
+        requested.append(device)
+        return active.get(device)
+
+    monkeypatch.setattr(calibrations, "load_active_calibration", load_active_calibration)
+    return requested
+
+
+# --- published shape
 
 
 @pytest.mark.parametrize("calibrated", [0, 1])
@@ -72,6 +126,21 @@ def test_od_payload_rejects_invalid_calibration_flag(calibrated: int | bool) -> 
         decode(encode(payload), type=structs.ODReading)
 
 
+def test_device_readings_require_timezone_and_finite_values() -> None:
+    with pytest.raises(ValueError, match="timezone"):
+        ODDeviceReadings(timestamp=datetime(2026, 1, 1), values={"1": 0.1})
+    with pytest.raises(ValueError, match="invalid observation on channel 1"):
+        _readings(float("nan"))
+
+
+def test_calibration_devices_are_named_per_driver_and_signal() -> None:
+    assert od_calibration_device("photodiodes", "90") == "od90"
+    assert od_calibration_device("turbidvision", "reflectance") == "od_turbidvision_reflectance"
+
+
+# --- the shared OD job with an external device
+
+
 def test_external_source_uses_native_job_without_photodiodes(
     external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -83,14 +152,15 @@ def test_external_source_uses_native_job_without_photodiodes(
     with start_od_reading(unit=get_unit_name(), experiment="test_source", interval=None) as job:
         assert isinstance(job, ExternalODReader)
         assert job.job_name == "od_reading"
+        assert job.source == "test_probe"
         assert job.acquisition == "continuous"
         assert "first_od_obs_time" not in job.published_settings
         reading = job.record()
         assert reading is not None
         decoded = decode(encode(reading), type=structs.ODReadings)
-        assert isinstance(decoded.ods["1"], structs.ODReading)
         assert decoded.ods["1"].od == 7.4e-7
         assert decoded.ods["1"].angle == "0"
+        assert job.raw_od1 is None
         job.set_state(job.SLEEPING)
         external_source.pause.assert_called_once()
         assert job.record() is None
@@ -106,14 +176,169 @@ def test_source_start_failure_closes_driver(external_source: MagicMock) -> None:
     external_source.close.assert_called_once()
 
 
-def test_no_new_sample_and_invalid_sample(external_source: MagicMock) -> None:
+def test_no_new_sample_publishes_nothing(external_source: MagicMock) -> None:
     with start_od_reading(unit=get_unit_name(), experiment="test_samples", interval=None) as job:
         external_source.read.return_value = None
         assert job.record() is None
         assert job.ods is None
-        with pytest.raises(ValueError, match="invalid observation"):
-            ODDeviceReading(timestamp=current_utc_datetime(), value=float("nan"))
+
+
+def test_multiple_outputs_publish_on_their_own_channels_and_geometry(external_source: MagicMock) -> None:
+    external_source.outputs = {"1": REFLECTANCE, "2": FLUORESCENCE, "3": DENSITY}
+    external_source.read.return_value = _readings(0.25, 1200.0, 0.8)
+    with start_od_reading(unit=get_unit_name(), experiment="multi_output", interval=None) as job:
+        batch = job.record()
+        assert batch is not None
+        assert {
+            channel: (reading.od, reading.angle, reading.calibrated) for channel, reading in batch.ods.items()
+        } == {
+            "1": (0.25, "0", 0),
+            "2": (1200.0, "90", 0),
+            "3": (0.8, "0", 1),
+        }
+        assert job.od2 is not None and job.od2.angle == "90"
+
+
+def test_undeclared_channel_is_rejected(external_source: MagicMock) -> None:
+    external_source.read.return_value = _readings(0.25, 0.3)
+    with start_od_reading(unit=get_unit_name(), experiment="undeclared_channel", interval=None) as job:
+        with pytest.raises(ValueError, match="channel 2, which is not one of its outputs"):
+            job.record()
+
+
+def test_signal_names_must_be_valid_storage_names(external_source: MagicMock) -> None:
+    external_source.outputs = {"1": ODSignal(name="bad/name", angle="0", scale="x")}
+    with pytest.raises(ValueError, match="signal name"):
+        start_od_reading(unit=get_unit_name(), experiment="bad_signal_name", interval=None)
+    external_source.start.assert_not_called()
+    external_source.close.assert_called_once()
+
+
+def test_device_preserves_acquisition_time(external_source: MagicMock) -> None:
+    timestamp = current_utc_datetime()
+    external_source.read.return_value = _readings(0.5, timestamp=timestamp)
+    with start_od_reading(unit=get_unit_name(), experiment="device_outputs", interval=None) as job:
+        batch = job.record()
+        assert batch.timestamp == timestamp
+        assert job.od1.timestamp == timestamp
+
+
+# --- calibrations applied by the job
+
+
+def test_active_signal_calibration_converts_signal_and_keeps_raw(
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    external_source.outputs = {"1": REFLECTANCE, "2": FLUORESCENCE}
+    requested = _activate(monkeypatch, {"od_test_probe_reflectance": _calibration()})
+    external_source.read.return_value = _readings(0.25, 1200.0)
+    with start_od_reading(unit=get_unit_name(), experiment="external_calibrated", interval=None) as job:
+        batch = job.record()
+        assert batch is not None
+        assert batch.ods["1"].od == pytest.approx(1.0)
+        assert batch.ods["1"].calibrated == 1
+        assert job.raw_od1 is not None
+        assert (job.raw_od1.od, job.raw_od1.calibrated, job.raw_od1.angle) == (0.25, 0, "0")
+        # The uncalibrated output is published as is, without a raw copy.
+        assert (batch.ods["2"].od, batch.ods["2"].calibrated) == (1200.0, 0)
+        assert job.raw_od2 is None
+        # Signals beyond the standards clamp to the calibrated range.
+        external_source.read.return_value = _readings(0.9, 1200.0)
+        assert job.record().ods["1"].od == 2.0
+    # One lookup per signal, keyed by driver and signal name.
+    assert requested == ["od_test_probe_reflectance", "od_test_probe_fluorescence"]
+
+
+def test_uncalibrated_start_publishes_device_values(
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _activate(monkeypatch, {"od_test_probe_reflectance": _calibration()})
+    external_source.read.return_value = _readings(0.25)
+    with start_external_od_reading(
+        unit=get_unit_name(), experiment="external_raw", interval=None, calibration=False
+    ) as job:
+        batch = job.record()
+        assert (batch.ods["1"].od, batch.ods["1"].calibrated) == (0.25, 0)
+
+
+def test_scale_mismatch_fails_before_acquisition_starts(
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rescaled = ODSignal(name="reflectance", angle="0", scale="reflectance ratio, v2")
+    _activate(monkeypatch, {"od_test_probe_reflectance": _calibration(rescaled)})
+    with pytest.raises(exc.CalibrationError, match="was fit on reflectance ratio, v2.*reflectance ratio, v1"):
+        start_od_reading(unit=get_unit_name(), experiment="external_rescaled", interval=None)
+    external_source.start.assert_not_called()
+    external_source.close.assert_called_once()
+
+
+def test_scale_change_while_running_stops_publishing_calibrated_values(external_source: MagicMock) -> None:
+    external_source.read.return_value = _readings(0.25)
+    with start_external_od_reading(
+        unit=get_unit_name(), experiment="external_scale_change", interval=None, calibration=_calibration()
+    ) as job:
+        assert job.record() is not None
+        external_source.outputs = {
+            "1": ODSignal(name="reflectance", angle="0", scale="reflectance ratio, v2")
+        }
+        with pytest.raises(exc.CalibrationError, match="now reads on reflectance ratio, v2"):
+            job.record()
         assert job.ods is None
+        assert job.od1 is None
+        assert job.raw_od1 is not None and job.raw_od1.od == 0.25
+
+
+def test_calibration_is_never_applied_to_a_device_calibrated_output(external_source: MagicMock) -> None:
+    external_source.outputs = {"1": DENSITY}
+    with pytest.raises(exc.CalibrationError, match="already calibrates that output"):
+        start_external_od_reading(
+            unit=get_unit_name(),
+            experiment="external_double_calibration",
+            interval=None,
+            calibration=_calibration(DENSITY),
+        )
+    external_source.start.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "calibration, match",
+    [
+        (_calibration(driver="other_probe"), "fit on the `other_probe` OD device"),
+        (
+            _calibration(FLUORESCENCE),
+            "`fluorescence` signal, which the `test_probe` OD device is not producing",
+        ),
+    ],
+)
+def test_calibration_for_another_driver_or_signal_is_rejected(
+    external_source: MagicMock, calibration: structs.ExternalODCalibration, match: str
+) -> None:
+    with pytest.raises(exc.CalibrationError, match=match):
+        start_external_od_reading(
+            unit=get_unit_name(), experiment="external_wrong_target", interval=None, calibration=calibration
+        )
+
+
+def test_photodiode_calibration_on_external_device_is_rejected(
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    photodiode_calibration = structs.OD600Calibration(
+        calibration_name="photodiode",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+        created_at=current_utc_datetime(),
+        curve_data_=structs.PolyFitCoefficients(coefficients=[0.2, 0.05]),
+        recorded_data={"x": [0.0, 1.0], "y": [0.05, 0.25]},
+        ir_led_intensity=70.0,
+        angle="90",
+        pd_channel="2",
+    )
+    _activate(monkeypatch, {"od_test_probe_reflectance": photodiode_calibration})
+    with pytest.raises(exc.CalibrationError, match="wrong type"):
+        start_od_reading(unit=get_unit_name(), experiment="external_wrong_type", interval=None)
+    external_source.start.assert_not_called()
+
+
+# --- the rest of the system with an external device
 
 
 def test_external_blank_is_rejected_before_measurement(external_source: MagicMock) -> None:
@@ -172,7 +397,7 @@ def test_unknown_source_never_falls_back_to_adc(monkeypatch: pytest.MonkeyPatch)
 def test_sensor_geometry_round_trips_through_existing_od_table(angle: pt.ObservationAngle) -> None:
     import sqlite3
     from pioreactor.background_jobs.leader.mqtt_to_db_streaming import parse_od
-    from pioreactor.utils.timing import current_utc_datetime
+    from pioreactor.background_jobs.leader.mqtt_to_db_streaming import parse_raw_od
 
     reading = structs.ODReading(
         timestamp=current_utc_datetime(),
@@ -181,52 +406,58 @@ def test_sensor_geometry_round_trips_through_existing_od_table(angle: pt.Observa
         angle=angle,
         calibrated=0,
     )
-    row = parse_od("pioreactor/unit/experiment/od_reading/od1", encode(reading))
-    assert row["angle"] == int(angle)
     connection = sqlite3.connect(":memory:")
     schema = (Path(__file__).parents[2] / "packaging/shared-assets/sql/create_tables.sql").read_text(
         encoding="utf-8"
     )
     connection.executescript(schema)
-    columns = ",".join(row)
-    connection.execute(
-        f"INSERT INTO od_readings ({columns}) VALUES ({','.join('?' for _ in row)})", tuple(row.values())
-    )
-    stored = connection.execute("SELECT angle,od_reading FROM od_readings").fetchone()
-    assert stored == (int(angle), 7.45279e-7)
+    for table, parse, topic in [
+        ("od_readings", parse_od, "od1"),
+        ("raw_od_readings", parse_raw_od, "raw_od1"),
+    ]:
+        row = parse(f"pioreactor/unit/experiment/od_reading/{topic}", encode(reading))
+        assert row["angle"] == int(angle)
+        columns = ",".join(row)
+        connection.execute(
+            f"INSERT INTO {table} ({columns}) VALUES ({','.join('?' for _ in row)})", tuple(row.values())
+        )
+        stored = connection.execute(f"SELECT angle,od_reading FROM {table}").fetchone()
+        assert stored == (int(angle), 7.45279e-7)
     connection.close()
 
 
-@pytest.mark.parametrize("angle", ["0", "90", "180"])
-@pytest.mark.parametrize("calibrated", [False, True])
+def test_raw_od_from_older_photodiode_workers_still_parses() -> None:
+    from pioreactor.background_jobs.leader.mqtt_to_db_streaming import parse_raw_od
+
+    legacy = {
+        "timestamp": "2026-09-01T01:00:00Z",
+        "od": 0.1,
+        "channel": "2",
+        "angle": "90",
+        "ir_led_intensity": 70.0,
+        "calibrated": 0,
+    }
+    row = parse_raw_od("pioreactor/unit/experiment/od_reading/raw_od2", encode(legacy))
+    assert (row["od_reading"], row["channel"], row["angle"]) == (0.1, 2, 90)
+
+
+@pytest.mark.parametrize("signal", [REFLECTANCE, DENSITY])
 def test_external_geometry_survives_publication_and_averaging(
-    external_source: MagicMock, angle: pt.ObservationAngle, calibrated: bool
+    external_source: MagicMock, signal: ODSignal
 ) -> None:
     from pioreactor.background_jobs.od_reading import average_over_od_readings
 
-    external_source.angle = angle
-    external_source.read.return_value = ODDeviceReading(
-        timestamp=current_utc_datetime(), value=0.42, calibrated=calibrated
-    )
+    external_source.outputs = {"1": signal}
+    external_source.read.return_value = _readings(0.42)
     with start_od_reading(unit=get_unit_name(), experiment="sensor_geometry", interval=None) as job:
         reading = job.record()
         assert reading is not None
         decoded = decode(encode(reading), type=structs.ODReadings)
-        assert set(decoded.ods) == {"1"}
-        assert decoded.ods["1"].angle == angle
-        assert isinstance(decoded.ods["1"], structs.ODReading)
-        assert decoded.ods["1"].calibrated == int(calibrated)
-        assert set(decode(encode(reading))["ods"]["1"]) == {
-            "timestamp",
-            "od",
-            "channel",
-            "angle",
-            "calibrated",
-        }
+        assert decoded.ods["1"].angle == signal.angle
+        assert decoded.ods["1"].calibrated == int(signal.calibrated)
         averaged = average_over_od_readings(decoded, decoded).ods["1"]
-        assert averaged.angle == angle
-        assert isinstance(averaged, structs.ODReading)
-        assert averaged.calibrated == int(calibrated)
+        assert averaged.angle == signal.angle
+        assert averaged.calibrated == int(signal.calibrated)
 
 
 def test_non_i2c_driver_receives_its_options(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -261,19 +492,19 @@ def test_self_tests_skip_photodiode_operations(external_source: MagicMock) -> No
     assert "test_positive_correlation_between_rpm_and_stirring" in names
 
 
-@pytest.mark.parametrize("calibrated", [False, True])
+@pytest.mark.parametrize("signal", [REFLECTANCE, DENSITY])
 def test_probe_mqtt_reaches_native_growth_model(
-    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch, calibrated: bool
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch, signal: ODSignal
 ) -> None:
     import math
     from datetime import timedelta
     from threading import Thread
     from pioreactor.config import config
     from pioreactor.config import temporary_config_changes
-    from pioreactor.utils.timing import current_utc_datetime
     from .utils import wait_for
 
     experiment = "test_probe_native_growth"
+    external_source.outputs = {"1": signal}
     monkeypatch.setattr(
         "pioreactor.background_jobs.growth_rate_calculating.INITIAL_OD_OBSERVATIONS_TO_SKIP", 0
     )
@@ -288,10 +519,9 @@ def test_probe_mqtt_reaches_native_growth_model(
                 with start_od_reading(unit=get_unit_name(), experiment=experiment, interval=None) as job:
                     for index in range(10):
                         timestamp += timedelta(seconds=5)
-                        external_source.read.return_value = ODDeviceReading(
-                            timestamp=timestamp,
-                            value=(0.42 if calibrated else 7.4e-7) * (1.001**index),
-                            calibrated=calibrated,
+                        base = 0.42 if signal.calibrated else 7.4e-7
+                        external_source.read.return_value = _readings(
+                            base * (1.001**index), timestamp=timestamp
                         )
                         job.record()
                     assert wait_for(
@@ -306,21 +536,6 @@ def test_probe_mqtt_reaches_native_growth_model(
                 with local_persistent_storage("od_normalization_mean") as cache:
                     cache.pop(experiment, None)
             assert not processing.is_alive()
-
-
-def test_device_preserves_acquisition_time_and_uses_one_backscatter_channel(
-    external_source: MagicMock,
-) -> None:
-    timestamp = current_utc_datetime()
-    external_source.read.return_value = ODDeviceReading(timestamp=timestamp, value=0.5)
-    with start_od_reading(unit=get_unit_name(), experiment="device_outputs", interval=None) as job:
-        batch = job.record()
-        assert batch.timestamp == timestamp
-        assert set(batch.ods) == {"1"}
-        assert job.od1.od == 0.5
-        assert job.od1.angle == "0"
-        assert "raw_od1" not in job.published_settings
-        assert "first_od_obs_time" not in job.published_settings
 
 
 @pytest.mark.parametrize("interval, expected_penalizer", [(None, 0.0), (5.0, 0.6)])
@@ -379,104 +594,15 @@ def test_cli_rejects_photodiode_options_for_probe(
     external_source.start.assert_not_called()
 
 
-def _external_calibration(name: str = "probe-standards") -> structs.ExternalODCalibration:
-    # signal = 0.2 * OD600 + 0.05
-    return structs.ExternalODCalibration(
-        calibration_name=name,
-        calibrated_on_pioreactor_unit=get_unit_name(),
-        created_at=current_utc_datetime(),
-        curve_data_=structs.PolyFitCoefficients(coefficients=[0.2, 0.05]),
-        recorded_data={"x": [0.0, 1.0, 2.0], "y": [0.05, 0.25, 0.45]},
-    )
+# --- calibrating an external device with OD600 standards
 
 
-def test_active_driver_calibration_converts_external_signal_to_od(
-    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import pioreactor.calibrations as calibrations
-
-    requested: list[str] = []
-
-    def load_active_calibration(device: str) -> structs.ExternalODCalibration:
-        requested.append(device)
-        return _external_calibration()
-
-    monkeypatch.setattr(calibrations, "load_active_calibration", load_active_calibration)
-    external_source.read.return_value = ODDeviceReading(timestamp=current_utc_datetime(), value=0.25)
-    with start_od_reading(unit=get_unit_name(), experiment="external_calibrated", interval=None) as job:
-        reading = job.record()
-        assert reading is not None
-        assert reading.ods["1"].od == pytest.approx(1.0)
-        assert reading.ods["1"].calibrated == 1
-        assert reading.ods["1"].angle == "0"
-        # Signals beyond the standards clamp to the calibrated range.
-        external_source.read.return_value = ODDeviceReading(timestamp=current_utc_datetime(), value=0.9)
-        clamped = job.record()
-        assert clamped is not None
-        assert clamped.ods["1"].od == 2.0
-    # Storage is keyed by driver, so another driver's curve can never be loaded.
-    assert requested == ["od_test_probe"]
-
-
-def test_uncalibrated_start_publishes_device_signal(external_source: MagicMock) -> None:
-    from pioreactor.background_jobs.od_reading import start_external_od_reading
-
-    external_source.read.return_value = ODDeviceReading(timestamp=current_utc_datetime(), value=0.25)
-    with start_external_od_reading(
-        unit=get_unit_name(), experiment="external_raw", interval=None, calibration=False
-    ) as job:
-        reading = job.record()
-        assert reading is not None
-        assert reading.ods["1"].od == 0.25
-        assert reading.ods["1"].calibrated == 0
-
-
-def test_pioreactor_calibration_is_never_applied_to_device_calibrated_signal(
+def _run_standards_session(
     external_source: MagicMock,
-) -> None:
-    from pioreactor.background_jobs.od_reading import start_external_od_reading
-
-    external_source.read.return_value = ODDeviceReading(
-        timestamp=current_utc_datetime(), value=0.25, calibrated=True
-    )
-    with start_external_od_reading(
-        unit=get_unit_name(),
-        experiment="external_double_calibration",
-        interval=None,
-        calibration=_external_calibration(),
-    ) as job:
-        with pytest.raises(exc.CalibrationError, match="applies its own calibration"):
-            job.record()
-        assert job.ods is None
-
-
-def test_active_calibration_of_another_type_is_rejected_before_hardware_starts(
-    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import pioreactor.calibrations as calibrations
-
-    photodiode_calibration = structs.OD600Calibration(
-        calibration_name="photodiode",
-        calibrated_on_pioreactor_unit=get_unit_name(),
-        created_at=current_utc_datetime(),
-        curve_data_=structs.PolyFitCoefficients(coefficients=[0.2, 0.05]),
-        recorded_data={"x": [0.0, 1.0], "y": [0.05, 0.25]},
-        ir_led_intensity=70.0,
-        angle="90",
-        pd_channel="2",
-    )
-    monkeypatch.setattr(calibrations, "load_active_calibration", lambda device: photodiode_calibration)
-    with pytest.raises(exc.CalibrationError, match="wrong type"):
-        start_od_reading(unit=get_unit_name(), experiment="external_wrong_type", interval=None)
-    external_source.start.assert_not_called()
-
-
-def test_standards_protocol_calibrates_external_device_end_to_end(
-    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from typing import Any
-    from msgspec import convert
-    from pioreactor.background_jobs.od_reading import start_external_od_reading
+    monkeypatch: pytest.MonkeyPatch,
+    readings: list[ODDeviceReadings],
+    od600s: list[float],
+) -> tuple[Any, list[dict[str, Any]]]:
     from pioreactor.calibrations.protocols import od_standards
     from pioreactor.calibrations.session_flow import advance_session
     from pioreactor.calibrations.session_flow import get_session_step
@@ -484,34 +610,21 @@ def test_standards_protocol_calibrates_external_device_end_to_end(
     monkeypatch.setattr(od_standards, "is_pio_job_running", lambda _jobs: [False, False])
     monkeypatch.setattr(od_standards, "list_of_calibrations_by_device", lambda _device: [])
     registry = od_standards._OD_STANDARDS_STEPS
-    # Blank first, then three standards: signal = 0.2 * OD600 + 0.05.
-    od600s = [0.0, 0.5, 1.0, 2.0]
-    signals = iter([0.05, 0.15, 0.25, 0.45])
+    measurements = iter(readings)
     saved: list[dict[str, Any]] = []
 
     def execute(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if action == "od_standards_measure":
-            external_source.read.return_value = ODDeviceReading(
-                timestamp=current_utc_datetime(), value=next(signals)
-            )
-            return {
-                "voltages": od_standards._measure_standard(
-                    payload["rpm"], payload["channel_angle_map"], payload["experiment"]
-                )
-            }
+        if action == "od_standards_measure_external":
+            external_source.read.return_value = next(measurements)
+            return {"signals": od_standards._measure_external_standard(payload["rpm"], payload["experiment"])}
         assert action == "save_calibration"
         saved.append(payload)
         return {"path": f"/tmp/{payload['device']}.yaml"}
 
     assert od_standards.get_valid_od_devices_for_this_unit() == ["od_test_probe"]
-    with pytest.raises(ValueError, match="od_test_probe"):
-        od_standards.start_standards_session("od90")
-
     session = od_standards.start_standards_session("od_test_probe")
-    assert session.data["channel_angle_map"] == {"1": "0"}
-    # The preflight builds the device for its geometry and releases it without acquiring.
+    # Starting a session needs no hardware: outputs are discovered by the first measurement.
     external_source.start.assert_not_called()
-    external_source.close.assert_called_once()
 
     session = advance_session(registry, session, {}, execute)
     session = advance_session(registry, session, {"calibration_name": "probe-standards"}, execute)
@@ -522,53 +635,98 @@ def test_standards_protocol_calibrates_external_device_end_to_end(
     for od600 in od600s[1:]:
         session = advance_session(registry, session, {}, execute)
         step = get_session_step(registry, session, execute)
-        assert step.metadata["table"]["columns"] == ["Standard", "OD600", "Signal, 1 (0°)"]
+        assert step.metadata["table"]["columns"][:3] == ["Standard", "OD600", "Signal, reflectance"]
         session = advance_session(registry, session, {"od600_value": od600}, execute)
     assert session.step_id == "review_data"
     review = get_session_step(registry, session, execute)
     session = advance_session(registry, session, {"recorded_data": review.fields[0].default}, execute)
+    return session, saved
+
+
+def test_standards_protocol_calibrates_each_uncalibrated_output(
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from msgspec import convert
+
+    external_source.outputs = {"1": REFLECTANCE, "2": DENSITY, "3": FLUORESCENCE}
+    od600s = [0.0, 0.5, 1.0, 2.0]
+    # Blank first, then three standards: reflectance = 0.2 * OD600 + 0.05.
+    readings = [_readings(0.05 + 0.2 * od, od, 100 + od) for od in od600s]
+    session, saved = _run_standards_session(external_source, monkeypatch, readings, od600s)
     assert session.status == "complete"
 
-    assert [payload["device"] for payload in saved] == ["od_test_probe"]
+    # The device-calibrated density output is never fit; each other output gets its own device.
+    assert [payload["device"] for payload in saved] == [
+        "od_test_probe_reflectance",
+        "od_test_probe_fluorescence",
+    ]
     calibration = convert(saved[0]["calibration"], type=structs.ExternalODCalibration)
+    assert (calibration.driver, calibration.signal, calibration.signal_scale) == (
+        "test_probe",
+        "reflectance",
+        REFLECTANCE.scale,
+    )
     assert calibration.recorded_data == {"x": od600s, "y": pytest.approx([0.05, 0.15, 0.25, 0.45])}
 
-    # The saved curve turns the probe's signal back into the standards' OD600.
-    external_source.read.return_value = ODDeviceReading(timestamp=current_utc_datetime(), value=0.25)
+    # The saved curve turns the signal back into the standards' OD600.
+    external_source.read.return_value = _readings(0.25, 1.0, 101.0)
     with start_external_od_reading(
         unit=get_unit_name(), experiment="external_round_trip", interval=None, calibration=calibration
     ) as job:
-        reading = job.record()
-        assert reading is not None
-        assert reading.ods["1"].od == pytest.approx(1.0, abs=0.02)
-        assert reading.ods["1"].calibrated == 1
+        batch = job.record()
+        assert batch.ods["1"].od == pytest.approx(1.0, abs=0.02)
+        assert batch.ods["1"].calibrated == 1
+        assert batch.ods["2"].calibrated == 1  # the device's own calibration
+        assert batch.ods["3"].calibrated == 0
 
 
-def test_standards_measurement_rejects_device_calibrated_signal(external_source: MagicMock) -> None:
+def test_standards_session_rejects_outputs_that_change_mid_calibration(
+    external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor.calibrations.protocols import od_standards
+    from pioreactor.calibrations.session_flow import SessionContext
+    from pioreactor.calibrations.session_flow import SessionInputs
+
+    session = od_standards.start_standards_session("od_test_probe")
+    ctx = SessionContext(session, "cli", SessionInputs({}), [])
+    external_source.read.return_value = _readings(0.05)
+    assert od_standards._measure_standard_for_session(ctx, 0, {}) == {"reflectance": pytest.approx(0.05)}
+    external_source.outputs = {"1": ODSignal(name="reflectance", angle="0", scale="reflectance ratio, v2")}
+    with pytest.raises(ValueError, match="outputs changed during this calibration"):
+        od_standards._measure_standard_for_session(ctx, 0, {})
+
+
+def test_standards_measurement_needs_an_uncalibrated_output(external_source: MagicMock) -> None:
     from pioreactor.calibrations.protocols import od_standards
 
-    external_source.read.return_value = ODDeviceReading(
-        timestamp=current_utc_datetime(), value=0.25, calibrated=True
-    )
-    with pytest.raises(ValueError, match="applying its own calibration"):
-        od_standards._measure_standard(0, {"1": "0"}, "external_device_calibrated")
+    external_source.outputs = {"1": DENSITY}
+    external_source.read.return_value = _readings(0.25)
+    with pytest.raises(ValueError, match="calibrates all of its outputs itself"):
+        od_standards._measure_external_standard(0, "external_device_calibrated")
     external_source.close.assert_called_once()
 
 
-@pytest.mark.parametrize("has_calibration, expected_signal", [(True, "od"), (False, "normalized_od")])
+@pytest.mark.parametrize(
+    "active, expected_signal",
+    [({"od_test_probe_reflectance": "active"}, "od"), ({}, "normalized_od")],
+)
 def test_turbidostat_auto_follows_external_device_calibration(
     external_source: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
-    has_calibration: bool,
+    active: dict[str, str],
     expected_signal: str,
 ) -> None:
     from pioreactor.automations.dosing.turbidostat import Turbidostat
 
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.list_devices",
+        lambda: ["od90", "od_other_probe_reflectance", "od_test_probe_reflectance", "media_pump"],
+    )
     requested: list[str] = []
 
-    def load_active_calibration(device: str) -> structs.ExternalODCalibration | None:
+    def load_active_calibration(device: str) -> str | None:
         requested.append(device)
-        return _external_calibration() if has_calibration else None
+        return active.get(device)
 
     # Signal selection is independent of pump readiness.
     monkeypatch.setattr(
@@ -592,4 +750,5 @@ def test_turbidostat_auto_follows_external_device_calibration(
     ) as algo:
         assert algo.resolved_biomass_signal == expected_signal
         assert algo._od_channel == "1"
-    assert requested == ["od_test_probe"]
+    # Only this driver's signals are considered.
+    assert requested == ["od_test_probe_reflectance"]

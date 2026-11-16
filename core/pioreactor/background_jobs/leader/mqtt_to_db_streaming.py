@@ -213,7 +213,8 @@ def parse_od_fused(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRo
 
 def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    od_reading = msgspec_loads(payload, type=structs.RawODReading)
+    # Raw readings share the published ODReading shape; older photodiode payloads carry extra fields.
+    od_reading = msgspec_loads(payload, type=structs.ODReading)
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,

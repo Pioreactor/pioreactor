@@ -176,25 +176,34 @@ class RawPDReading(JSONPrintedStruct):
     channel: pt.PdChannel
 
 
-class CalibratedODReading(JSONPrintedStruct):
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
-    angle: pt.PdAngle
-    od: pt.CalibratedOD
-    channel: pt.PdChannel
-    ir_led_intensity: float
-    calibration_name: str
+class ODSignal(Struct, frozen=True, forbid_unknown_fields=True):
+    """What one output channel of an OD device measures, and on what scale.
 
+    `name` identifies the quantity, e.g. "90" for a photodiode angle or "reflectance".
+    Pioreactor calibrations are stored per (driver, name).
+    `scale` changes whenever the numbers for the same `name` change meaning: gain,
+    LED intensity, firmware, units. A calibration only applies on the scale it was fit on.
+    `calibrated` marks outputs the device converts itself. Pioreactor never calibrates those.
+    """
 
-class ODDeviceReading(Struct):
-    timestamp: datetime
-    value: float
+    name: str
+    angle: pt.ObservationAngle
+    scale: str
     calibrated: bool = False
+
+
+class ODDeviceReadings(Struct):
+    """One acquisition: a value for each declared output channel, at its acquisition time."""
+
+    timestamp: datetime
+    values: dict[pt.PdChannel, float]
 
     def __post_init__(self) -> None:
         if self.timestamp.tzinfo is None:
             raise ValueError(f"OD timestamps must include a timezone. Saw {self.timestamp}.")
-        if not math.isfinite(self.value) or self.value <= 0:
-            raise ValueError(f"OD device returned an invalid observation: {self.value}.")
+        for channel, value in self.values.items():
+            if not math.isfinite(value):
+                raise ValueError(f"OD device returned an invalid observation on channel {channel}: {value}.")
 
 
 class RawODReading(JSONPrintedStruct):
@@ -215,19 +224,16 @@ class ODReading(JSONPrintedStruct):
     calibrated: t.Literal[0, 1]
 
 
-PhotodiodeODReading = RawODReading | CalibratedODReading
-
-
 class ODReadings(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, ODReading]
 
 
 class PhotodiodeODReadings(Struct):
-    """Internal Eye-spy processing batch; richer readings also serve diagnostics."""
+    """Internal Eye-spy batch of blank-corrected signals, used by blanking and fusion."""
 
     timestamp: datetime
-    ods: dict[pt.PdChannel, PhotodiodeODReading]
+    ods: dict[pt.PdChannel, RawODReading]
 
 
 class Temperature(JSONPrintedStruct):
@@ -554,12 +560,15 @@ class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
 
 
 class ExternalODCalibration(CalibrationBase, kw_only=True, tag="external_od"):
-    """Maps an external OD device's uncalibrated signal to OD600.
+    """Maps one uncalibrated output of an external OD device to OD600.
 
-    Invariant: stored under the calibration device `od_<driver>`, so a curve is only
-    ever loaded for the driver whose signal it was fit on.
+    Stored under `od_<driver>_<signal>`. Applied only to that driver's output named `signal`,
+    and only while the output reports `signal_scale`.
     """
 
+    driver: str
+    signal: str
+    signal_scale: str
     x: str = "OD600"
     y: str = "Signal"
 

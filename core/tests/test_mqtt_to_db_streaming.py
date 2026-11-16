@@ -388,8 +388,8 @@ def test_database_write_error_stats_reset() -> None:
 
 
 def test_parse_raw_od_preserves_geometry() -> None:
-    reading = structs.RawODReading(
-        timestamp=current_utc_datetime(), od=0.25, angle="135", channel="1", ir_led_intensity=70.0
+    reading = structs.ODReading(
+        timestamp=current_utc_datetime(), od=0.25, angle="135", channel="1", calibrated=0
     )
     row = m2db.parse_raw_od("pioreactor/unit/experiment/od_reading/raw/1", encode(reading))
     assert row["angle"] == 135

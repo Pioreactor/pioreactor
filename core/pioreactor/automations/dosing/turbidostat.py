@@ -12,10 +12,11 @@ from pioreactor.background_jobs.dosing_automation import (
     check_pump_calibrations_and_pwm_channels_are_configured,
 )
 from pioreactor.background_jobs.od_reading import REF_keyword
+from pioreactor.calibrations import list_devices
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.estimators import load_active_estimator
-from pioreactor.od_devices import external_od_calibration_device
+from pioreactor.od_devices import od_calibration_protocol_device
 from pioreactor.utils.timing import current_utc_datetime
 
 SETTLING_TIME_SECONDS = 30.0
@@ -72,7 +73,7 @@ class Turbidostat(DosingAutomationJob):
 
     def _resolve_od_channel(self, *, warn_on_multiple: bool = True) -> pt.PdChannel:
         if not hardware.uses_photodiodes():
-            # External OD devices publish one signal on logical channel 1.
+            # Channel 1 is an OD device's primary biomass signal.
             return "1"
 
         channels = config["od_config.photodiode_channel"]
@@ -117,17 +118,18 @@ class Turbidostat(DosingAutomationJob):
 
     def _has_active_od_calibration_for_resolved_angle(self) -> bool:
         od_hardware = hardware.get_od_hardware_config()
-        od_device = (
-            f"od{self._od_angle}"
-            if od_hardware.driver == "photodiodes"
-            else external_od_calibration_device(od_hardware.driver)
-        )
+        if od_hardware.driver == "photodiodes":
+            od_devices = [f"od{self._od_angle}"]
+        else:
+            # External outputs are only known while the device runs; any calibrated signal counts.
+            prefix = f"{od_calibration_protocol_device(od_hardware.driver)}_"
+            od_devices = [device for device in list_devices() if device.startswith(prefix)]
         try:
-            return load_active_calibration(od_device) is not None
+            return any(load_active_calibration(od_device) is not None for od_device in od_devices)
         except Exception as e:
             self.logger.warning(
-                "Unable to load active OD calibration for device %s for auto biomass signal selection: %s",
-                od_device,
+                "Unable to load active OD calibration for %s for auto biomass signal selection: %s",
+                ", ".join(od_devices),
                 e,
             )
             return False

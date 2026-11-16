@@ -107,7 +107,8 @@ def test_decode_rejects_misaligned_mask() -> None:
 
 
 def test_runtime_clamping_uses_only_included_measurements() -> None:
-    from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
+    from pioreactor.background_jobs.od_reading import ODCalibrationTransformer
+    from pioreactor.background_jobs.od_reading import photodiode_outputs
 
     cal = structs.OD600Calibration(
         calibration_name="masked-extrema",
@@ -120,8 +121,8 @@ def test_runtime_clamping_uses_only_included_measurements() -> None:
         recorded_data={"x": [0.0, 2.0, 100.0], "y": [1.0, 0.5, 200.0]},
         included=[True, True, False],
     )
-    transformer = CachedCalibrationTransformer()
-    transformer.hydate_models(cal)
+    transformer = ODCalibrationTransformer("photodiodes")
+    transformer.hydrate(cal, photodiode_outputs({"2": "90"}, 50.0))
     assert transformer.models["2"](201.0) == pytest.approx(0.0)
     assert transformer.models["2"](-1.0) == pytest.approx(2.0)
 

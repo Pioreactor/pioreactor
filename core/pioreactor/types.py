@@ -95,7 +95,6 @@ class PublishableSetting(t.TypedDict, total=False):
             "ODReadings",
             "ODReading",
             "RawODReading",
-            "CalibratedODReading",
         ]
     ]
     unit: t.NotRequired[str]

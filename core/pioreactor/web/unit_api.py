@@ -1880,6 +1880,15 @@ def create_calibration(device: str) -> ResponseReturnValue:
                     400,
                     f"Use device `{expected_device}` for this {calibration_data.angle}° OD calibration.",
                 )
+        elif isinstance(calibration_data, structs.ExternalODCalibration):
+            from pioreactor.od_devices import od_calibration_device
+
+            expected_device = od_calibration_device(calibration_data.driver, calibration_data.signal)
+            if device != expected_device:
+                abort_with(
+                    400,
+                    f"Use device `{expected_device}` for this `{calibration_data.signal}` OD calibration.",
+                )
         elif device == "od":
             abort_with(400, "`od` is a protocol target, not a calibration storage device.")
 

@@ -10,7 +10,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 """
 import uuid
+from collections.abc import Callable
 from collections.abc import Mapping
+from collections.abc import Sequence
 from time import sleep
 from typing import Any
 from typing import cast
@@ -38,9 +40,9 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
-from pioreactor.logging import create_logger
-from pioreactor.od_devices import create_od_device
-from pioreactor.od_devices import external_od_calibration_device
+from pioreactor.od_devices import od_calibration_device
+from pioreactor.od_devices import od_calibration_protocol_device
+from pioreactor.od_devices import PHOTODIODE_DRIVER
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.states import JobState
@@ -119,26 +121,11 @@ def _external_od_driver() -> str | None:
         driver = hardware.get_od_hardware_config().driver
     except (exc.HardwareNotFoundError, ValidationError):
         return None
-    return None if driver == "photodiodes" else driver
+    return None if driver == PHOTODIODE_DRIVER else driver
 
 
-def _external_channel_angle_map() -> dict[pt.PdChannel, pt.ObservationAngle]:
-    """External devices publish one signal on logical channel 1 at their declared geometry.
-
-    Building the device doubles as a preflight: a missing plugin or invalid od.yaml options
-    fail here, before the user prepares standards.
-    """
-    device = create_od_device(
-        hardware.get_od_hardware_config(),
-        create_logger("od_reading", unit=get_unit_name(), experiment=get_testing_experiment_name()),
-    )
-    try:
-        return {"1": device.angle}
-    finally:
-        device.close()
-
-
-def _read_signal_from_external_device(experiment: str) -> dict[pt.PdChannel, float]:
+def _measure_external_signals(experiment: str) -> dict[str, dict[str, Any]]:
+    """Average each uncalibrated output of the external device, keyed by signal name, with its scale."""
     from pioreactor.background_jobs.od_reading import average_over_od_readings
     from pioreactor.background_jobs.od_reading import start_external_od_reading
 
@@ -151,23 +138,25 @@ def _read_signal_from_external_device(experiment: str) -> dict[pt.PdChannel, flo
         # Discard the first measurement after start-up, then average three fresh ones.
         od_reader.snapshot()
         readings = [od_reader.snapshot() for _ in range(3)]
+        outputs = dict(od_reader.device.outputs)
 
-    # Invariant: a Pioreactor calibration is only ever fit on the device's uncalibrated signal.
-    if any(reading.calibrated for batch in readings for reading in batch.ods.values()):
+    # Invariant: a Pioreactor calibration is only ever fit on an output the device leaves uncalibrated.
+    uncalibrated = {channel: signal for channel, signal in outputs.items() if not signal.calibrated}
+    if not uncalibrated:
         raise ValueError(
-            "The OD device is applying its own calibration. Clear it on the device to calibrate here."
+            "The OD device calibrates all of its outputs itself, so there is nothing to calibrate."
         )
     averaged_readings = average_over_od_readings(*readings)
-    return {channel: reading.od for channel, reading in averaged_readings.ods.items()}
+    return {
+        signal.name: {"value": averaged_readings.ods[channel].od, "scale": signal.scale}
+        for channel, signal in uncalibrated.items()
+    }
 
 
 def _read_voltages_from_adc(
     channel_angle_map: dict[pt.PdChannel, pt.ObservationAngle],
     experiment: str,
 ) -> dict[pt.PdChannel, pt.Voltage]:
-    if _external_od_driver() is not None:
-        return _read_signal_from_external_device(experiment)
-
     from pioreactor.background_jobs.od_reading import average_over_od_readings
     from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 
@@ -198,13 +187,9 @@ def _read_voltages_from_adc(
         return {channel: averaged_readings.ods[channel].od for channel in signal_channels}
 
 
-def _measure_standard(
-    rpm: float,
-    channel_angle_map: dict[pt.PdChannel, pt.ObservationAngle],
-    experiment: str,
-) -> dict[pt.PdChannel, pt.Voltage]:
+def _with_stirring[T](rpm: float, experiment: str, measure: Callable[[], T]) -> T:
     if rpm == 0:
-        return _read_voltages_from_adc(channel_angle_map, experiment)
+        return measure()
 
     from pioreactor.background_jobs.stirring import start_stirring as stirring
 
@@ -216,15 +201,57 @@ def _measure_standard(
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         if not is_testing_env():
             sleep(1.0)
-        return _read_voltages_from_adc(channel_angle_map, experiment)
+        return measure()
+
+
+def _measure_standard(
+    rpm: float,
+    channel_angle_map: dict[pt.PdChannel, pt.ObservationAngle],
+    experiment: str,
+) -> dict[pt.PdChannel, pt.Voltage]:
+    return _with_stirring(rpm, experiment, lambda: _read_voltages_from_adc(channel_angle_map, experiment))
+
+
+def _measure_external_standard(rpm: float, experiment: str) -> dict[str, dict[str, Any]]:
+    return _with_stirring(rpm, experiment, lambda: _measure_external_signals(experiment))
+
+
+def _record_external_scales(
+    ctx: SessionContext, signals: Mapping[str, Mapping[str, Any]]
+) -> dict[str, float]:
+    """The first measurement fixes the signals and scales every later measurement must match."""
+    scales = {name: str(measurement["scale"]) for name, measurement in signals.items()}
+    if not ctx.data["signal_scales"]:
+        ctx.data["signal_scales"] = scales
+        ctx.data["voltages_by_channel"] = {name: [] for name in scales}
+    elif ctx.data["signal_scales"] != scales:
+        raise ValueError("The OD device's outputs changed during this calibration. Start a new calibration.")
+    return {name: float(measurement["value"]) for name, measurement in signals.items()}
 
 
 def _measure_standard_for_session(
     ctx: SessionContext,
     rpm: float,
     channel_angle_map: dict[pt.PdChannel, pt.ObservationAngle],
-) -> dict[pt.PdChannel, pt.Voltage]:
-    if ctx.executor and ctx.mode == "ui":
+) -> dict[str, float]:
+    """Values keyed by series: PD channel for photodiodes, signal name for external devices."""
+    ui = bool(ctx.executor and ctx.mode == "ui")
+    if _session_external_od_driver(ctx) is not None:
+        signals: Mapping[str, Mapping[str, Any]]
+        if ui:
+            assert ctx.executor is not None
+            payload = ctx.executor(
+                "od_standards_measure_external", {"rpm": rpm, "experiment": ctx.data["experiment"]}
+            )
+            payload_signals = payload["signals"]
+            assert isinstance(payload_signals, dict)
+            signals = payload_signals
+        else:
+            signals = _measure_external_standard(rpm, ctx.data["experiment"])
+        return _record_external_scales(ctx, signals)
+
+    if ui:
+        assert ctx.executor is not None
         payload = ctx.executor(
             "od_standards_measure",
             {
@@ -235,8 +262,9 @@ def _measure_standard_for_session(
         )
         raw = payload["voltages"]
         assert isinstance(raw, dict)
-        return {cast(pt.PdChannel, channel): float(voltage) for channel, voltage in raw.items()}
-    return _measure_standard(rpm, channel_angle_map, ctx.data["experiment"])
+        return {str(channel): float(voltage) for channel, voltage in raw.items()}
+    voltages = _measure_standard(rpm, channel_angle_map, ctx.data["experiment"])
+    return {str(channel): voltage for channel, voltage in voltages.items()}
 
 
 def _default_calibration_name() -> str:
@@ -258,13 +286,13 @@ def _calculate_curve_data(
 
 def _build_standards_chart_metadata(
     od600_values: list[float],
-    voltages_by_channel: dict[pt.PdChannel, list[float]],
-    channel_angle_map: dict[pt.PdChannel, pt.ObservationAngle],
+    voltages_by_channel: Mapping[str, list[float]],
+    series_labels: Sequence[tuple[str, str]],
     signal_label: str = PHOTODIODE_SIGNAL_LABEL,
 ) -> dict[str, object] | None:
     series = []
-    for channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
-        voltages = voltages_by_channel[channel]
+    for key, label in series_labels:
+        voltages = voltages_by_channel[key]
         count = min(len(od600_values), len(voltages))
         if count <= 0:
             continue
@@ -272,8 +300,8 @@ def _build_standards_chart_metadata(
 
         series.append(
             {
-                "id": str(channel),
-                "label": f"{channel} ({angle}°)",
+                "id": key,
+                "label": label,
                 "points": points,
                 "curve": None,  # later we could add a curve to the UI
             }
@@ -307,13 +335,18 @@ def start_standards_session(target_device: str) -> CalibrationSession:
         channel_angle_map = dict(_channel_angle_map_from_config(cast(pt.ODCalibrationDevices, target_device)))
         devices_for_name_check = _devices_for_angles(channel_angle_map)
     else:
-        expected_device = external_od_calibration_device(external_od_driver)
+        expected_device = od_calibration_protocol_device(external_od_driver)
         if target_device != expected_device:
             raise ValueError(
                 f"This unit's OD hardware is calibrated as {expected_device}, not {target_device}."
             )
-        channel_angle_map = _external_channel_angle_map()
-        devices_for_name_check = [target_device]
+        # Outputs are discovered at the first measurement, so starting a session needs no hardware.
+        channel_angle_map = {}
+        from pioreactor.calibrations import list_devices
+
+        devices_for_name_check = [
+            device for device in list_devices() if device.startswith(f"{expected_device}_")
+        ]
     channel_summary = ", ".join(f"{channel}={angle}°" for channel, angle in channel_angle_map.items())
 
     session_id = str(uuid.uuid4())
@@ -332,6 +365,8 @@ def start_standards_session(target_device: str) -> CalibrationSession:
             "devices_for_name_check": devices_for_name_check,
             # None for photodiodes. Decides the saved calibration's type, device and signal label.
             "external_od_driver": external_od_driver,
+            # External devices only: signal name -> scale, fixed by the first measurement.
+            "signal_scales": {},
             # Row 0 is the blank; later rows keep their collection order through review.
             "od600_values": [],
             "voltages_by_channel": {channel: [] for channel in channel_angle_map},
@@ -349,6 +384,16 @@ def _session_external_od_driver(ctx: SessionContext) -> str | None:
 
 def _signal_label(ctx: SessionContext) -> str:
     return EXTERNAL_SIGNAL_LABEL if _session_external_od_driver(ctx) else PHOTODIODE_SIGNAL_LABEL
+
+
+def _series(ctx: SessionContext) -> list[tuple[str, str]]:
+    """(key, label) of each measured series: PD channels for photodiodes, signal names otherwise."""
+    if _session_external_od_driver(ctx) is None:
+        return [
+            (channel, f"{channel} ({angle}°)")
+            for channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0]))
+        ]
+    return [(name, name) for name in ctx.data.get("signal_scales", {})]
 
 
 def _get_channel_angle_map(ctx: SessionContext) -> dict[pt.PdChannel, pt.ObservationAngle]:
@@ -408,10 +453,7 @@ class NameInput(SessionStep):
             return NameOverwriteConfirm()
         ctx.data["calibration_name"] = name
 
-        if len(ctx.data["channel_angle_map"]) == 1:
-            return Setup()
-        else:
-            return ChannelConfirm()
+        return ChannelConfirm() if len(ctx.data["channel_angle_map"]) > 1 else Setup()
 
 
 class NameOverwriteConfirm(SessionStep):
@@ -432,10 +474,7 @@ class NameOverwriteConfirm(SessionStep):
             ctx.data["calibration_name"] = pending_name
             ctx.data.pop("pending_name", None)
 
-            if len(ctx.data["channel_angle_map"]) == 1:
-                return Setup()
-            else:
-                return ChannelConfirm()
+            return ChannelConfirm() if len(ctx.data["channel_angle_map"]) > 1 else Setup()
 
         ctx.data.pop("pending_name", None)
         return NameInput()
@@ -516,8 +555,7 @@ class MeasureStandard(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         n_frames = 12 if ctx.data["rpm"] > 0 else 0
         standard_index = len(ctx.data["od600_values"])
-        channel_angle_map = _get_channel_angle_map(ctx)
-        channels = sorted(channel_angle_map, key=int)
+        series = _series(ctx)
         step = steps.form(
             f"Record standard {standard_index} of {ctx.data['sample_count'] - 1}",
             f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Measure standard "
@@ -540,13 +578,13 @@ class MeasureStandard(SessionStep):
             "columns": [
                 "Standard",
                 "OD600",
-                *[f"{_signal_label(ctx)}, {channel} ({channel_angle_map[channel]}°)" for channel in channels],
+                *[f"{_signal_label(ctx)}, {label}" for _, label in series],
             ],
             "rows": [
                 [
                     "Blank" if index == 0 else str(index),
                     value,
-                    *[ctx.data["voltages_by_channel"][channel][index] for channel in channels],
+                    *[ctx.data["voltages_by_channel"][key][index] for key, _ in series],
                 ]
                 for index, value in enumerate(ctx.data["od600_values"])
             ],
@@ -558,8 +596,8 @@ class MeasureStandard(SessionStep):
         od600_value = ctx.inputs.float("od600_value")
         voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
         ctx.data["od600_values"].append(od600_value)
-        for channel, voltage in voltages.items():
-            ctx.data["voltages_by_channel"][channel].append(voltage)
+        for key, voltage in voltages.items():
+            ctx.data["voltages_by_channel"][key].append(voltage)
         if len(ctx.data["od600_values"]) == ctx.data["sample_count"]:
             return ReviewStandards()
         return PlaceStandard()
@@ -617,16 +655,15 @@ class MeasureBlank(SessionStep):
         od600_blank = ctx.inputs.float("od600_blank")
         voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
         ctx.data["od600_values"].append(od600_blank)
-        for channel, voltage in voltages.items():
-            ctx.data["voltages_by_channel"][channel].append(voltage)
+        for key, voltage in voltages.items():
+            ctx.data["voltages_by_channel"][key].append(voltage)
         return PlaceStandard()
 
 
 class ReviewStandards(ReviewDataStep):
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
         voltage_columns = [
-            column(f"voltage_{channel}", f"{_signal_label(ctx)}, {channel} ({angle}°)")
-            for channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0]))
+            column(f"voltage_{key}", f"{_signal_label(ctx)}, {label}") for key, label in _series(ctx)
         ]
         return [
             column("standard", "Standard"),
@@ -643,8 +680,8 @@ class ReviewStandards(ReviewDataStep):
                 "standard": "Blank" if index == 0 else str(index),
                 "od600": od600,
             }
-            for channel in _get_channel_angle_map(ctx):
-                row[f"voltage_{channel}"] = voltages_by_channel[channel][index]
+            for key, _ in _series(ctx):
+                row[f"voltage_{key}"] = voltages_by_channel[key][index]
             rows.append(row)
         return rows
 
@@ -652,14 +689,13 @@ class ReviewStandards(ReviewDataStep):
         ctx.data["od600_values"][index] = row["od600"]
 
     def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
-        channel_angle_map = _get_channel_angle_map(ctx)
+        series_labels = _series(ctx)
         od600_values = select_rows(ctx.data["od600_values"], included)
         voltages_by_channel = {
-            channel: select_rows(ctx.data["voltages_by_channel"][channel], included)
-            for channel in channel_angle_map
+            key: select_rows(ctx.data["voltages_by_channel"][key], included) for key, _ in series_labels
         }
         chart = _build_standards_chart_metadata(
-            od600_values, voltages_by_channel, channel_angle_map, _signal_label(ctx)
+            od600_values, voltages_by_channel, series_labels, _signal_label(ctx)
         )
         if chart is None:
             return None
@@ -678,37 +714,38 @@ class ReviewStandards(ReviewDataStep):
     def save(self, ctx: SessionContext, included: list[int]) -> None:
         od600_values = select_rows(ctx.data["od600_values"], included)
         calibration_links: list[dict[str, str | None]] = []
-        for pd_channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0])):
-            voltages_list = select_rows(ctx.data["voltages_by_channel"][pd_channel], included)
+        external_od_driver = _session_external_od_driver(ctx)
+        for key, _ in _series(ctx):
             curve_data_ = _calculate_curve_data(
                 od600_values,
-                voltages_list,
+                select_rows(ctx.data["voltages_by_channel"][key], included),
             )
             cal: structs.OD600Calibration | structs.ExternalODCalibration
-            external_od_driver = _session_external_od_driver(ctx)
             if external_od_driver is None:
+                pd_channel = cast(pt.PdChannel, key)
+                angle = cast(pt.PdAngle, _get_channel_angle_map(ctx)[pd_channel])
                 cal = to_struct(
                     curve_data_,
-                    ctx.data["voltages_by_channel"][pd_channel],
+                    ctx.data["voltages_by_channel"][key],
                     ctx.data["od600_values"],
-                    cast(pt.PdAngle, angle),
+                    angle,
                     ctx.data["calibration_name"],
                     pd_channel,
                     get_unit_name(),
                 )
-                device = f"od{angle}"
+                device = od_calibration_device(PHOTODIODE_DRIVER, angle)
             else:
                 cal = structs.ExternalODCalibration(
                     created_at=current_utc_datetime(),
                     calibrated_on_pioreactor_unit=get_unit_name(),
                     calibration_name=ctx.data["calibration_name"],
                     curve_data_=curve_data_,
-                    recorded_data={
-                        "x": ctx.data["od600_values"],
-                        "y": ctx.data["voltages_by_channel"][pd_channel],
-                    },
+                    recorded_data={"x": ctx.data["od600_values"], "y": ctx.data["voltages_by_channel"][key]},
+                    driver=external_od_driver,
+                    signal=key,
+                    signal_scale=ctx.data["signal_scales"][key],
                 )
-                device = external_od_calibration_device(external_od_driver)
+                device = od_calibration_device(external_od_driver, key)
             cal.included = [index in included for index in range(len(ctx.data["od600_values"]))]
             calibration_links.append(ctx.store_calibration(cal, device))
 
@@ -732,7 +769,7 @@ _OD_STANDARDS_STEPS: StepRegistry = {
 def get_valid_od_devices_for_this_unit() -> list[str]:
     external_od_driver = _external_od_driver()
     if external_od_driver is not None:
-        return [external_od_calibration_device(external_od_driver)]
+        return [od_calibration_protocol_device(external_od_driver)]
 
     pd_channels = config["od_config.photodiode_channel"]
     valid_devices: list[str] = []
