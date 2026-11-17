@@ -1,3 +1,4 @@
+import { ChartTooltipContainer, createTooltipMoveHandler, createZoomTooltipContainer } from "./ChartTooltipContainer";
 import { cloneChartSvg } from "../utils/chartExport";
 import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
@@ -24,9 +25,7 @@ import {
   VictoryGroup,
   VictoryLegend,
   VictoryTooltip,
-  VictoryVoronoiContainer,
   TextSize,
-  createContainer
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -158,6 +157,7 @@ function Chart(props) {
     lookback,
     payloadKey,
     relabelMap,
+    scheduleHistory,
     subscribeToTopic,
     title,
     topic,
@@ -181,7 +181,7 @@ function Chart(props) {
   const flushTimerRef = useRef(null);
 
   const ChartContainer = useMemo(
-    () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
+    () => (allowZoom ? createZoomTooltipContainer() : ChartTooltipContainer),
     [allowZoom]
   );
 
@@ -468,6 +468,11 @@ function Chart(props) {
       yTransformation,
     ]
   );
+
+  const plot = useMemo(() => ({
+    series: names.map(selectVictoryLines),
+    moveTooltip: createTooltipMoveHandler(),
+  }), [names, selectVictoryLines]);
 
   const legendEvents = useMemo(() => {
     const eventHandlers = {
@@ -774,7 +779,7 @@ function Chart(props) {
     if (!experiment) {
       return undefined;
     }
-    let isCancelled = false;
+    const controller = new AbortController();
 
     const queryParams = new URLSearchParams({
       target_points: downSample ? DOWNSAMPLED_TARGET_POINTS : 1000000,
@@ -802,9 +807,9 @@ function Chart(props) {
 
     async function getHistoricalDataFromServer() {
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
         const data = await response.json();
-        if (isCancelled) {
+        if (controller.signal.aborted) {
           return;
         }
         const initialSeriesMap = {};
@@ -831,7 +836,7 @@ function Chart(props) {
         setSeriesMap(initialSeriesMap);
         setFetched(true);
       } catch (error) {
-        if (isCancelled) {
+        if (controller.signal.aborted) {
           return;
         }
         console.log(error);
@@ -839,11 +844,18 @@ function Chart(props) {
       }
     }
 
-    getHistoricalDataFromServer();
+    // "Now" charts collect live points from mount and have no history to prioritize.
+    let cancelQueued;
+    if (scheduleHistory && lookback !== 0) {
+      cancelQueued = scheduleHistory(chartContainerRef.current, getHistoricalDataFromServer);
+    } else {
+      getHistoricalDataFromServer();
+    }
     return () => {
-      isCancelled = true;
+      cancelQueued?.();
+      controller.abort();
     };
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, experimentStartTime, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
+  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, experimentStartTime, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit, scheduleHistory]);
 
   useEffect(() => {
     if (!client || !isLiveChart) {
@@ -884,6 +896,7 @@ function Chart(props) {
         theme={chartTheme.theme}
         containerComponent={
           <ChartContainer
+            moveTooltip={plot.moveTooltip}
             zoomDimension={"x"}
             responsive={true}
             voronoiBlacklist={["parent"]}
@@ -985,7 +998,7 @@ function Chart(props) {
           data={legendItems}
           width={chartWidth}
         />
-        {names.map(selectVictoryLines)}
+        {plot.series}
       </VictoryChart>
       <Tooltip title="Download chart" describeChild>
         <IconButton

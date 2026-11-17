@@ -1,3 +1,4 @@
+import { createChartHistoryQueue } from "./utils/chartHistoryQueue";
 import useDocumentTitle from "./hooks/useDocumentTitle";
 import { useState, useEffect, useMemo, Fragment } from 'react';
 
@@ -45,6 +46,7 @@ function evaluateChartTransformation(transformation) {
 
 
 function Charts(props) {
+  const scheduleHistory = useMemo(createChartHistoryQueue, []);
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const experiment = props.experimentMetadata.experiment;
@@ -90,6 +92,7 @@ function Charts(props) {
                 <Chart
                   // Charts keep the colors they resolve when history loads, so new choices remount them.
                   key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}-${props.unitColorsKey}`}
+                  scheduleHistory={scheduleHistory}
                   chartKey={chart_key}
                   config={config}
                   dataSource={chart.data_source}

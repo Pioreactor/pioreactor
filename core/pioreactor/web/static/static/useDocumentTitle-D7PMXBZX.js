@@ -1,0 +1,1 @@
+import{r as o}from"./mui-Dc_3LIXa.js";import{h as m}from"./main-Bk_-dcRy.js";function p(e){const{experimentMetadata:r}=m()||{},t=r?.experiment;o.useEffect(()=>{document.title=t?`${e} ~ ${t}`:e},[e,t])}export{p as u};

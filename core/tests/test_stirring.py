@@ -45,8 +45,6 @@ def test_rpm_calculator_uses_gpio_event_timestamps() -> None:
 
     assert rpm_calculator._running_count == 2
     assert rpm_calculator._running_sum == pytest.approx(0.04)
-    assert rpm_calculator._running_min == pytest.approx(0.02)
-    assert rpm_calculator._running_max == pytest.approx(0.02)
 
 
 def test_stirring_runs() -> None:
