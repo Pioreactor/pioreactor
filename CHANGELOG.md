@@ -10,6 +10,7 @@
  - Preserved measurements unchecked during new OD calibration reviews, so they can be restored later from the saved calibration page. Measurements discarded by older calibration saves cannot be recovered.
  - Added MCP tools to read and edit shared `config.ini` and per-unit `unit_config.ini` files, using the same configuration validation and history as the UI.
  - Sped up media-rate summaries for experiments with long dosing histories.
+ - Sped up the Optical density and Raw optical density charts on clusters upgraded from older releases, where an outdated database index made them slow to load. The update rebuilds these indexes, which can take a few minutes on large databases.
  - Added a **Line colors** tab to the Overview's chart settings (the gear icon). Pick a color from the chart palette for any Pioreactor that has been in the experiment, and its line uses that color on every Overview chart. Choices are saved with the experiment, so everyone viewing it sees the same colors. Pioreactors left on Automatic keep their usual color unless it was picked for another Pioreactor, in which case they move to the next unused color. The colors are also available from `/api/experiments/<experiment>/chart_preferences` as `overview_unit_colors`.
 
 #### Bug fixes
