@@ -703,6 +703,7 @@ Rules:
 - `PageHeader` owns standard page headers. `DialogCloseButton` owns dialog
   close controls. `EmptyState` owns empty-region messages. `TableRows.jsx` owns zebra and
   navigable rows; `LogTableCells.jsx` owns log-cell spacing and severity fills.
+  Log Source cells stay on one line; only Message cells break long tokens.
   Use zebra rows for log entries, leaving time-gap separators as plain rows.
 - Do not inspect or edit `core/pioreactor/web/static/`; it is generated output.
 

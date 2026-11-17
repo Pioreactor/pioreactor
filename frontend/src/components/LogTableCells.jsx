@@ -18,3 +18,6 @@ export const LogTableCell = styled(TableCell, {
 }));
 
 export const LogTimeTableCell = styled(LogTableCell)({ whiteSpace: "pre" });
+
+// Sources are short job names; keep them on one line instead of letting long messages squeeze them.
+export const LogSourceTableCell = styled(LogTableCell)({ whiteSpace: "nowrap" });

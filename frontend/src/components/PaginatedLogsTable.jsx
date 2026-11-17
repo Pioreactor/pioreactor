@@ -1,5 +1,5 @@
 import { ZebraTableRow } from "./TableRows";
-import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell, LogSourceTableCell as StyledSourceTableCell } from "./LogTableCells";
 import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
@@ -242,7 +242,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                           sx={HIGHLIGHTABLE_CHIP_SX}
                         />
                       </StyledTableCell>
-                      <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                      <StyledSourceTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledSourceTableCell>
                       <StyledTableCell level={log.level}>
                         <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
                       </StyledTableCell>

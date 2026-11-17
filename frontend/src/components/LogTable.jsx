@@ -1,5 +1,5 @@
 import { ZebraTableRow } from "./TableRows";
-import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell, LogSourceTableCell as StyledSourceTableCell } from "./LogTableCells";
 import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
@@ -257,7 +257,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       />
                       <Box className="log-source-inline" sx={{ display: "none", mt: 0.5, color: "text.secondary" }}>{log.task.replace(/_/g, ' ')}</Box>
                     </StyledTableCell>
-                    <StyledTableCell level={log.level} className="log-source-column">{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                    <StyledSourceTableCell level={log.level} className="log-source-column">{log.task.replace(/_/g, ' ')}</StyledSourceTableCell>
                     <StyledTableCell level={log.level}>
                       <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
                     </StyledTableCell>

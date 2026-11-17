@@ -1,5 +1,5 @@
 import { ZebraTableRow } from "./TableRows";
-import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell, LogSourceTableCell as StyledSourceTableCell } from "./LogTableCells";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
@@ -174,7 +174,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
             <TableHead>
               <TableRow>
                 <StyledTableCell>Time</StyledTableCell>
-                <StyledTableCell>Source</StyledTableCell>
+                <StyledSourceTableCell>Source</StyledSourceTableCell>
                 <StyledTableCell>Message</StyledTableCell>
               </TableRow>
             </TableHead>
@@ -183,7 +183,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
                 <React.Fragment key={log.key}>
                   <ZebraTableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
-                    <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                    <StyledSourceTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledSourceTableCell>
                     <StyledTableCell level={log.level}>
                       <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={unit} />
                     </StyledTableCell>
