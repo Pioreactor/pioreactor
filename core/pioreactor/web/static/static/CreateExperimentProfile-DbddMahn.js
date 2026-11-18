@@ -1,0 +1,1 @@
+import{n as e}from"./ExperimentProfileEditor-tiTOIaXA.js";import{a as t}from"./ExperimentContext-H_b0tSFA.js";var n=t();function r({title:t}){return(0,n.jsx)(e,{mode:`create`,title:t})}export{r as default};

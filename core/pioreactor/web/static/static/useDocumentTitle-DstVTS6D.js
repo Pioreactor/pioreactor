@@ -1,0 +1,1 @@
+import{a as e}from"./rolldown-runtime-BWaJ3C7D.js";import{h as t,n}from"./ExperimentContext-H_b0tSFA.js";var r=e(t());function i(e){let{experimentMetadata:t}=n()||{},i=t?.experiment;(0,r.useEffect)(()=>{document.title=i?`${e} ~ ${i}`:e},[e,i])}export{i as t};
