@@ -164,7 +164,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
                 try:
                     self.sqliteworker.execute(SQL, cast(object, new_row))  # type: ignore[arg-type]
                 except Exception as e:
-                    self.logger.warning(e)
+                    self.logger.warning(f"Unable to queue MQTT data for table `{table}`: {e!r}")
                     self.logger.debug(f"SQL that caused error: `{SQL}`")
                     return
                 self._inserts_in_last_60s += 1

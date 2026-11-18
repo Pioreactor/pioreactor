@@ -12,6 +12,7 @@ import {
 } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -995,6 +996,21 @@ function Chart(props) {
         />
         {names.map(selectVictoryLines)}
       </VictoryChart>
+      {experiment && !fetched && (
+        // Queued charts can wait behind visible ones, so show that their history is still coming.
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <CircularProgress size={24} aria-label={`Loading ${title || "chart"}`} />
+        </Box>
+      )}
       <Tooltip title="Download chart" describeChild>
         <IconButton
           aria-label={`download-${chartKey}`}

@@ -1,0 +1,1 @@
+import{Dn as e,kn as t}from"./mui-Dv49dlFw.js";import{a as n}from"./ExperimentContext-H_b0tSFA.js";var r=n();function i({children:n}){return(0,r.jsx)(t,{sx:{display:`flex`,justifyContent:`center`,alignItems:`center`,minHeight:`10vh`,py:2,textAlign:`center`},children:(0,r.jsx)(e,{variant:`body2`,component:`p`,color:`text.secondary`,children:n})})}export{i as t};

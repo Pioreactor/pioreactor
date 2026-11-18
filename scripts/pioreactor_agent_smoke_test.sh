@@ -52,6 +52,7 @@ declare -a TEST_SEQUENCE=(
   check_usb_status_surface
   check_descriptor_endpoints
   check_calibration_session_tasks
+  check_calibration_measurement_edit
   check_camera_contract
   check_camera_tuning
   check_unit_api_job_history
@@ -63,7 +64,9 @@ declare -a TEST_SEQUENCE=(
   check_leader_api
   check_time_series_endpoints
   check_experiment_cli
+  check_experiment_line_colors
   check_stirring_job
+  check_repeated_shutdown_signal
   check_experiment_scoping
   check_experiment_profiles
   check_experiment_profile_validation
@@ -82,6 +85,7 @@ declare -a TEST_SEQUENCE=(
   check_pios_cli
   check_pios_cp_target_help
   check_pios_sync_configs
+  check_cluster_join_validation
   check_available_worker_cluster_branch
   check_numpy_installation
 )
@@ -1032,6 +1036,26 @@ check_runtime_packaging() {
     ok "Huey launcher starts at least two workers for every image profile"
   fi
 
+  # A leader-worker that joins another cluster keeps its leader targets enabled, so these
+  # processes check the unit's current role each time they start.
+  if [[ "$HAS_SYSTEMCTL" == true ]]; then
+    local leader_only_service
+    for leader_only_service in pioreactor_startup_run@mqtt_to_db_streaming.service backup-database.service avahi_aliases.service; do
+      systemctl cat "$leader_only_service" >/dev/null 2>&1 || continue
+      if [[ "$(systemctl show -p ExecCondition --value "$leader_only_service" 2>/dev/null)" == *leader_hostname* ]]; then
+        ok "$leader_only_service starts only on the current leader"
+      else
+        fail "$leader_only_service is missing its leader-only ExecCondition drop-in"
+      fi
+    done
+
+    if [[ "$(pio config get --shared cluster.topology leader_hostname 2>/dev/null | tr -d '[:space:]')" == "$(hostname)" ]]; then
+      ok "shared config names this unit as leader, so leader-only services start"
+    else
+      fail "pio config get --shared cluster.topology leader_hostname does not name $(hostname); leader-only services will be skipped"
+    fi
+  fi
+
   if ! grep -qs 'Raspberry Pi' /proc/device-tree/model; then
     warn "Not a Raspberry Pi image; skipping boot partition import checks"
     return
@@ -1770,7 +1794,7 @@ check_calibration_session_tasks() {
 }
 
 check_camera_contract() {
-  local hostname camera_enabled snapshot_interval probe_experiment
+  local hostname snapshot_interval probe_experiment
   local status_file listing_file archive_file dispatch_file task_result_file
   local initial_auto_capture_enabled auto_capture_setting_was_persisted=false target
   local -a auto_capture_targets
@@ -1783,18 +1807,17 @@ check_camera_contract() {
   task_result_file="$(mktemp)"
 
   info "Testing camera configuration and API contract"
-  if ! camera_enabled="$(pio config get camera enabled 2>/dev/null)" || \
-     ! snapshot_interval="$(pio config get camera snapshot_interval_minutes 2>/dev/null)"; then
+  # Cameras are detected automatically; there is no [camera] enabled switch.
+  if ! snapshot_interval="$(pio config get camera snapshot_interval_minutes 2>/dev/null)"; then
     fail "camera config was not installed into the merged configuration"
     rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
     return
   fi
-  camera_enabled="${camera_enabled//[[:space:]]/}"
   snapshot_interval="${snapshot_interval//[[:space:]]/}"
-  if [[ "$camera_enabled" =~ ^[01]$ && "$snapshot_interval" =~ ^[0-9]+$ ]]; then
-    ok "camera config is installed (enabled=$camera_enabled, interval=$snapshot_interval)"
+  if [[ "$snapshot_interval" =~ ^[0-9]+$ ]]; then
+    ok "camera config is installed (interval=$snapshot_interval)"
   else
-    fail "camera config contains invalid enabled or snapshot interval values"
+    fail "camera config contains an invalid snapshot interval"
   fi
 
   if ! python3_available; then
@@ -1914,7 +1937,15 @@ PY
       fail "unable to restore the camera setting's original default-backed state"
   fi
 
-  if [[ "$camera_enabled" == "1" ]]; then
+  if python3 - "$status_file" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["detection_status"] == "detected"
+PY
+  then
     local camera_experiment camera_experiment_path before_capture_file after_capture_file
     local capture_output captured_image_id image_file
     if ! python3 - "$status_file" <<'PY'
@@ -1924,10 +1955,9 @@ import sys
 
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["runtime_available"] is True
-assert payload["detection_status"] == "detected"
 PY
     then
-      fail "camera is enabled but its configured hardware is not detected"
+      fail "camera is detected but its capture command is unavailable"
     elif ! camera_experiment="$(get_worker_experiment_assignment "$hostname")"; then
       fail "unable to determine the current experiment assignment for camera capture"
     elif [[ -z "$camera_experiment" ]]; then
@@ -2008,7 +2038,7 @@ PY
       rm -f "$before_capture_file" "$after_capture_file" "$image_file"
     fi
   else
-    warn "camera feature is disabled; skipping physical capture"
+    warn "no camera detected; skipping physical capture"
   fi
 
   rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
@@ -2334,6 +2364,42 @@ check_experiment_cli() {
   fi
 }
 
+check_experiment_line_colors() {
+  info "Testing Overview line colors in experiment chart preferences"
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping line color checks"
+    return
+  fi
+
+  local hostname test_experiment preferences_url
+  hostname="$(hostname)"
+  test_experiment="agent-smoke-colors-$(date +%s)"
+  preferences_url="http://localhost/api/experiments/$test_experiment/chart_preferences"
+
+  if ! pio experiments create "$test_experiment" >/dev/null; then
+    fail "pio experiments create failed for line color checks"
+    return
+  fi
+
+  if curl -fsS -X PATCH -H 'Content-Type: application/json' \
+       -d "{\"overview_unit_colors\":{\"$hostname\":\"#0077BB\"}}" "$preferences_url" >/dev/null; then
+    ok "saved an Overview line color for $hostname"
+  else
+    fail "unable to save an Overview line color"
+  fi
+  run_step "Checking chart_preferences returns overview_unit_colors" \
+    curl_check "$preferences_url" ".overview_unit_colors == {\"$hostname\": \"#0077BB\"}"
+  run_step "Checking non-hex line colors are rejected" \
+    http_status_is 400 "$preferences_url" \
+    -X PATCH -H 'Content-Type: application/json' -d "{\"overview_unit_colors\":{\"$hostname\":\"blue\"}}"
+
+  if pio experiments delete "$test_experiment" --yes >/dev/null; then
+    ok "deleted experiment $test_experiment"
+  else
+    fail "failed to delete experiment $test_experiment"
+  fi
+}
+
 check_stirring_job() {
   info "Testing stirring job via API"
   if curl -fsS -X POST -H "Content-Type: application/json" -d '{}' http://localhost/unit_api/jobs/run/job_name/stirring >/dev/null; then
@@ -2383,6 +2449,59 @@ check_stirring_job() {
     ok "stopped all jobs"
   else
     fail "stop jobs failed"
+  fi
+}
+
+check_repeated_shutdown_signal() {
+  local hostname jobs_json pid experiment state
+  hostname="$(hostname)"
+
+  info "Testing a job finishes cleanup when SIGTERM arrives twice"
+  mqtt_checks_available || return
+
+  if ! curl -fsS -X POST -H "Content-Type: application/json" -d '{}' http://localhost/unit_api/jobs/run/job_name/stirring >/dev/null; then
+    fail "start stirring failed"
+    return
+  fi
+  pause_for_job_sync
+  if ! jobs_json="$(curl -fsS http://localhost/unit_api/jobs/running/stirring)" || \
+     ! pid="$(jq -er 'first(.[].pid)' <<< "$jobs_json")"; then
+    fail "Unable to find the running stirring job's PID"
+    curl -fsS -X PATCH http://localhost/unit_api/jobs/stop/all >/dev/null || true
+    return
+  fi
+  experiment="$(jq -r 'first(.[].experiment) // empty' <<< "$jobs_json")"
+
+  # Software updates and Huey restarts can send SIGTERM again while the first shutdown is cleaning up.
+  if ! kill -TERM "$pid"; then
+    fail "Unable to send SIGTERM to stirring (pid $pid)"
+    return
+  fi
+  sleep 0.2
+  kill -TERM "$pid" 2>/dev/null || true
+
+  for _ in {1..20}; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    fail "stirring (pid $pid) is still running 10s after SIGTERM"
+    curl -fsS -X PATCH http://localhost/unit_api/jobs/stop/all >/dev/null || true
+    return
+  fi
+  ok "stirring exited after a repeated SIGTERM"
+
+  state="$(mqtt_read_one "pioreactor/$hostname/$experiment/stirring/\$state" 3 || true)"
+  if [[ "$state" == "disconnected" ]]; then
+    ok "stirring published \$state=disconnected"
+  else
+    fail "stirring \$state is '${state:-<none>}' after a repeated SIGTERM, expected disconnected"
+  fi
+
+  if jobs_json="$(fetch_running_jobs)" && ! jobs_contain "$jobs_json" 'any(.job_name=="stirring")'; then
+    ok "stirring is no longer registered as running"
+  else
+    fail "stirring is still registered as running after a repeated SIGTERM"
   fi
 }
 
@@ -2814,6 +2933,77 @@ EOF
   rm -f "$payload_file" "$dispatch_file" "$result_file"
 }
 
+check_calibration_measurement_edit() {
+  info "Testing recorded-measurement edits on a saved calibration"
+  if [[ "$HAS_JQ" != true ]] || ! python3_available; then
+    warn "jq and python3 are required for the calibration edit checks"
+    return
+  fi
+
+  local hostname calibration_name encoded_name calibration_file edit_url dispatch_file result_file
+  hostname="$(hostname)"
+  calibration_name="agent-smoke-edit-$(date +%s)-$$"
+  encoded_name="$(uri_encode "$calibration_name")"
+  calibration_file="${DOT_PIOREACTOR:-$HOME/.pioreactor}/storage/calibrations/od90/$calibration_name.yaml"
+  edit_url="http://localhost/api/workers/$hostname/calibrations/od90/$encoded_name"
+  dispatch_file="$(mktemp)"
+  result_file="$(mktemp)"
+  mkdir -p "$(dirname "$calibration_file")"
+  # The saved curve is deliberately wrong; refitting without the outlier gives y = x.
+  cat <<EOF > "$calibration_file"
+calibration_name: "$calibration_name"
+calibration_type: od
+calibrated_on_pioreactor_unit: "$hostname"
+created_at: 2025-01-01 21:45:48.937062+00:00
+ir_led_intensity: 50
+angle: "90"
+pd_channel: "1"
+curve_data_:
+  type: poly
+  coefficients:
+    - 2.0
+    - 0.0
+x: "OD"
+y: "Voltage"
+recorded_data:
+  x: [0.0, 0.5, 1.0, 1.5]
+  y: [0.0, 0.5, 1.0, 9.0]
+EOF
+
+  if curl -fsS -X PATCH -H 'Content-Type: application/json' \
+       -d '{"included":[true,true,true,false]}' "$edit_url" > "$dispatch_file" && \
+     wait_for_worker_task_success http://localhost "$dispatch_file" "$result_file" \
+       "calibration measurement edit" 30 1 10 && \
+     jq -e --arg unit "$hostname" '.result[$unit].ok==true' "$result_file" >/dev/null && \
+     curl_check "http://localhost/unit_api/calibrations/od90/$encoded_name" \
+       '.included==[true,true,true,false] and (.recorded_data.x | length)==4 and (.curve_data_.coefficients | map(. * 1000 | round))==[1000,0]'; then
+    ok "excluding a measurement refits the curve and keeps the excluded row"
+  else
+    fail "calibration measurement edit did not save the expected refit"
+    print_prefixed_file_excerpt "  " "$result_file" 2000
+  fi
+
+  # Invalid edits are refused by the unit and leave the saved calibration unchanged.
+  if curl -fsS -X PATCH -H 'Content-Type: application/json' \
+       -d '{"included":[false,false,false,false]}' "$edit_url" > "$dispatch_file" && \
+     wait_for_worker_task_success http://localhost "$dispatch_file" "$result_file" \
+       "invalid calibration measurement edit" 30 1 10 && \
+     jq -e --arg unit "$hostname" '.result[$unit].ok==false' "$result_file" >/dev/null && \
+     curl_check "http://localhost/unit_api/calibrations/od90/$encoded_name" \
+       '.included==[true,true,true,false]'; then
+    ok "excluding every measurement is refused without changing the calibration"
+  else
+    fail "excluding every measurement was not refused cleanly"
+    print_prefixed_file_excerpt "  " "$result_file" 2000
+  fi
+
+  run_step "Checking calibration edits reject \$broadcast" \
+    http_status_is 400 "http://localhost/api/workers/\$broadcast/calibrations/od90/$encoded_name" \
+    -X PATCH -H 'Content-Type: application/json' -d '{"included":[true,true,true,true]}'
+
+  rm -f "$calibration_file" "$dispatch_file" "$result_file"
+}
+
 check_storage_path_validation() {
   info "Testing storage path validation"
 
@@ -3084,6 +3274,37 @@ check_pios_sync_configs() {
   fi
 }
 
+check_cluster_join_validation() {
+  local hostname config_path staged_config before after output
+  hostname="$(hostname)"
+  config_path="$HOME/.pioreactor/config.ini"
+
+  info "Testing pio cluster join validates the staged config before changing this unit"
+  if [[ ! -f "$config_path" ]]; then
+    fail "Missing configuration file: $config_path"
+    return
+  fi
+
+  # Naming this unit as the other cluster's leader is refused before any membership or config change.
+  staged_config="$(mktemp)"
+  printf '[cluster.topology]\nleader_hostname=%s\nleader_address=%s.local\n' "$hostname" "$hostname" > "$staged_config"
+  before="$(sha256sum "$config_path")"
+  if output="$(pio cluster join --leader-time "$(date +%s)" --staged-config "$staged_config" 2>&1)"; then
+    fail "pio cluster join accepted a staged config that names this unit as leader"
+  elif grep -q "must identify a different leader" <<< "$output"; then
+    ok "pio cluster join refuses a staged config that names this unit as leader"
+  else
+    fail "pio cluster join failed for an unexpected reason: $output"
+  fi
+  after="$(sha256sum "$config_path")"
+  if [[ "$before" == "$after" ]]; then
+    ok "refused join left $config_path unchanged"
+  else
+    fail "refused join changed $config_path"
+  fi
+  rm -f "$staged_config"
+}
+
 restore_available_worker_inventory_via_api() {
   local worker="$1"
   local is_active="$2"
@@ -3128,6 +3349,13 @@ check_available_worker_remove_add() {
     add_args+=(--model-name "$model_name" --model-version "$model_version")
   fi
 
+  # The leader names itself when it asks a unit to leave; a unit ignores any other leader.
+  # If this regresses, the worker leaves and reboots, and the remove/add cycle below re-joins it.
+  run_step "Checking $worker refuses to leave for a leader that isn't its own" \
+    http_status_is 409 "$(worker_base_url "$address")/unit_api/cluster/leave" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{"stop_activities":false,"leader":"agent-smoke-not-a-leader"}'
+
   info "Testing worker inventory remove/add cycle for $worker"
   if pio workers remove "$worker" >/dev/null; then
     ok "removed worker $worker from inventory"
@@ -3166,6 +3394,12 @@ check_available_worker_remove_add() {
     ok "worker $worker present after add-back"
   else
     fail "worker $worker missing after add-back"
+  fi
+
+  # pio workers add stages the shared config for pio cluster join, which deletes it afterwards.
+  if wait_for_available_worker_api "$worker"; then
+    run_step "Checking $worker removed its staged join config" \
+      http_status_is 404 "$(worker_base_url "$AVAILABLE_WORKER_ADDRESS")/unit_api/system/path/.incoming-config.ini"
   fi
 
   check_available_worker_model_after_add
@@ -3537,6 +3771,12 @@ check_available_worker_packaging() {
     ok "mosquitto broker is not running on $worker"
   fi
 
+  if "${ssh_cmd[@]}" 'systemctl is-active --quiet pioreactor_startup_run@mqtt_to_db_streaming.service'; then
+    fail "leader-only mqtt_to_db_streaming is running on non-leader worker $worker"
+  else
+    ok "leader-only mqtt_to_db_streaming is not running on $worker"
+  fi
+
   if "${ssh_cmd[@]}" 'grep -Eq "huey_consumer.*[[:space:]]-w[[:space:]]+1([[:space:]]|$)" /usr/local/bin/start_pioreactor_huey.sh'; then
     fail "$worker Huey launcher starts a single worker"
   else
@@ -3593,6 +3833,7 @@ check_available_worker_cluster_branch() {
   ok "Using available worker $worker at $AVAILABLE_WORKER_ADDRESS"
   run_step "Checking targeted worker clock through leader API" curl_check "http://localhost/api/units/$worker/system/utc_clock"
   run_step "Checking targeted worker plugins route through leader API" curl_check "http://localhost/api/units/$worker/plugins/installed"
+  run_step "Checking /api/workers/$worker includes its experiment assignment" curl_check "http://localhost/api/workers/$worker" 'has("experiment")'
 
   check_available_worker_identity "$base_url"
   check_available_worker_plugin_install "$base_url"

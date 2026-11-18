@@ -193,6 +193,24 @@ test("keeps every live point when the lookback is 0", async () => {
   expect(getRenderedPoints().map((point) => point.y)).toEqual([32, 33]);
 });
 
+test("shows a spinner until queued history has loaded", async () => {
+  let runQueued;
+  const scheduleHistory = jest.fn((element, load) => {
+    runQueued = load;
+    return () => {};
+  });
+  renderChart({ title: "Temperature", scheduleHistory });
+
+  expect(screen.getByRole("progressbar", { name: "Loading Temperature" })).toBeInTheDocument();
+  expect(global.fetch).not.toHaveBeenCalled();
+
+  await act(async () => {
+    await runQueued();
+  });
+
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+});
+
 test("does not refetch history when the color map identity changes", async () => {
   const { rerender, props } = renderChart({ unit: "unit1", unitsColorMap: { unit1: "#000" } });
 

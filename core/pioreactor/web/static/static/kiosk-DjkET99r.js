@@ -1,0 +1,1 @@
+import"./modulepreload-polyfill-P2Xu9kJm.js";document.getElementById(`root`).textContent=`Coming soon.`;

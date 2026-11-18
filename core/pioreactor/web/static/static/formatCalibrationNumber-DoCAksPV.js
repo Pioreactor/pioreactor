@@ -1,0 +1,1 @@
+function e(e,t=3){return Number.isFinite(e)?e!==0&&Math.abs(e)<10**-t?e.toExponential(2):Number(e.toFixed(t)).toString():`—`}function t(e){return{rpm:1,"dc %":2}[e.toLowerCase()]??3}export{e as n,t};
