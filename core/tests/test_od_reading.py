@@ -2314,6 +2314,26 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01
 
 
+def test_calibration_warning_reports_fitted_voltage_at_od_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    calibration = structs.OD600Calibration(
+        calibration_name="ypd",
+        calibrated_on_pioreactor_unit="pioxr04",
+        created_at=current_utc_datetime(),
+        curve_data_=structs.SplineFitData(knots=[0, 1.52], coefficients=[[-0.006294, 0.06349, 0, 0]]),
+        recorded_data={"x": [0, 1.52], "y": [0.000923, 0.098]},
+        ir_led_intensity=80,
+        angle="90",
+        pd_channel="2",
+    )
+    transformer = CachedCalibrationTransformer()
+    transformer.hydate_models(calibration)
+    warnings: list[str] = []
+    monkeypatch.setattr(transformer.logger, "warning", warnings.append)
+
+    assert transformer.models["2"](0.097) == 1.52
+    assert "above the calibrated OD bound of 1.52 (fitted voltage at this bound: 0.09021 V)" in warnings[0]
+
+
 def test_calibration_trims_to_voltage_extrema() -> None:
     # recorded voltages do not correspond to max/min ODs; ensure we clamp using the paired OD values
     calibration = structs.OD600Calibration(

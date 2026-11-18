@@ -92,8 +92,12 @@ def test_leader_invalidates_after_worker_completion(monkeypatch: pytest.MonkeyPa
 
 
 def test_leader_patch_dispatch(client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.get_all_workers", lambda: ["unit1"])
     task = Mock(return_value=tasks.finished_task_result({"unit1": {"ok": True, "value": {}}}))
     monkeypatch.setattr(tasks, "update_worker_calibration_measurements", task)
+    response = client.patch("/api/workers/unknown/calibrations/od90/test", json={"included": [True]})
+    assert response.status_code == 400
+    task.assert_not_called()
     response = client.patch("/api/workers/unit1/calibrations/od90/test", json={"included": [True, False]})
     assert response.status_code == 202
     task.assert_called_once_with("unit1", "od90", "test", [True, False], None, None)

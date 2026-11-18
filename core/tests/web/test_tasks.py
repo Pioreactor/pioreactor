@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -608,31 +609,70 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
 def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    shorter_timeout_attempts = tasks._delayed_result_max_attempts(5.0)
-    responses = [
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"})
-        for _ in range(shorter_timeout_attempts + 1)
-    ]
-    responses.append(_response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}))
+    clock = [0.0]
+    timeouts: list[float] = []
+    pending = _response(202, {"task_id": "abc", "result_url_path": "/unit_api/task_results/abc"})
 
-    def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
-    ) -> Response:
-        return responses.pop(0)
+    def poll(*args: Any, timeout: float, **kwargs: Any) -> Response:
+        timeouts.append(timeout)
+        clock[0] += min(0.75, timeout)
+        return pending
 
-    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
-    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
-    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+    def advance(seconds: float) -> None:
+        clock[0] += seconds
 
-    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", timeout=7.0)
+    monkeypatch.setattr(tasks, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(tasks, "sleep", advance)
+    monkeypatch.setattr(tasks, "get_from_unit", poll)
 
-    assert unit == "unit1"
-    assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
-    assert responses == []
+    _, result = tasks._process_delayed_json_response(
+        "unit1", "unit.local", pending, max_attempts=None, timeout=1
+    )
+
+    assert timeouts == pytest.approx([1, 0.2])
+    assert clock[0] == 1
+    assert result["error"]["kind"] == "task_timeout"
+    assert result["operation"]["task_id"] == "abc"
+
+
+@pytest.mark.parametrize("status", [None, 502, 503, 504])
+def test_transient_poll_failure_retries_only_result_get(
+    monkeypatch: pytest.MonkeyPatch, status: int | None
+) -> None:
+    path = "/unit_api/task_results/abc"
+    requests: list[tuple[str, str]] = []
+
+    def request(method: str, url: str, **kwargs: Any) -> Response:
+        requests.append((method, urlparse(url).path))
+        if len(requests) == 1:
+            return _response(202, {"result_url_path": path})
+        if len(requests) == 2:
+            if status is None:
+                raise HTTPException("connection reset")
+            return _response(status, {})
+        return _response(200, {"task_id": "abc", "status": "succeeded", "result": "done"})
+
+    monkeypatch.setattr("pioreactor.mureq.request", request)
+    _, result = tasks._request_unit("POST", "unit1", "/unit_api/do")
+    assert result["value"] == "done"
+    assert requests == [("POST", "/unit_api/do"), ("GET", path), ("GET", path)]
+
+
+@pytest.mark.parametrize("cause", [socket.gaierror(), TimeoutError()])
+def test_local_connection_message(monkeypatch: pytest.MonkeyPatch, cause: OSError) -> None:
+    def fail(*args: Any, **kwargs: Any) -> Response:
+        raise HTTPException("connection failed") from cause
+
+    monkeypatch.setattr(tasks, "_send_to_unit", fail)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit1.local")
+    _, result = tasks._request_unit("GET", "unit1", "/unit_api/health")
+    message = result["error"]["message"]
+    assert "unit1.local" in message and "[cluster.addresses]" in message
+    assert ("could not resolve" in message) == isinstance(cause, socket.gaierror)
 
 
 @pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE"])
-@pytest.mark.parametrize("poll_failure", ["pending", "connection", "http", "decode"])
+@pytest.mark.parametrize("poll_failure", ["pending", "connection", "http", "missing", "decode"])
 def test_interrupted_polling_preserves_operation_without_resubmission(
     monkeypatch: pytest.MonkeyPatch, method: str, poll_failure: str
 ) -> None:
@@ -648,6 +688,8 @@ def test_interrupted_polling_preserves_operation_without_resubmission(
             raise HTTPException("Lost polling response")
         if poll_failure == "http":
             return _response(503, {"error": "Unavailable", "status": 503})
+        if poll_failure == "missing":
+            return _response(404, {})
         if poll_failure == "decode":
             return Response(url, 200, HTTPMessage(), b"not json")
         # Older responses may omit task_id; retain it from acceptance.
@@ -657,7 +699,9 @@ def test_interrupted_polling_preserves_operation_without_resubmission(
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._request_unit(method, "unit1", "/unit_api/do", max_attempts=1)
+    unit, result = tasks._request_unit(
+        method, "unit1", "/unit_api/do", max_attempts=1 if poll_failure == "pending" else None
+    )
 
     assert unit == "unit1"
     assert result["ok"] is False
@@ -666,7 +710,8 @@ def test_interrupted_polling_preserves_operation_without_resubmission(
     assert result["recovery_action"] == "poll_task"
     assert result["operation"] == {"unit": "unit1", **operation}
     assert "do not resubmit" in result["error"]["remediation"]
-    assert requests == [(method, "/unit_api/do"), ("GET", operation["result_url_path"])]
+    polls = 2 if poll_failure in ("connection", "http") else 1
+    assert requests == [(method, "/unit_api/do")] + [("GET", operation["result_url_path"])] * polls
 
     # The aggregate must retain the handle and recovery advice for clients.
     assert tasks._reduce_multicast_results([unit], False, [(unit, result)])[unit] == result

@@ -10,10 +10,10 @@ import configparser
 import grp
 import json
 import logging
-import math
 import os
 import pwd
 import shutil
+import socket
 import stat
 import zipfile
 from collections.abc import Callable
@@ -533,12 +533,28 @@ def _process_json_response(
     )
 
 
+def _unit_connection_message(address: str | None, error: HTTPException, fallback: str) -> str:
+    if address is None:
+        return fallback
+    if isinstance(error.__cause__, socket.gaierror):
+        return (
+            f"The leader could not resolve {address}. Check hostname resolution on the leader "
+            "or set the worker’s IP in [cluster.addresses]."
+        )
+    if address.lower().rstrip(".").endswith(".local"):
+        return (
+            f"{fallback} The leader tried {address}. Check that the hostname resolves on the leader "
+            "or set the worker’s IP in [cluster.addresses]."
+        )
+    return fallback
+
+
 def _process_delayed_json_response(
     unit: str,
     address: str,
     response: Response,
     *,
-    max_attempts: int,
+    max_attempts: int | None,
     timeout: float,
     retry_sleep_s: float = 0.25,
 ) -> tuple[str, Any]:
@@ -549,13 +565,16 @@ def _process_delayed_json_response(
     Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
+    deadline = monotonic() + timeout
+    retried = False
     remaining_attempts = max_attempts
     pending_sleep_s = min(0.05, retry_sleep_s)
     task_metadata: dict[str, Any] = {}
 
     while response.status_code == 202 and "result_url_path" in data:
         task_metadata.update({key: data[key] for key in ("task_id", "result_url_path") if key in data})
-        if remaining_attempts <= 0:
+        remaining_time = deadline - monotonic()
+        if remaining_attempts == 0 or remaining_time <= 0:
             return unit, unknown_operation_result(
                 fanout_failure(
                     unit,
@@ -568,11 +587,12 @@ def _process_delayed_json_response(
             )
 
         endpoint = data["result_url_path"]
-        remaining_attempts -= 1
+        if remaining_attempts is not None:
+            remaining_attempts -= 1
 
         delayed_response: Response | None = None
         try:
-            delayed_response = get_from_unit(unit, endpoint, address=address, timeout=timeout)
+            delayed_response = get_from_unit(unit, endpoint, address=address, timeout=remaining_time)
             delayed_response.raise_for_status()
             response = delayed_response
             data = response.json()
@@ -581,12 +601,23 @@ def _process_delayed_json_response(
                 f"Could not get from `{unit}`'s {address=}, {endpoint=}, sent json=None and returned {e}."
                 f"{_summarize_unit_api_error(delayed_response)}"
             )
+            if (
+                not retried
+                and remaining_attempts != 0
+                and (delayed_response is None or delayed_response.status_code in (502, 503, 504))
+            ):
+                retried = True
+                continue
+
+            message = f"Could not GET from {unit}'s {endpoint}."
+            if delayed_response is None:
+                message = _unit_connection_message(address, e, message)
             return unit, unknown_operation_result(
                 _fanout_failure_from_response(
                     unit,
                     delayed_response,
                     fallback_kind="http_error" if delayed_response is not None else "connection_error",
-                    fallback_message=f"Could not GET from {unit}'s {endpoint}.",
+                    fallback_message=message,
                     retryable=False,
                 ),
                 task_metadata,
@@ -607,14 +638,10 @@ def _process_delayed_json_response(
             )
 
         if response.status_code == 202 and "result_url_path" in data:
-            sleep(pending_sleep_s)
+            sleep(min(pending_sleep_s, max(0.0, deadline - monotonic())))
             pending_sleep_s = min(2 * pending_sleep_s, retry_sleep_s)
 
     return _process_json_response(unit, response, data)
-
-
-def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.25) -> int:
-    return max(1, math.ceil(timeout / retry_sleep_s))
 
 
 @huey.on_startup()
@@ -2138,7 +2165,7 @@ def _request_unit(
             unit,
             address,
             r,
-            max_attempts=max_attempts if max_attempts is not None else _delayed_result_max_attempts(timeout),
+            max_attempts=max_attempts,
             timeout=timeout,
         )
 
@@ -2147,11 +2174,14 @@ def _request_unit(
             f"Could not {method} `{unit}`'s {address=}, {endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
+        message = f"Could not {method} {unit}'s {endpoint}."
+        if r is None:
+            message = _unit_connection_message(address, e, message)
         failure = _fanout_failure_from_response(
             unit,
             r,
             fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not {method} {unit}'s {endpoint}.",
+            fallback_message=message,
             retryable=method == "GET" and (r is None or r.status_code >= 500),
         )
         if method != "GET" and (r is None or r.status_code >= 500):

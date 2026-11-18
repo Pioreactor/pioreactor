@@ -6,7 +6,7 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click==8.5.0",
+    "click==8.5.1",
     "paho-mqtt==2.2.0",
     "colorlog==6.10.1",
     "msgspec==0.22.0",
@@ -15,7 +15,7 @@ CORE_REQUIREMENTS = [
     "blinker==1.9.0",
     "Flask==3.1.3",
     "flup6==1.1.1",
-    "huey==3.5.3",
+    "huey==3.5.4",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
     "MarkupSafe==3.0.4",

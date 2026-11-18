@@ -1,4 +1,3 @@
-import { ChartTooltipContainer, createTooltipMoveHandler, createZoomTooltipContainer } from "./ChartTooltipContainer";
 import { cloneChartSvg } from "../utils/chartExport";
 import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
@@ -25,7 +24,9 @@ import {
   VictoryGroup,
   VictoryLegend,
   VictoryTooltip,
+  VictoryVoronoiContainer,
   TextSize,
+  createContainer
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -181,7 +182,7 @@ function Chart(props) {
   const flushTimerRef = useRef(null);
 
   const ChartContainer = useMemo(
-    () => (allowZoom ? createZoomTooltipContainer() : ChartTooltipContainer),
+    () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
     [allowZoom]
   );
 
@@ -468,11 +469,6 @@ function Chart(props) {
       yTransformation,
     ]
   );
-
-  const plot = useMemo(() => ({
-    series: names.map(selectVictoryLines),
-    moveTooltip: createTooltipMoveHandler(),
-  }), [names, selectVictoryLines]);
 
   const legendEvents = useMemo(() => {
     const eventHandlers = {
@@ -896,7 +892,6 @@ function Chart(props) {
         theme={chartTheme.theme}
         containerComponent={
           <ChartContainer
-            moveTooltip={plot.moveTooltip}
             zoomDimension={"x"}
             responsive={true}
             voronoiBlacklist={["parent"]}
@@ -998,7 +993,7 @@ function Chart(props) {
           data={legendItems}
           width={chartWidth}
         />
-        {plot.series}
+        {names.map(selectVictoryLines)}
       </VictoryChart>
       <Tooltip title="Download chart" describeChild>
         <IconButton

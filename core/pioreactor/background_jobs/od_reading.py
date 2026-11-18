@@ -1070,26 +1070,27 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
 
             try:
                 return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
-            except exc.NoSolutionsFoundError:
+            except (
+                exc.NoSolutionsFoundError,
+                exc.SolutionBelowDomainError,
+                exc.SolutionAboveDomainError,
+            ) as error:
+                reported_od = clamp_to_recorded_extrema()
                 if self._should_warn_about_bounds():
+                    if isinstance(error, exc.NoSolutionsFoundError):
+                        reason = "The fitted curve has no solution for this signal."
+                    else:
+                        above = isinstance(error, exc.SolutionAboveDomainError)
+                        bound = max_OD if above else min_OD
+                        direction = "above" if above else "below"
+                        reason = (
+                            f"The fitted curve maps this signal {direction} the calibrated OD bound of {bound:.4g} "
+                            f"(fitted voltage at this bound: {calibration_data.x_to_y(bound):.4g} V)."
+                        )
                     self.logger.warning(
-                        f"No solution found for calibrated signal. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
+                        f"Observed {observed_voltage:.4g} V. {reason} Reporting OD {reported_od:.4g}."
                     )
-                return clamp_to_recorded_extrema()
-            except exc.SolutionBelowDomainError:
-                if self._should_warn_about_bounds():
-                    below_or_above = "below" if observed_voltage <= min_voltage else "outside of"
-                    self.logger.warning(
-                        f"Signal {below_or_above} suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                    )
-                return clamp_to_recorded_extrema()
-            except exc.SolutionAboveDomainError:
-                if self._should_warn_about_bounds():
-                    above_or_outside = "above" if observed_voltage >= max_voltage else "outside of"
-                    self.logger.warning(
-                        f"Signal {above_or_outside} suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                    )
-                return clamp_to_recorded_extrema()
+                return reported_od
 
         return HydratedCalibrationModel(
             calibration_name=calibration_data.calibration_name,
