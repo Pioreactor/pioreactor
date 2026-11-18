@@ -250,6 +250,25 @@ def test_leave_cluster_refuses_on_the_leader(client: FlaskClient, monkeypatch: p
     leave.assert_not_called()
 
 
+def test_leave_cluster_ignores_a_leader_that_is_not_its_own(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
+    monkeypatch.setattr("pioreactor.cluster_membership.activities_are_running", lambda: False)
+    shared_config = ConfigParserMod()
+    shared_config.read_dict({"cluster.topology": {"leader_hostname": "its_leader"}})
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", lambda: shared_config)
+
+    response = client.post(
+        "/unit_api/cluster/leave", json={"stop_activities": True, "leader": "another_leader"}
+    )
+
+    assert response.status_code == 409
+    assert "another_leader" in response.get_json()["error"]
+    leave.assert_not_called()
+
+
 def test_leave_cluster_respects_file_system_lock(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

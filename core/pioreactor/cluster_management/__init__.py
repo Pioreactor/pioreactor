@@ -118,15 +118,21 @@ def _join_worker_to_cluster(
     args = ["cluster", "join", "--leader-time", str(int(time()))]
     if model_name and model_version:
         args.extend(["--model-name", model_name, "--model-version", model_version])
+    staged_config = ".pioreactor/.incoming-config.ini"
     try:
         # Pass the address, not the hostname: this process's config predates its new cluster.addresses entry.
         networking.cp_file_across_cluster(
-            address, str(resolve_global_config_path()), ".pioreactor/config.ini", timeout=15
+            address, str(resolve_global_config_path()), staged_config, timeout=15
         )
-        # pioreactor.env has no `export`s, and a non-interactive SSH session doesn't load it, so export it here.
+        # Only a fresh worker needs the config installed before the CLI can start.
         networking.ssh(
             address,
-            f'set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" {shlex.join(args)}',
+            "set -ea; . /etc/pioreactor.env; set +a; "
+            'active_config="${GLOBAL_CONFIG:-$DOT_PIOREACTOR/config.ini}"; '
+            f'staged_config="$PWD/{staged_config}"; '
+            """trap 'rm -f "$staged_config"' EXIT; """
+            'test -f "$active_config" || cp -p "$staged_config" "$active_config"; '
+            f'"$PIO_EXECUTABLE" {shlex.join(args)} --staged-config "$staged_config"',
             detach=False,
         )
     except (RsyncError, SSHError) as error:
@@ -151,13 +157,13 @@ def add_worker(
     hostname: str, password: str, model_name: str | None, model_version: str | None, address: str | None
 ) -> None:
     """
-    Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
+    Add an idle Pioreactor to the cluster. The Pioreactor must be powered on and running this release.
 
     \b
     Steps, each safe to retry:
       1. find the worker on the network, and set up SSH keys to it
       2. register it with the leader
-      3. copy the shared config.ini to it, and run `pio cluster join` on it
+      3. send the shared config to `pio cluster join` on the unit for validation and installation
       4. reboot it
     """
     # Exit through ClickException, so stderr ends with `Error: <reason>`: the UI shows that line.
@@ -215,7 +221,16 @@ def add_worker(
         raise click.ClickException(message)
 
     if worker_address is not None:
-        _join_worker_to_cluster(logger, hostname, worker_address, model_name, model_version)
+        try:
+            _join_worker_to_cluster(logger, hostname, worker_address, model_name, model_version)
+        except click.ClickException:
+            # Don't keep a unit that refused to join: config syncs would still reach it.
+            if r.status_code == 201:
+                try:
+                    delete_from_leader(f"/api/workers/{hostname}")
+                except HTTPException:
+                    pass
+            raise
         try:
             networking.ssh(worker_address, "sudo reboot")
         except SSHError as error:

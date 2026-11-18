@@ -1844,7 +1844,8 @@ def reboot(wait: int = 0) -> bool:
 def leave_cluster_and_reboot(stop_activities: bool) -> bool:
     from pioreactor.cluster_membership import leave_cluster
 
-    leave_cluster(stop_activities=stop_activities)
+    if not leave_cluster(stop_activities=stop_activities):
+        return False
     logger.info(f"{get_unit_name()} left the cluster.")
     return reboot.call_local()
 

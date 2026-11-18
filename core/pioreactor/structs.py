@@ -888,6 +888,8 @@ class ChangeWorkerModelRequest(Struct, forbid_unknown_fields=True):
 class LeaveClusterRequest(Struct, forbid_unknown_fields=True):
     # The leader removing a unit stops its activities; a unit leaving on its own asks for them to be stopped first.
     stop_activities: bool = False
+    # The leader asking. A unit ignores a leader that isn't its own.
+    leader: str | None = None
 
 
 class AddWorkerToExperimentRequest(Struct, forbid_unknown_fields=True):

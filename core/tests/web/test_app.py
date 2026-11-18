@@ -147,6 +147,8 @@ def test_get_workers_includes_literal_ipv4_addresses(
 def test_delete_worker_asks_it_to_leave_and_forgets_its_address(
     client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
+    from pioreactor.web.app import HOSTNAME
+
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
     shared_config = dot_pioreactor / "config.ini"
@@ -160,7 +162,7 @@ def test_delete_worker_asks_it_to_leave_and_forgets_its_address(
     assert client.get("/api/workers/unit1").status_code == 404
     assert [(request.method, request.path) for request in requests] == [("POST", "/unit_api/cluster/leave")]
     assert requests[0].headers["X-Pioreactor-Target"] == "unit1"
-    assert requests[0].json == {"stop_activities": True}
+    assert requests[0].json == {"stop_activities": True, "leader": HOSTNAME}
     assert shared_config.read_text() == "[cluster.addresses]\n# keep\nunit2=10.0.0.6\n"
 
 

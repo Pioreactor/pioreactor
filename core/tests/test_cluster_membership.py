@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -12,6 +14,9 @@ from pioreactor.exc import UnknownModelAssignedError
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
 from pioreactor.whoami import get_unit_name
+
+
+LEADER_CONFIG = "[cluster.topology]\nleader_hostname=leader\nleader_address=10.0.0.1\n"
 
 
 @pytest.mark.parametrize(
@@ -44,7 +49,7 @@ def test_clear_previous_leader_overrides(tmp_path: Path, broker_address: str, br
 @pytest.fixture
 def join_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]:
     shared_config = tmp_path / "config.ini"
-    shared_config.write_text("[cluster.topology]\nleader_hostname=leader\nleader_address=10.0.0.1\n")
+    shared_config.write_text(LEADER_CONFIG)
     unit_config = tmp_path / "unit_config.ini"
     unit_config.write_text("[cluster.topology]\nleader_address=old.local\n")
     monkeypatch.setenv("GLOBAL_CONFIG", str(shared_config))
@@ -67,14 +72,14 @@ def join_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]
 
 
 def test_join_cluster_points_unit_at_leader_and_reports_model(join_env: dict[str, Mock]) -> None:
-    cluster_membership.join_cluster(1700000000, "pioreactor_20ml", "1.5")
+    cluster_membership.join_cluster(LEADER_CONFIG, 1700000000, "pioreactor_20ml", "1.5")
 
     join_env["check"].assert_called_once_with("pioreactor_20ml", "1.5")
     assert [call.args[0] for call in join_env["sudo"].call_args_list] == ["date", "tee"]
     assert join_env["sudo"].call_args_list[0].args == ("date", "-u", "--set", "@1700000000")
     assert join_env["sudo"].call_args_list[1].kwargs == {"input": "server 10.0.0.1 iburst prefer\n"}
-    join_env["report"].assert_called_once_with("10.0.0.1", "pioreactor_20ml", "1.5")
-    join_env["report_active"].assert_called_once_with("10.0.0.1", True)
+    assert join_env["report"].call_args.args == ("10.0.0.1", "pioreactor_20ml", "1.5")
+    assert join_env["report_active"].call_args.args == ("10.0.0.1", True)
     assert "leader_address" not in cluster_membership.resolve_local_config_path().read_text()
 
 
@@ -82,15 +87,115 @@ def test_join_cluster_fails_when_the_leader_does_not_get_the_model(join_env: dic
     join_env["report"].return_value = False
 
     with pytest.raises(RuntimeError, match="Unable to report"):
-        cluster_membership.join_cluster(1700000000, "pioreactor_20ml", "1.5")
+        cluster_membership.join_cluster(LEADER_CONFIG, 1700000000, "pioreactor_20ml", "1.5")
 
 
 def test_join_cluster_rejects_unknown_model_before_changing_anything(join_env: dict[str, Mock]) -> None:
     with pytest.raises(UnknownModelAssignedError):
-        cluster_membership.join_cluster(1700000000, "unknown", "1.0")
+        cluster_membership.join_cluster(LEADER_CONFIG, 1700000000, "unknown", "1.0")
 
     join_env["sudo"].assert_not_called()
     assert "leader_address=old.local" in cluster_membership.resolve_local_config_path().read_text()
+
+
+@pytest.fixture
+def standalone_env(join_env: dict[str, Mock], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
+    monkeypatch.setattr(cluster_membership, "get_local_model", lambda: None)
+    database = tmp_path / "pioreactor.sqlite"
+    unit = get_unit_name()
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("CREATE TABLE workers (pioreactor_unit TEXT)")
+        connection.execute("INSERT INTO workers VALUES (?)", (unit,))
+        connection.execute("CREATE TABLE experiment_worker_assignments (pioreactor_unit TEXT)")
+    text = (
+        f"[cluster.topology]\nleader_hostname={unit}\nleader_address={unit}.local\n"
+        f"[mqtt]\nbroker_address={unit}.local\n[storage]\ndatabase={database}\n"
+        "[stirring.config]\n# Custom setting\ntarget_rpm=525\n"
+    )
+    cluster_membership.resolve_global_config_path().write_text(text, encoding="utf-8")
+    cluster_membership.standalone_config_path().write_text("stock seed", encoding="utf-8")
+    return text
+
+
+def test_standalone_config_survives_join_retry_and_leave(standalone_env: str) -> None:
+    shared = cluster_membership.resolve_global_config_path()
+    saved = cluster_membership.standalone_config_path()
+    cluster_membership.join_cluster(LEADER_CONFIG, 1700000000)
+    cluster_membership.join_cluster(LEADER_CONFIG, 1700000000)
+    assert shared.read_text(encoding="utf-8") == LEADER_CONFIG
+    assert saved.read_text(encoding="utf-8") == standalone_env
+
+    assert cluster_membership.leave_cluster()
+    assert not cluster_membership.leave_cluster()
+    assert shared.read_text(encoding="utf-8") == standalone_env
+    unit_config = ConfigParserMod(strict=False)
+    unit_config.read(cluster_membership.resolve_local_config_path())
+    assert unit_config.get("cluster.topology", "leader_address") == "127.0.0.1"
+    assert unit_config.get("mqtt", "broker_address") == "127.0.0.1"
+
+
+@pytest.mark.parametrize(
+    "statement, message",
+    [
+        ("INSERT INTO workers VALUES ('another-unit')", "Remove this unit's workers"),
+        ("INSERT INTO experiment_worker_assignments SELECT pioreactor_unit FROM workers", "Unassign"),
+    ],
+)
+def test_busy_standalone_rejects_join_without_overwriting_config(
+    standalone_env: str, tmp_path: Path, statement: str, message: str
+) -> None:
+    with closing(sqlite3.connect(tmp_path / "pioreactor.sqlite")) as connection, connection:
+        connection.execute(statement)
+    with pytest.raises(RuntimeError, match=message):
+        cluster_membership.join_cluster(LEADER_CONFIG, 1700000000)
+    assert cluster_membership.resolve_global_config_path().read_text(encoding="utf-8") == standalone_env
+    assert cluster_membership.standalone_config_path().read_text(encoding="utf-8") == "stock seed"
+
+
+def test_standalone_join_keeps_saved_config_when_report_fails(
+    standalone_env: str, join_env: dict[str, Mock]
+) -> None:
+    join_env["report_active"].return_value = False
+    with pytest.raises(RuntimeError, match="Unable to report"):
+        cluster_membership.join_cluster(LEADER_CONFIG, 1700000000)
+    assert cluster_membership.resolve_global_config_path().read_text(encoding="utf-8") == LEADER_CONFIG
+    assert cluster_membership.standalone_config_path().read_text(encoding="utf-8") == standalone_env
+
+
+def test_join_cli_reads_the_staged_config(
+    join_env: dict[str, Mock], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cluster_membership, "get_local_model", lambda: None)
+    staged = tmp_path / ".incoming-config.ini"
+    staged.write_text(LEADER_CONFIG, encoding="utf-8")
+
+    result = CliRunner().invoke(
+        pio, ["cluster", "join", "--leader-time", "1", "--staged-config", str(staged)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not cluster_membership.standalone_config_path().exists()
+    join_env["report_active"].assert_called_once_with("10.0.0.1", True)
+
+
+def test_existing_leader_worker_leaves_to_seeded_config(
+    join_env: dict[str, Mock], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    template = Path(__file__).parents[2] / "packaging/shared-assets/pioreactor/config.example.ini"
+    cluster_membership.standalone_config_path().write_bytes(template.read_bytes())
+    cluster_membership.leave_cluster()
+    active = ConfigParserMod(strict=False)
+    active.read(cluster_membership.resolve_global_config_path())
+    assert active.get("cluster.topology", "leader_hostname") == get_unit_name()
+    assert active.get("mqtt", "broker_address") == f"{get_unit_name()}.local"
+    assert cluster_membership.standalone_config_path().read_bytes() == template.read_bytes()
+
+
+def test_joining_from_another_leader_is_rejected(join_env: dict[str, Mock]) -> None:
+    incoming = LEADER_CONFIG.replace("leader_hostname=leader", "leader_hostname=another")
+    with pytest.raises(RuntimeError, match="Leave that cluster first"):
+        cluster_membership.join_cluster(incoming, 1700000000)
+    assert cluster_membership.resolve_global_config_path().read_text(encoding="utf-8") == LEADER_CONFIG
 
 
 def test_leave_cluster_undoes_join_and_can_run_twice(join_env: dict[str, Mock]) -> None:
@@ -106,12 +211,11 @@ def test_leave_cluster_undoes_join_and_can_run_twice(join_env: dict[str, Mock]) 
     join_env["sudo"].assert_called_with("rm", "-f", str(cluster_membership.CHRONY_LEADER_SOURCE))
 
 
-def test_leave_cluster_refuses_on_the_leader(join_env: dict[str, Mock]) -> None:
+def test_leave_cluster_is_a_noop_on_the_leader(join_env: dict[str, Mock]) -> None:
     shared_config = cluster_membership.resolve_global_config_path()
     shared_config.write_text(f"[cluster.topology]\nleader_hostname={get_unit_name()}\nleader_address=x\n")
 
-    with pytest.raises(RuntimeError, match="leader"):
-        cluster_membership.leave_cluster(stop_activities=True)
+    assert not cluster_membership.leave_cluster(stop_activities=True)
 
     assert shared_config.exists()
     join_env["sudo"].assert_not_called()
@@ -134,13 +238,15 @@ def test_leave_cluster_asks_for_activities_to_be_stopped_first(
 def leave_cli(monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]:
     mocks = {
         "delete": Mock(return_value=Response("http://leader/api/workers", 202, {}, b"{}")),
-        "leave": Mock(),
+        "leave": Mock(return_value=True),
         "run": Mock(),
     }
     monkeypatch.setattr("pioreactor.pubsub.delete_from_leader", mocks["delete"])
     monkeypatch.setattr("pioreactor.cluster_membership.leave_cluster", mocks["leave"])
     monkeypatch.setattr("pioreactor.cluster_membership.activities_are_running", lambda: False)
-    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", ConfigParserMod)
+    shared_config = ConfigParserMod()
+    shared_config.read_string(LEADER_CONFIG)
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", lambda: shared_config)
     monkeypatch.setattr("pioreactor.cli.cluster.subprocess.run", mocks["run"])
     return mocks
 

@@ -90,7 +90,7 @@ class _AddWorkerEvents:
             if command == "sudo reboot":
                 self.events.append(("reboot", address, detach))
                 return
-            self.events.append(("join", command, detach))
+            self.events.append(("join", address, command, detach))
             if join_error is not None:
                 raise SSHError(f"SSH command failed: {join_error}")
 
@@ -104,13 +104,18 @@ class _AddWorkerEvents:
         monkeypatch.setattr(cluster_management, "put_into_leader", register)
         monkeypatch.setattr(
             cluster_management,
+            "delete_from_leader",
+            lambda endpoint: self.events.append(("unregister", endpoint)),
+        )
+        monkeypatch.setattr(
+            cluster_management,
             "set_config_value_in_file",
             lambda _path, section, key, value: self.events.append(("address", section, key, value)),
         )
         monkeypatch.setattr(
             cluster_management.networking,
             "cp_file_across_cluster",
-            lambda unit, _localpath, remotepath, timeout: self.events.append(("copy", unit, remotepath)),
+            lambda unit, source, target, timeout: self.events.append(("stage", unit, source, target)),
         )
         monkeypatch.setattr(cluster_management.networking, "ssh", ssh)
         monkeypatch.setattr(cluster_management.subprocess, "run", run)
@@ -139,7 +144,7 @@ def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monk
     assert events.events[0] == ("ssh_setup", ("unit1", "192.168.1.99"), "raspberry")
     # A discovered address may be a DHCP lease, so it isn't pinned in config.ini.
     assert "address" not in events.names()
-    assert ("copy", "192.168.1.99", ".pioreactor/config.ini") in events.events
+    assert next(event for event in events.events if event[0] == "join")[1] == "192.168.1.99"
 
 
 def test_add_worker_explicit_address_does_not_try_config_or_discovery(monkeypatch) -> None:
@@ -182,29 +187,43 @@ def test_add_worker_registers_before_configuring_then_reboots(
     result = CliRunner().invoke(add_worker, args)
 
     assert result.exit_code == 0, result.output
-    assert events.names() == ["ssh_setup", "register", "copy", "join", "reboot"]
+    assert events.names() == ["ssh_setup", "register", "stage", "join", "reboot"]
     register = events.events[1]
     assert register[1] == {
         "pioreactor_unit": "unit1",
         "model_name": "pioreactor_40ml" if selected else None,
         "model_version": "1.5" if selected else None,
     }
-    _, join_command, detached = events.events[3]
+    _, stage_address, source, staged_file = events.events[2]
+    assert stage_address == "10.0.0.5"
+    assert source == str(cluster_management.resolve_global_config_path())
+    assert staged_file == ".pioreactor/.incoming-config.ini"
+    _, _, join_command, detached = events.events[3]
+    assert staged_file in join_command
     assert detached is False
     assert events.events[4] == ("reboot", "10.0.0.5", True)
-    assert join_command.startswith('set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" cluster join ')
+    assert "cluster join " in join_command
+    assert "--staged-config " in join_command
     assert ("--model-name pioreactor_40ml --model-version 1.5" in join_command) is selected
 
 
-def test_add_worker_failed_join_does_not_reboot(monkeypatch: pytest.MonkeyPatch) -> None:
-    events = _AddWorkerEvents(monkeypatch, join_error="Error: Stop activities before changing the model.")
+@pytest.mark.parametrize("register_status, unregistered", [(201, True), (200, False)])
+def test_add_worker_failed_join_does_not_reboot_and_drops_only_a_new_registration(
+    monkeypatch: pytest.MonkeyPatch, register_status: int, unregistered: bool
+) -> None:
+    events = _AddWorkerEvents(
+        monkeypatch,
+        join_error="Error: Stop activities before changing the model.",
+        register_status=register_status,
+    )
     monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: "10.0.0.5")
 
     result = CliRunner().invoke(add_worker, ["unit1"])
 
     assert result.exit_code == 1
     assert "Unable to configure unit1: SSH command failed: Error: Stop activities" in result.output
-    assert events.names() == ["ssh_setup", "register", "copy", "join"]
+    expected = ["ssh_setup", "register", "stage", "join"] + (["unregister"] if unregistered else [])
+    assert events.names() == expected
 
 
 @pytest.mark.parametrize(

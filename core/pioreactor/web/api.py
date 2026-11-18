@@ -4568,7 +4568,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
                 "POST",
                 "/unit_api/cluster/leave",
                 [pioreactor_unit],
-                json={"stop_activities": True},
+                json={"stop_activities": True, "leader": HOSTNAME},
             )
 
         cache.invalidate_merged_config_cache(pioreactor_unit)

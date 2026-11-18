@@ -1153,7 +1153,7 @@ def leave_cluster() -> DelayedResponseReturnValue:
 
     body = decode_request_body(structs.LeaveClusterRequest) if request.data else structs.LeaveClusterRequest()
     try:
-        check_can_leave(body.stop_activities)
+        check_can_leave(body.stop_activities, body.leader)
     except RuntimeError as error:
         abort_with(409, str(error))
 
