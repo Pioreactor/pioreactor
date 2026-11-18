@@ -25,93 +25,16 @@
     "react-router": "^8.3.1",
     "react-showdown": "^2.3.1",
     "react-simple-code-editor": "^0.14.1",
-    "victory": "^37.3.6"
+    "victory": "^38.1.0"
   },
   "scripts": {
     "start": "vite --host 127.0.0.1 --port 3000",
     "dev": "vite --host 127.0.0.1 --port 3000",
-    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
-    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "build": "vite build",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "postbuild": "rm -rf ../core/pioreactor/web/static/* && cp -R build/* ../core/pioreactor/web/static"
-  },
-  "eslintConfig": {
-    "env": {
-      "browser": true,
-      "es2021": true,
-      "jest": true
-    },
-    "extends": [],
-    "plugins": [
-      "react",
-      "react-hooks",
-      "unused-imports"
-    ],
-    "parserOptions": {
-      "ecmaFeatures": {
-        "jsx": true
-      },
-      "ecmaVersion": "latest",
-      "sourceType": "module"
-    },
-    "settings": {
-      "react": {
-        "version": "detect"
-      }
-    },
-    "rules": {
-      "react/prop-types": "off",
-      "react/jsx-uses-react": "error",
-      "react/jsx-uses-vars": "error",
-      "react/react-in-jsx-scope": "off",
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-      "no-unused-vars": "off",
-      "unused-imports/no-unused-imports": "warn",
-      "unused-imports/no-unused-vars": [
-        "warn",
-        {
-          "vars": "all",
-          "varsIgnorePattern": "^_",
-          "args": "after-used",
-          "argsIgnorePattern": "^(?:_.*|e|err|error)$",
-          "caughtErrors": "all",
-          "caughtErrorsIgnorePattern": "^(?:_.*|e|err|error)$"
-        }
-      ]
-    },
-    "overrides": [
-      {
-        "files": [
-          "src/kiosk/**/*.{js,jsx}"
-        ],
-        "rules": {
-          "no-restricted-imports": [
-            "error",
-            {
-              "patterns": [
-                {
-                  "group": [
-                    "@mui/*",
-                    "@emotion/*",
-                    "victory",
-                    "victory-*"
-                  ],
-                  "message": "The touchscreen UI stays free of MUI, emotion and Victory at runtime (render cost on WPE). Use plain CSS, plain SVG icons and canvas charts."
-                },
-                {
-                  "group": [
-                    "**/providers/MQTTContext"
-                  ],
-                  "message": "The touchscreen UI uses its own MQTT client, which reconnects forever."
-                }
-              ]
-            }
-          ]
-        }
-      }
-    ]
   },
   "browserslist": {
     "production": [
@@ -134,13 +57,13 @@
     "@babel/preset-react": "^7.28.5",
     "@vitejs/plugin-react": "^5.2.0",
     "babel-jest": "^30.4.1",
-    "eslint": "^8.57.1",
-    "eslint-plugin-react": "^7.37.5",
+    "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "globals": "^17.14.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "knip": "^6.32.0",
-    "vite": "^7.3.6"
+    "vite": "^8.3.8"
   }
 }

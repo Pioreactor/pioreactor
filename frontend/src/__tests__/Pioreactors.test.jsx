@@ -1,4 +1,3 @@
-import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { TextDecoder, TextEncoder } from "util";
@@ -149,28 +148,31 @@ describe("AssignPioreactors", () => {
       }
       return jsonResponse({});
     });
-    const warning = "Reassigning Pioreactors will stop their activities in the previous experiment.";
+    const currentAssignment = /Currently assigned to exp2$/;
+    const pendingReassignment = /Will be unassigned from exp2 and re-assigned to exp1$/;
 
     renderAssignPioreactors();
     fireEvent.click(screen.getByRole("button", { name: /assign pioreactors/i }));
     const selectAll = await screen.findByRole("checkbox", { name: "Select all" });
-    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox", { name: currentAssignment })).toHaveLength(workers.length);
 
     fireEvent.click(selectAll);
     expect(screen.getAllByRole("checkbox").every((checkbox) => checkbox.checked)).toBe(true);
-    expect(screen.getByText(warning)).toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox", { name: pendingReassignment })).toHaveLength(workers.length);
 
-    fireEvent.click(screen.getByRole("checkbox", { name: /^unit-1 / }));
+    const unit1 = screen.getByRole("checkbox", { name: /^unit-1 / });
+    fireEvent.click(unit1);
     expect(selectAll).not.toBeChecked();
     expect(selectAll).toHaveAttribute("data-indeterminate", "true");
+    expect(unit1).toHaveAccessibleName(currentAssignment);
 
     fireEvent.click(selectAll);
     fireEvent.click(selectAll);
     expect(screen.getAllByRole("checkbox").every((checkbox) => !checkbox.checked)).toBe(true);
-    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox", { name: currentAssignment })).toHaveLength(workers.length);
 
-    fireEvent.click(screen.getByRole("checkbox", { name: /^unit-1 / }));
-    expect(screen.getByText(warning)).toBeInTheDocument();
+    fireEvent.click(unit1);
+    expect(unit1).toHaveAccessibleName(pendingReassignment);
 
     fireEvent.click(selectAll);
     fireEvent.click(screen.getByRole("button", { name: "Assign 10" }));
@@ -194,7 +196,7 @@ describe("AssignPioreactors", () => {
 
     fireEvent.click(selectAll);
     expect(screen.getByRole("checkbox", { name: /unit-2/i })).toBeChecked();
-    expect(screen.queryByText(/Reassigning Pioreactors will stop/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Will be unassigned from/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Assign 1" }));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(0));
 

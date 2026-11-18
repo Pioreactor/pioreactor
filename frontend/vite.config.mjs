@@ -1,5 +1,9 @@
-import { defineConfig, transformWithEsbuild } from "vite";
+import { defineConfig, transformWithOxc } from "vite";
 import react from "@vitejs/plugin-react";
+
+// Prism's language modules read a free Prism variable. Give them an explicit
+// dependency so the core initializes before the language modules run.
+const prismTransform = { inject: { Prism: ["prismjs", "default"] } };
 
 function transformJsFilesWithJsx() {
   return {
@@ -11,9 +15,9 @@ function transformJsFilesWithJsx() {
         return null;
       }
 
-      return transformWithEsbuild(code, filePath, {
-        loader: "jsx",
-        jsx: "automatic",
+      return transformWithOxc(code, filePath, {
+        lang: "jsx",
+        jsx: { runtime: "automatic", development: false },
       });
     },
   };
@@ -62,8 +66,9 @@ export default defineConfig(({ command }) => ({
   ],
   optimizeDeps: {
     entries: ["index.html", "kiosk.html"],
-    esbuildOptions: {
-      loader: {
+    rolldownOptions: {
+      transform: prismTransform,
+      moduleTypes: {
         ".js": "jsx",
       },
     },
@@ -80,7 +85,10 @@ export default defineConfig(({ command }) => ({
   build: {
     assetsDir: "static",
     outDir: "build",
-    rollupOptions: {
+    // Keep the browser baseline from Vite 7 for both entry points.
+    target: ["chrome107", "edge107", "firefox104", "safari16"],
+    rolldownOptions: {
+      transform: prismTransform,
       // kiosk.html is the lean touchscreen UI each Pioreactor serves under /k/.
       input: {
         main: "index.html",
@@ -89,8 +97,9 @@ export default defineConfig(({ command }) => ({
       output: {
         // Shared modules otherwise become dozens of sub-kilobyte chunks (single icons, small MUI
         // components), each its own HTTP/1.1 request on a route's first load.
-        manualChunks(id) {
-          if (id.includes("/node_modules/@mui/")) return "mui";
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [{ name: "mui", test: /\/node_modules\/@mui\// }],
         },
       },
       onwarn(warning, defaultHandler) {

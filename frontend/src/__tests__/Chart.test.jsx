@@ -1,4 +1,3 @@
-import React from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";

@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import CalibrationSessionDataTable from "../components/CalibrationSessionDataTable";
 import CalibrationSessionStepContent from "../components/CalibrationSessionStepContent";

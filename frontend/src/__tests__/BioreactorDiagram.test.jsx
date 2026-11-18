@@ -1,4 +1,3 @@
-import React from "react";
 import { act, cleanup, render } from "@testing-library/react";
 
 const mockSubscribeToTopic = jest.fn();

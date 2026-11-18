@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 
 const ExperimentContext = createContext();
 

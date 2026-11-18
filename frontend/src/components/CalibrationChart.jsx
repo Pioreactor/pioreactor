@@ -1,7 +1,7 @@
 import { cloneChartSvg } from "../utils/chartExport";
 import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Menu from "@mui/material/Menu";

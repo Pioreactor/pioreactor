@@ -1,4 +1,3 @@
-import React from 'react';
 import SvgIcon from '@mui/material/SvgIcon';
 
 // Singular counterpart to PluginsIcon: one module.

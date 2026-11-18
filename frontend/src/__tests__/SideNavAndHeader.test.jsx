@@ -16,7 +16,6 @@ jest.mock("../providers/ExperimentContext", () => ({
   }),
 }));
 
-const React = require("react");
 const { act, cleanup, render, screen } = require("@testing-library/react");
 const { MemoryRouter } = require("react-router");
 const SideNavAndHeaderModule = require("../components/SideNavAndHeader");

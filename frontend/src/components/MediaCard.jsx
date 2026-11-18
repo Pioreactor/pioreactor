@@ -4,7 +4,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';

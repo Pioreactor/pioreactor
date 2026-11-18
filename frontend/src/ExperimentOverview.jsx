@@ -34,13 +34,11 @@ function evaluateChartLookback(timeWindow, lookbackExpression) {
     return 10000;
   }
   // Chart descriptors provide legacy JavaScript expressions for lookback values.
-  // eslint-disable-next-line no-eval
   return eval(lookbackExpression);
 }
 
 function evaluateChartTransformation(transformation) {
   // Chart descriptors provide legacy JavaScript functions for y-axis transformations.
-  // eslint-disable-next-line no-eval
   return eval(transformation || "(y) => y");
 }
 

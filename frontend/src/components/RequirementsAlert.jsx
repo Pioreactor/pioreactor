@@ -1,4 +1,3 @@
-import React from "react";
 import { uiColors } from "../theme/colors";
 import Alert from "@mui/material/Alert";
 

@@ -1,7 +1,7 @@
 import { cloneChartSvg } from "../utils/chartExport";
 import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
-import React, {
+import {
   useCallback,
   useEffect,
   useEffectEvent,

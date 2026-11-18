@@ -1,4 +1,3 @@
-import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { TextDecoder, TextEncoder } from "util";

@@ -1,4 +1,3 @@
-import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { TextSize } from "victory";
 import Chart from "../components/Chart";

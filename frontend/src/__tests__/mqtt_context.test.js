@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import React, { act, useEffect } from "react";
+import { act, useEffect } from "react";
 import { render } from "@testing-library/react";
 import { MQTTProvider, useMQTT, getMqttEndpoint } from "../providers/MQTTContext";
 import mqtt from "mqtt";

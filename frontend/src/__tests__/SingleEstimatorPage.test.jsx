@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextDecoder, TextEncoder } from "util";
@@ -101,8 +100,9 @@ describe("SingleEstimatorPage task-backed mutations", () => {
     const user = userEvent.setup();
     renderSingleEstimatorPage();
 
-    await screen.findByText("Estimator: estimator-a");
-    await user.click(screen.getByRole("button", { name: /set active/i }));
+    const setActive = screen.getByRole("button", { name: /set active/i });
+    await waitFor(() => expect(setActive).toBeEnabled());
+    await user.click(setActive);
 
     await waitFor(() =>
       expect(fetchTaskResult).toHaveBeenCalledWith(
@@ -127,8 +127,9 @@ describe("SingleEstimatorPage task-backed mutations", () => {
 
     renderSingleEstimatorPage();
 
-    await screen.findByText("Estimator: estimator-a");
-    await user.click(screen.getByRole("button", { name: /set active/i }));
+    const setActive = screen.getByRole("button", { name: /set active/i });
+    await waitFor(() => expect(setActive).toBeEnabled());
+    await user.click(setActive);
 
     expect(await screen.findByRole("status")).toHaveTextContent("Worker rejected this request.");
   });
@@ -164,13 +165,13 @@ describe("SingleEstimatorPage task-backed mutations", () => {
     mockConfirm.mockResolvedValue({ confirmed: false, reason });
     fetchTaskResult.mockResolvedValueOnce(estimatorPayload(false));
     renderSingleEstimatorPage();
-    await screen.findByText("Estimator: estimator-a");
+    await screen.findByRole("heading", { name: "Estimator: estimator-a" });
     fetchTaskResult.mockClear();
 
     await user.click(screen.getByRole("button", { name: /delete/i }));
 
     expect(fetchTaskResult).not.toHaveBeenCalled();
-    expect(screen.getByText("Estimator: estimator-a")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Estimator: estimator-a" })).toBeInTheDocument();
   });
 
   test("waits for the delete task before navigating away", async () => {
@@ -186,7 +187,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
 
     renderSingleEstimatorPage();
 
-    await screen.findByText("Estimator: estimator-a");
+    await screen.findByRole("heading", { name: "Estimator: estimator-a" });
     await user.click(screen.getByRole("button", { name: /delete/i }));
 
     await waitFor(() =>

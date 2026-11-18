@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import { useId } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 

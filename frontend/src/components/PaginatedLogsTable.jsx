@@ -1,7 +1,7 @@
 import { ZebraTableRow } from "./TableRows";
 import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell, LogSourceTableCell as StyledSourceTableCell } from "./LogTableCells";
 import { uiColors } from "../theme/colors";
-import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
+import { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';

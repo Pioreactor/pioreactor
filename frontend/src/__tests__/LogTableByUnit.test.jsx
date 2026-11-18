@@ -1,4 +1,3 @@
-import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 import dayjs from "dayjs";

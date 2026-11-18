@@ -1,4 +1,3 @@
-import React from "react";
 
 import ExperimentProfileEditorPage, { ExperimentProfileEditorContent } from "./ExperimentProfileEditor";
 
