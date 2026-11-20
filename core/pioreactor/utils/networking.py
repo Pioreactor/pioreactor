@@ -33,7 +33,7 @@ def ssh(address: str, command: str, detach: bool = True) -> None:
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        raise SSHError(f"SSH command failed: {e.stderr.strip()}") from e
+        raise SSHError(e.stderr.strip() or f"SSH exited with status {e.returncode}.") from e
 
 
 def rsync(*args: str) -> None:

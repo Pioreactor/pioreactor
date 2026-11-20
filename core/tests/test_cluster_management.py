@@ -92,7 +92,7 @@ class _AddWorkerEvents:
                 return
             self.events.append(("join", address, command, detach))
             if join_error is not None:
-                raise SSHError(f"SSH command failed: {join_error}")
+                raise SSHError(join_error)
 
         def register(endpoint: str, json: dict) -> Response:
             self.events.append(("register", json))
@@ -221,7 +221,7 @@ def test_add_worker_failed_join_does_not_reboot_and_drops_only_a_new_registratio
     result = CliRunner().invoke(add_worker, ["unit1"])
 
     assert result.exit_code == 1
-    assert "Unable to configure unit1: SSH command failed: Error: Stop activities" in result.output
+    assert result.output == "Error: Unable to configure unit1: Stop activities before changing the model.\n"
     expected = ["ssh_setup", "register", "stage", "join"] + (["unregister"] if unregistered else [])
     assert events.names() == expected
 

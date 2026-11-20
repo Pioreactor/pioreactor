@@ -102,20 +102,17 @@ def point_clock_at_leader(leader_address: str, leader_time: int) -> None:
     _sudo("tee", str(CHRONY_LEADER_SOURCE), input=f"server {leader_address} iburst prefer\n")
 
 
-def _check_standalone_idle(shared_config: ConfigParserMod, unit: str) -> None:
+def _standalone_database_uri(shared_config: ConfigParserMod, unit: str) -> str:
     # Merging unit_config.ini into the caller's parser is deliberate: join then also drops its own
     # broker override (e.g. 127.0.0.1), which would otherwise keep this unit on its own broker.
     shared_config.read(resolve_local_config_path())
-    database = Path(shared_config.get("storage", "database"))
-    with closing(sqlite3.connect(database.absolute().as_uri() + "?mode=ro", uri=True)) as connection:
+    database_uri = Path(shared_config.get("storage", "database")).absolute().as_uri()
+    with closing(sqlite3.connect(f"{database_uri}?mode=ro", uri=True)) as connection:
         if not connection.execute("SELECT 1 FROM workers WHERE pioreactor_unit = ?", (unit,)).fetchone():
             raise RuntimeError("Only a standalone leader-worker can join another cluster.")
         if connection.execute("SELECT 1 FROM workers WHERE pioreactor_unit != ? LIMIT 1", (unit,)).fetchone():
             raise RuntimeError("Remove this unit's workers before joining another cluster.")
-        if connection.execute(
-            "SELECT 1 FROM experiment_worker_assignments WHERE pioreactor_unit = ?", (unit,)
-        ).fetchone():
-            raise RuntimeError("Unassign this unit from its experiment before joining a cluster.")
+    return database_uri
 
 
 def join_cluster(
@@ -134,19 +131,21 @@ def join_cluster(
         raise RuntimeError("Stop activities before joining a cluster.")
     if current_leader and current_leader not in (unit, leader):
         raise RuntimeError(f"This unit already belongs to `{current_leader}`. Leave that cluster first.")
-    if current_leader == unit:
-        _check_standalone_idle(current, unit)
+    standalone_db = _standalone_database_uri(current, unit) if current_leader == unit else None
 
     if model_name is not None and model_version is not None:
         save_local_model(model_name, model_version)
         check_model_hardware(model_name, model_version)
 
-    if current_leader == unit:
+    if standalone_db is not None:
         write_config_text(standalone_config_path(), active_path.read_text(encoding="utf-8"))
     point_clock_at_leader(leader_address, leader_time)
     clear_previous_leader_overrides(
         resolve_local_config_path(), current.get("mqtt", "broker_address", fallback=None)
     )
+    if standalone_db is not None:
+        with closing(sqlite3.connect(f"{standalone_db}?mode=rw", uri=True)) as connection, connection:
+            connection.execute("DELETE FROM experiment_worker_assignments")
     write_config_text(active_path, config_text)
 
     # This CLI process may still have the previous config loaded.

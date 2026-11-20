@@ -213,5 +213,15 @@ def test_ssh_detaches_only_when_asked(monkeypatch, detach: bool, expected_comman
 
     monkeypatch.setattr(networking.subprocess, "run", fail_run)
 
-    with pytest.raises(networking.SSHError, match="^SSH command failed: Error: boom$"):
+    with pytest.raises(networking.SSHError, match="^Error: boom$"):
         networking.ssh("worker.local", "pio version", detach=detach)
+
+
+def test_ssh_reports_exit_status_when_stderr_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_run(args: list[str], **_kwargs: object) -> None:
+        raise subprocess.CalledProcessError(1, args, stderr="")
+
+    monkeypatch.setattr(networking.subprocess, "run", fail_run)
+
+    with pytest.raises(networking.SSHError, match=r"^SSH exited with status 1\.$"):
+        networking.ssh("worker.local", "false", detach=False)

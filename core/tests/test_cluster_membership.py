@@ -107,6 +107,7 @@ def standalone_env(join_env: dict[str, Mock], monkeypatch: pytest.MonkeyPatch, t
         connection.execute("CREATE TABLE workers (pioreactor_unit TEXT)")
         connection.execute("INSERT INTO workers VALUES (?)", (unit,))
         connection.execute("CREATE TABLE experiment_worker_assignments (pioreactor_unit TEXT)")
+        connection.execute("INSERT INTO experiment_worker_assignments VALUES (?)", (unit,))
     text = (
         f"[cluster.topology]\nleader_hostname={unit}\nleader_address={unit}.local\n"
         f"[mqtt]\nbroker_address={unit}.local\n[storage]\ndatabase={database}\n"
@@ -134,20 +135,27 @@ def test_standalone_config_survives_join_retry_and_leave(standalone_env: str) ->
     assert unit_config.get("mqtt", "broker_address") == "127.0.0.1"
 
 
-@pytest.mark.parametrize(
-    "statement, message",
-    [
-        ("INSERT INTO workers VALUES ('another-unit')", "Remove this unit's workers"),
-        ("INSERT INTO experiment_worker_assignments SELECT pioreactor_unit FROM workers", "Unassign"),
-    ],
-)
-def test_busy_standalone_rejects_join_without_overwriting_config(
-    standalone_env: str, tmp_path: Path, statement: str, message: str
-) -> None:
-    with closing(sqlite3.connect(tmp_path / "pioreactor.sqlite")) as connection, connection:
-        connection.execute(statement)
-    with pytest.raises(RuntimeError, match=message):
+def test_standalone_join_clears_all_local_assignments(standalone_env: str, tmp_path: Path) -> None:
+    with closing(sqlite3.connect(tmp_path / "pioreactor.sqlite")) as connection:
+        with connection:
+            connection.execute("INSERT INTO experiment_worker_assignments VALUES ('former-worker')")
+
         cluster_membership.join_cluster(LEADER_CONFIG, 1700000000)
+
+        assert connection.execute("SELECT * FROM experiment_worker_assignments").fetchall() == []
+
+
+def test_standalone_with_workers_rejects_join_without_changing_assignments_or_config(
+    standalone_env: str, tmp_path: Path
+) -> None:
+    with closing(sqlite3.connect(tmp_path / "pioreactor.sqlite")) as connection:
+        with connection:
+            connection.execute("INSERT INTO workers VALUES ('another-unit')")
+        with pytest.raises(RuntimeError, match="Remove this unit's workers"):
+            cluster_membership.join_cluster(LEADER_CONFIG, 1700000000)
+        assert connection.execute("SELECT * FROM experiment_worker_assignments").fetchall() == [
+            (get_unit_name(),)
+        ]
     assert cluster_membership.resolve_global_config_path().read_text(encoding="utf-8") == standalone_env
     assert cluster_membership.standalone_config_path().read_text(encoding="utf-8") == "stock seed"
 

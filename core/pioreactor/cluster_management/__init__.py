@@ -136,7 +136,8 @@ def _join_worker_to_cluster(
             detach=False,
         )
     except (RsyncError, SSHError) as error:
-        message = f"Unable to configure {hostname}: {error}"
+        reason = str(error).removeprefix("Error: ")
+        message = f"Unable to configure {hostname}: {reason}"
         logger.error(message)
         raise click.ClickException(message) from error
 
