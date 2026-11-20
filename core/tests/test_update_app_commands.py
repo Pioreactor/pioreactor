@@ -7,7 +7,6 @@ import tempfile
 from http.client import HTTPMessage
 from json import dumps
 from os import environ
-from pathlib import Path
 
 import click
 import pioreactor.config as config_module
@@ -19,14 +18,12 @@ from pioreactor.paths import get_pio_venv_path
 
 
 @pytest.fixture(autouse=True)
-def ensure_storage_database_configured() -> object:
-    if config_module.config.has_option("storage", "database"):
-        yield
-        return
-
-    database_path = str(Path(".pioreactor") / "storage" / "pioreactor.sqlite")
-    with temporary_config_change(config_module.config, "storage", "database", database_path):
-        yield
+def storage_database(tmp_path) -> object:
+    # Release updates migrate this file on any unit that has it.
+    database_path = tmp_path / "pioreactor.sqlite"
+    database_path.touch()
+    with temporary_config_change(config_module.config, "storage", "database", str(database_path)):
+        yield database_path
 
 
 def mock_release_metadata_response(tag_name: str, assets: list[dict[str, str]]) -> Response:
@@ -475,7 +472,7 @@ def test_app_commands_from_release_metadata_requires_release_archive(monkeypatch
         )
 
 
-def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypatch, tmp_path) -> None:
+def test_app_commands_with_release_zip_for_worker_uses_leader_worker_extra(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
     version = "26.3.0"
     source = str(tmp_path / f"release_{version}.zip")
@@ -492,7 +489,6 @@ def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypa
     lines = command_lines(cmds)
     assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[leader_worker]") for line in lines)
     assert not any("[worker]" in line for line in lines)
-    assert not any("update.sql" in line for line in lines)
 
 
 def test_app_commands_with_release_zip_for_leader_only_uses_leader_extra(monkeypatch, tmp_path) -> None:
@@ -513,6 +509,39 @@ def test_app_commands_with_release_zip_for_leader_only_uses_leader_extra(monkeyp
     assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[leader]") for line in lines)
     assert not any("[leader_worker]" in line for line in lines)
     assert any("update.sql" in line for line in lines)
+
+
+def test_app_commands_with_release_zip_migrate_database_on_a_worker_that_has_one(
+    monkeypatch, tmp_path
+) -> None:
+    # e.g. a leader-worker that joined another cluster
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+
+    cmds, _ = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=str(tmp_path / "release_26.3.0.zip"),
+        version=None,
+    )
+
+    assert any("update.sql" in line for line in command_lines(cmds))
+
+
+def test_app_commands_with_release_zip_skip_database_migration_without_a_database(
+    storage_database, tmp_path
+) -> None:
+    storage_database.unlink()
+
+    cmds, _ = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=str(tmp_path / "release_26.3.0.zip"),
+        version=None,
+    )
+
+    lines = command_lines(cmds)
+    assert not any("sqlite3" in line for line in lines)
+    assert not storage_database.exists()
 
 
 def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monkeypatch) -> None:
@@ -545,7 +574,6 @@ def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monk
     lines = command_lines(cmds)
     assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[leader_worker]") for line in lines)
     assert not any("[worker]" in line for line in lines)
-    assert not any("update.sql" in line for line in lines)
 
 
 def test_app_commands_from_release_metadata_does_not_fetch_individual_assets(monkeypatch) -> None:

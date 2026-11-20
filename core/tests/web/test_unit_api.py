@@ -637,6 +637,36 @@ def test_zipped_dot_pioreactor_skips_symlink_outside_root(
         assert "outside-link" not in archive.namelist()
 
 
+def test_zipped_dot_pioreactor_skips_database_backups(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    storage = dot_pioreactor / "storage"
+    storage.mkdir(parents=True)
+    (storage / "pioreactor.sqlite.backup").write_bytes(b"own")
+    (storage / "leader1.pioreactor.sqlite.backup").write_bytes(b"leader's")
+    (storage / "notes.txt").write_text("kept", encoding="utf-8")
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/unit_api/zipped_dot_pioreactor")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.data)) as archive:
+        names = archive.namelist()
+    assert "storage/notes.txt" in names
+    assert not any(name.endswith(".sqlite.backup") for name in names)
+
+
+def test_health_gives_the_leader_address_only_on_other_units(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    assert client.get("/unit_api/health").get_json()["leader_address"] is None
+
+    monkeypatch.setattr(mod.whoami, "am_I_leader", lambda: False)
+    monkeypatch.setattr(mod, "get_leader_address", lambda: "leader1.local")
+    assert client.get("/unit_api/health").get_json()["leader_address"] == "leader1.local"
+
+
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 

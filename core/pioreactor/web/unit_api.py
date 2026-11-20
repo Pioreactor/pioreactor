@@ -57,6 +57,7 @@ from pioreactor.cli.pio import validate_github_repo
 from pioreactor.cluster_membership import check_can_leave
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
+from pioreactor.config import get_leader_address
 from pioreactor.config import get_leader_hostname
 from pioreactor.config import normalize_ini_text
 from pioreactor.estimators import ESTIMATOR_PATH
@@ -182,6 +183,8 @@ def health_check() -> ResponseReturnValue:
         "status": "ok",
         "pioreactor_unit": HOSTNAME,
         "utc_time": current_utc_timestamp(),
+        # Only the leader serves /api, so other units' web UI redirects to this address.
+        "leader_address": None if whoami.am_I_leader() else get_leader_address(),
     }
     return attach_cache_control(jsonify(payload), max_age=0)
 
@@ -2161,7 +2164,8 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
 
     try:
         with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            skip_backup = base_dir / "storage" / "pioreactor.sqlite.backup"
+            # Skip database backups: this unit's own, and copies from its leaders.
+            storage_dir = base_dir / "storage"
             for path in sorted(base_dir.rglob("*")):
                 if not path.exists():
                     continue
@@ -2169,7 +2173,7 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
                 # through a symlink that escapes DOT_PIOREACTOR.
                 if not path.resolve().is_relative_to(base_dir):
                     continue
-                if path == skip_backup:
+                if path.parent == storage_dir and path.name.endswith(".sqlite.backup"):
                     continue
                 # Store paths inside the archive relative to DOT_PIOREACTOR
                 arcname = path.relative_to(base_dir)

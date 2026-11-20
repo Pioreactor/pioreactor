@@ -23,6 +23,19 @@ window.addEventListener("vite:preloadError", (event) => {
 });
 
 
+// Only the leader serves /api. On any other unit, open this unit's page in the leader's UI instead.
+fetch("/unit_api/health")
+  .then((response) => (response.ok ? response.json() : {}))
+  .then(({ leader_address: leaderAddress, pioreactor_unit: unit }) => {
+    if (leaderAddress) {
+      const url = new URL(`/pioreactors/${encodeURIComponent(unit)}`, window.location.href);
+      url.hostname = leaderAddress;
+      window.location.replace(url);
+    }
+  })
+  .catch(() => {});
+
+
 const container = document.getElementById('root');
 const root = createRoot(container); // createRoot(container!) if you use TypeScript
 

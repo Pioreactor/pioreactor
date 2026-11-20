@@ -3,6 +3,8 @@
 #### Breaking changes
 
  - Removed the deprecated constants in `pioreactor.hardware`. Plugins must call the corresponding getter functions: `SDA` / `SCL` → `get_sda_pin()` / `get_scl_pin()`, `TEMP` / `TEMP_ADDRESS` → `get_temp_address()`, `PWM_TO_PIN` → `get_pwm_to_pin_map()`, and `HEATER_PWM_TO_PIN` → `get_heater_pwm_channel()`. Also removed `GPIOCHIP`, `PWM_CONTROLLER`, `PCB_LED_PIN`, `PCB_BUTTON_PIN`, `HALL_SENSOR_PIN`, `ADCs`, `DAC`, and `DAC_ADDRESS`; see the [hardware migration reference](https://docs.pioreactor.com/developer-guide/custom-hardware#migrating-plugins-from-hardware-constants) for their replacements. Update affected OLED, PiOLED, relay, and temperature-expansion plugins before upgrading core.
+ - Dropped the Raspberry Pi Zero W (the original, single-core Zero W) image. New releases no longer include a Zero W worker image; Zero W units can keep using an older release's image. The Raspberry Pi Zero 2 W is still supported.
+ - New images only: Deprecated the `pioreactor.local` web address. New images no longer publish it or include the `[ui] domain_alias` setting, because every Pioreactor on a network would claim the same name. Open the UI at `http://<leader hostname>.local` instead, and update any bookmarks. Existing leaders keep publishing their alias for now.
 
 #### Enhancements
 
@@ -11,10 +13,12 @@
  - Added MCP tools to read and edit shared `config.ini` and per-unit `unit_config.ini` files, using the same configuration validation and history as the UI.
  - Sped up media-rate summaries for experiments with long dosing histories.
  - Added a **Line colors** tab to the Overview's chart settings (the gear icon). Pick a color from the chart palette for any Pioreactor that has been in the experiment, and its line uses that color on every Overview chart. Choices are saved with the experiment, so everyone viewing it sees the same colors. Pioreactors left on Automatic keep their usual color unless it was picked for another Pioreactor, in which case they move to the next unused color. The colors are also available from `/api/experiments/<experiment>/chart_preferences` as `overview_unit_colors`.
- - Made a leader-worker that joins another cluster restore its own `config.ini` when it leaves, so it runs on its own again with its experiments and data intact. It can join only when it has no other workers and isn't assigned to an experiment.
+ - Made a leader-worker that joins another cluster restore its own `config.ini` when it leaves, so it runs on its own again with its experiments and data intact. It can join only when it has no other workers and isn't assigned to an experiment. While it is a worker, software updates keep its own database's schema current.
+ - Opening a worker's web address now redirects to the leader's UI, on that worker's page. Before, it showed a UI that couldn't load any data. `/unit_api/health` now includes `leader_address`, which is `null` on the leader.
 
 #### Bug fixes
 
+ - Fixed the leader's database backup overwriting a worker's own `pioreactor.sqlite.backup`. Copies sent to workers are now named after the leader, for example `leader1.pioreactor.sqlite.backup`, in the worker's `~/.pioreactor/storage/` directory.
  - Fixed long, unbroken log messages stretching log tables beyond the page width.
  - Corrected stirring RPM readings when the Hall sensor detects a recognizable extra-pulse pattern, preventing those extra pulses from inflating the RPM used for stirring control.
  - Fixed repeated shutdown signals interrupting job cleanup during software updates or Huey restarts, which could leave stopped activities showing as ready or lost in MQTT and leave old automation names and settings in the UI.

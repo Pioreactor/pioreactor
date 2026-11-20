@@ -115,7 +115,9 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
         logger.info("Completed backup of database.")
 
-        # back up to workers, if available
+        # back up to workers, if available. Name the copy after this unit, so it can't overwrite the
+        # worker's own backup (a leader-worker that joined this cluster keeps its own database).
+        remote_output_file = str(Path(output_file).with_name(f"{unit}.{Path(output_file).name}"))
         backups_complete = 0
         try:
             available_workers = list(get_active_workers_in_inventory())
@@ -142,7 +144,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                     "--partial",
                     "--inplace",
                     output_file,
-                    f"{resolve_to_address(backup_unit)}:{output_file}",
+                    f"{resolve_to_address(backup_unit)}:{remote_output_file}",
                 )
             except RsyncError:
                 logger.debug(
@@ -151,7 +153,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 )
                 logger.warning(f"Unable to backup database to `{backup_unit}`.")
             else:
-                logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
+                logger.debug(f"Backed up database to {backup_unit}:{remote_output_file}.")
                 backups_complete += 1
 
                 with local_persistent_storage("database_backups") as cache:

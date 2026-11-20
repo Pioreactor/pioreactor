@@ -470,7 +470,9 @@ def get_update_app_commands(
             )
         )
 
-        if whoami.am_I_leader():
+        # Migrate on any unit that has the database, not only the leader: a leader-worker that joined
+        # another cluster keeps its own database for when it leaves. Check first, as sqlite3 would create it.
+        if Path(database_path).exists():
             release_commands.extend(
                 [
                     update_command(

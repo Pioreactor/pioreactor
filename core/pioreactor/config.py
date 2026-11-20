@@ -40,7 +40,7 @@ def __getattr__(attr: str) -> Any:
     if attr == "leader_hostname":
         return get_leader_hostname()
     elif attr == "leader_address":
-        return _get_leader_address()
+        return get_leader_address()
     elif attr == "mqtt_address":
         return _get_mqtt_address()
     else:
@@ -399,13 +399,13 @@ def get_leader_hostname() -> str:
 
 
 @cache
-def _get_leader_address() -> str:
+def get_leader_address() -> str:
     return get_config().get("cluster.topology", "leader_address", fallback="localhost")
 
 
 @cache
 def _get_mqtt_address() -> str:
-    return get_config().get("mqtt", "broker_address", fallback=_get_leader_address()).split(";")[0]
+    return get_config().get("mqtt", "broker_address", fallback=get_leader_address()).split(";")[0]
 
 
 def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str) -> Any:

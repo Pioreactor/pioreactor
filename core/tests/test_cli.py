@@ -56,7 +56,7 @@ def restore_config_singleton_after_cli_test() -> Iterator[None]:
     config_module.config = original_config
     config_module.get_config.cache_clear()
     config_module.get_leader_hostname.cache_clear()
-    config_module._get_leader_address.cache_clear()
+    config_module.get_leader_address.cache_clear()
     config_module._get_mqtt_address.cache_clear()
     whoami.am_I_leader.cache_clear()
 
