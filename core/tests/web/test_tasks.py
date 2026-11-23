@@ -1690,31 +1690,58 @@ def test_update_app_from_release_archive_across_cluster_updates_only_non_leader_
         ],
         ["sudo", "systemctl", "restart", "pioreactor-web.target"],
     ]
-    assert run_calls == [
-        [
-            tasks.PIOS_EXECUTABLE,
-            "cp",
-            "/tmp/release_26.4.2.zip",
-            "/tmp/release_26.4.2.zip",
-            "-y",
-            "--units",
-            "worker1",
-            "--units",
-            "worker2",
-        ],
-        [
-            tasks.PIOS_EXECUTABLE,
-            "update",
-            "app",
-            "--source",
-            "/tmp/release_26.4.2.zip",
-            "-y",
-            "--units",
-            "worker1",
-            "--units",
-            "worker2",
-        ],
-    ]
+    # Workers are copied to and updated concurrently, so only each worker's own order is fixed.
+    for worker in ("worker1", "worker2"):
+        assert [cmd for cmd in run_calls if cmd[-1] == worker] == [
+            [
+                tasks.PIOS_EXECUTABLE,
+                "cp",
+                "/tmp/release_26.4.2.zip",
+                "/tmp/release_26.4.2.zip",
+                "-y",
+                "--units",
+                worker,
+            ],
+            [
+                tasks.PIOS_EXECUTABLE,
+                "update",
+                "app",
+                "--source",
+                "/tmp/release_26.4.2.zip",
+                "-y",
+                "--units",
+                worker,
+            ],
+        ]
+    assert len(run_calls) == 4
+
+
+def test_update_app_from_release_archive_across_cluster_skips_update_when_copy_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_calls: list[list[str]] = []
+
+    monkeypatch.setattr(tasks, "get_workers_in_inventory", lambda: ("leader", "worker1", "worker2"))
+    monkeypatch.setattr(tasks, "get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr(tasks, "check_call", lambda cmd: None)
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    class FakeCompletedProcess:
+        def __init__(self, returncode: int) -> None:
+            self.returncode = returncode
+
+    def fake_run(cmd: list[str]) -> FakeCompletedProcess:
+        run_calls.append(cmd)
+        copy_failed = cmd[1] == "cp" and cmd[-1] == "worker1"
+        return FakeCompletedProcess(1 if copy_failed else 0)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_app_from_release_archive_across_cluster.call_local(
+        "/tmp/release_26.4.2.zip", "$broadcast"
+    )
+    updated = [cmd[-1] for cmd in run_calls if cmd[1] == "update"]
+    assert updated == ["worker2"]
 
 
 def test_update_app_from_usb_release_archive_stages_archive_on_workers(

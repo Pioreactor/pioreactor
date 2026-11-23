@@ -15,6 +15,7 @@
  - Added a **Line colors** tab to the Overview's chart settings (the gear icon). Pick a color from the chart palette for any Pioreactor that has been in the experiment, and its line uses that color on every Overview chart. Choices are saved with the experiment, so everyone viewing it sees the same colors. Pioreactors left on Automatic keep their usual color unless it was picked for another Pioreactor, in which case they move to the next unused color. The colors are also available from `/api/experiments/<experiment>/chart_preferences` as `overview_unit_colors`.
  - Made a leader-worker that joins another cluster restore its own `config.ini` when it leaves, so it runs on its own again with its experiments and data intact. It can join only when it has no other workers and isn't assigned to an experiment. While it is a worker, software updates keep its own database's schema current.
  - Opening a worker's web address now redirects to the leader's UI, on that worker's page. Before, it showed a UI that couldn't load any data. `/unit_api/health` now includes `leader_address`, which is `null` on the leader.
+ - Sped up cluster updates from a release archive. The leader now copies the archive to at most 3 workers at a time (down from 6), since copying to many workers at once over WiFi slowed every copy and could make some time out. Each worker starts its update as soon as its own copy finishes, instead of waiting for the copies to every worker. `pios cp` uses the same 3-worker limit.
 
 #### Bug fixes
 

@@ -33,6 +33,7 @@ from pioreactor.pubsub import get_from_unit
 from pioreactor.pubsub import post_into_unit
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import cp_file_across_cluster
+from pioreactor.utils.networking import MAX_PARALLEL_COPIES
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.networking import ssh
 from pioreactor.utils.timing import current_utc_timestamp
@@ -494,7 +495,7 @@ if am_I_leader() or is_testing_env():
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
                 return False
 
-        with ThreadPoolExecutor(max_workers=min(len(units), 6)) as executor:
+        with ThreadPoolExecutor(max_workers=min(len(units), MAX_PARALLEL_COPIES)) as executor:
             results = executor.map(_thread_function, units)
 
         if not all(results):

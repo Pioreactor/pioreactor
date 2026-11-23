@@ -5,6 +5,7 @@ import re
 import sqlite3
 import stat
 import subprocess
+import threading
 import time
 from datetime import datetime
 from datetime import UTC
@@ -1640,6 +1641,37 @@ def test_pios_cp_copies_to_explicit_target(monkeypatch: pytest.MonkeyPatch, tmp_
 
     assert result.exit_code == 0
     assert copied == [("unit1", source.as_posix(), target, 15)]
+
+
+def test_pios_cp_limits_parallel_copies(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from pioreactor.utils.networking import MAX_PARALLEL_COPIES
+
+    source = tmp_path / "release.zip"
+    source.write_text("archive", encoding="utf-8")
+    units = tuple(f"unit{i}" for i in range(9))
+    lock = threading.Lock()
+    in_flight = 0
+    max_in_flight = 0
+    copied: list[str] = []
+
+    def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
+        nonlocal in_flight, max_in_flight
+        with lock:
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+        time.sleep(0.05)
+        with lock:
+            in_flight -= 1
+            copied.append(unit)
+
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_all_worker_units", lambda _units, _experiments: units)
+    monkeypatch.setattr("pioreactor.cli.pios.cp_file_across_cluster", fake_cp_file_across_cluster)
+
+    result = CliRunner().invoke(pios, ["cp", source.as_posix(), "-y"])
+
+    assert result.exit_code == 0
+    assert sorted(copied) == sorted(units)
+    assert max_in_flight == MAX_PARALLEL_COPIES
 
 
 def test_pios_update_requires_explicit_subcommand() -> None:

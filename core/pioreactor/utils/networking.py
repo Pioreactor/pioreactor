@@ -15,6 +15,11 @@ from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
 
 
+# Workers usually share one WiFi link with the leader, so copying a large file (ex: a release
+# archive) to many workers at once makes every copy crawl and risks rsync timeouts.
+MAX_PARALLEL_COPIES = 3
+
+
 class DiscoveredWorker(msgspec.Struct, frozen=True):
     hostname: str
     ipv4_address: str

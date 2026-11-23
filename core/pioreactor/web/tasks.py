@@ -18,6 +18,7 @@ import stat
 import zipfile
 from collections.abc import Callable
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 from shlex import join
@@ -85,6 +86,7 @@ from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import cp_file_across_cluster
+from pioreactor.utils.networking import MAX_PARALLEL_COPIES
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -810,28 +812,18 @@ def _update_app_from_release_archive_across_cluster(archive_location: str, units
 
         workers = [unit for unit in get_workers_in_inventory() if unit != leader]
         if workers:
-            logger.debug(f"Copying release archive to non-leader workers {workers} from {archive_location}")
-            archive_copy_command = _with_units(
-                [PIOS_EXECUTABLE, "cp", archive_location, worker_archive_location, "-y"],
-                workers,
-            )
-            run(archive_copy_command)
-
             logger.debug(
-                f"Updating non-leader workers {workers} from release archive {worker_archive_location}"
+                f"Copying release archive to non-leader workers {workers} from {archive_location}, updating each as its copy finishes"
             )
-            worker_update_command = _with_units(
-                [
-                    PIOS_EXECUTABLE,
-                    "update",
-                    "app",
-                    "--source",
-                    worker_archive_location,
-                    "-y",
-                ],
-                workers,
-            )
-            run(worker_update_command)
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_COPIES) as executor:
+                list(
+                    executor.map(
+                        lambda unit: _copy_release_archive_and_update(
+                            unit, archive_location, worker_archive_location
+                        ),
+                        workers,
+                    )
+                )
         else:
             logger.debug("No non-leader workers to update from release archive")
         sleep(2)
@@ -857,29 +849,18 @@ def _update_app_from_release_archive_across_cluster(archive_location: str, units
         return True
 
     logger.debug(f"Updating app on unit {units} from {archive_location}")
-    archive_copy_command = [
-        PIOS_EXECUTABLE,
-        "cp",
-        archive_location,
-        worker_archive_location,
-        "-y",
-        "--units",
-        units,
-    ]
-    run(archive_copy_command)
-
-    specific_unit_update_command = [
-        PIOS_EXECUTABLE,
-        "update",
-        "app",
-        "--source",
-        worker_archive_location,
-        "-y",
-        "--units",
-        units,
-    ]
-    run(specific_unit_update_command)
+    _copy_release_archive_and_update(units, archive_location, worker_archive_location)
     return True
+
+
+def _copy_release_archive_and_update(unit: str, archive_location: str, worker_archive_location: str) -> None:
+    # A worker's update runs on the worker (the unit API returns once it is queued), so start it as soon
+    # as that worker has the archive instead of waiting for the copies to every other worker.
+    copy = run([PIOS_EXECUTABLE, "cp", archive_location, worker_archive_location, "-y", "--units", unit])
+    if copy.returncode != 0:
+        # `pios cp` already logged the failure, and the update would only fail without the archive.
+        return
+    run([PIOS_EXECUTABLE, "update", "app", "--source", worker_archive_location, "-y", "--units", unit])
 
 
 @huey.task()
