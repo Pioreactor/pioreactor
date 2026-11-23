@@ -24,6 +24,8 @@ function BrokenPage() {
 
 
 describe("stale frontend build recovery", () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     window.sessionStorage.clear();
     jest.spyOn(console, "error").mockImplementation(() => {});
@@ -31,10 +33,12 @@ describe("stale frontend build recovery", () => {
   });
 
   afterEach(() => {
+    globalThis.fetch = originalFetch;
     jest.restoreAllMocks();
   });
 
   test("reloads only once for preload errors during the guard window", () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     jest.spyOn(Date, "now").mockReturnValue(1_000_000);
     document.body.innerHTML = '<div id="root"></div>';
 

@@ -1705,9 +1705,15 @@ def test_pio_update_app_runs_argv_without_shell(monkeypatch: pytest.MonkeyPatch)
     assert run_calls[0][0][:3] == ["/opt/pioreactor/venv/bin/pip", "install", "--force-reinstall"]
 
 
-def test_pio_update_app_allows_release_archive_sql_step_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("database_exists", [True, False])
+def test_pio_update_app_migrates_existing_database_and_tolerates_sql_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, database_exists: bool
+) -> None:
     runner = CliRunner()
     run_calls: list[list[str]] = []
+    database_path = tmp_path / "pioreactor.sqlite"
+    if database_exists:
+        database_path.touch()
 
     class FakeCompletedProcess:
         stdout = ""
@@ -1741,13 +1747,21 @@ def test_pio_update_app_allows_release_archive_sql_step_failure(monkeypatch: pyt
     monkeypatch.setattr("pioreactor.logging.create_logger", lambda *_args, **_kwargs: FakeLogger())
     monkeypatch.setattr("pioreactor.pubsub.publish", lambda *_args, **_kwargs: None)
 
-    result = runner.invoke(
-        pio,
-        ["update", "app", "--source", "/tmp/release_26.3.0.zip", "--defer-web-restart"],
-    )
+    with temporary_config_change(config_module.config, "storage", "database", str(database_path)):
+        result = runner.invoke(
+            pio,
+            ["update", "app", "--source", "/tmp/release_26.3.0.zip", "--defer-web-restart"],
+        )
 
     assert result.exit_code == 0
-    assert any(command[:2] == ["sudo", "sqlite3"] for command in run_calls)
+    sql_commands = [command for command in run_calls if command[:2] == ["sudo", "sqlite3"]]
+    if database_exists:
+        assert len(sql_commands) == 2
+        assert sql_commands[0][-2] == str(database_path)
+        assert sql_commands[0][-1].startswith(".read ")
+        assert sql_commands[0][-1].endswith("/release_26.3.0/update.sql")
+    else:
+        assert sql_commands == []
 
 
 @pytest.mark.parametrize("is_leader", [True, False])

@@ -1454,7 +1454,10 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
             voltage = 10.0
             assert od.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
-            assert wait_for(lambda: any("Signal above" in log["message"] for log in bucket), timeout=3.0)
+            assert wait_for(
+                lambda: any("above the calibrated OD bound of 2" in log["message"] for log in bucket),
+                timeout=3.0,
+            )
 
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
@@ -1493,14 +1496,16 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         with collect_all_logs_of_level(
             "warning",
             unit=get_unit_name(),
-            experiment="test_calibration_simple_linear_calibration_negative_slope",
+            experiment=experiment,
         ) as bucket:
             voltage = 12.0
             assert voltage > maximum_voltage
 
             assert od.calibration_transformer.models["2"](voltage) == 0.0
-            assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
-            assert any("suggested" in log["message"] for log in bucket)
+            assert wait_for(
+                lambda: any("below the calibrated OD bound of 0" in log["message"] for log in bucket),
+                timeout=3.0,
+            )
 
 
 def test_calibration_simple_quadratic_calibration() -> None:

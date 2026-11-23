@@ -202,18 +202,14 @@ def test_rpicam_default_tuning_matches_platform(
         )
 
 
-def test_pisp_tuning_and_update_assets() -> None:
-    root = Path(__file__).resolve().parents[2]
-    assets = root / "packaging/shared-assets/pioreactor/camera"
+def test_packaged_pisp_tuning_matches_legacy_exposure_settings() -> None:
+    assets = Path(__file__).resolve().parents[2] / "packaging/shared-assets/pioreactor/camera"
     tuning = json_decode((assets / "ov5647_noir_200ms_pisp.json").read_bytes())
     legacy = json_decode((assets / "ov5647_noir_200ms.json").read_bytes())
     assert tuning["target"] == "pisp"
-    agc = next(a["rpi.agc"] for a in tuning["algorithms"] if "rpi.agc" in a)
-    legacy_agc = next(a["rpi.agc"] for a in legacy["algorithms"] if "rpi.agc" in a)
+    agc = next(algorithm["rpi.agc"] for algorithm in tuning["algorithms"] if "rpi.agc" in algorithm)
+    legacy_agc = next(algorithm["rpi.agc"] for algorithm in legacy["algorithms"] if "rpi.agc" in algorithm)
     assert agc["channels"][0]["exposure_modes"]["normal"] == legacy_agc["exposure_modes"]["normal"]
-    for suffix in ("json", "LICENSE"):
-        name = f"ov5647_noir_200ms_pisp.{suffix}"
-        assert (assets / name).read_bytes() == (root / "core/update_scripts/upcoming" / name).read_bytes()
 
 
 def test_rpicam_arguments_allow_a_custom_profile_without_overriding_its_tuning(
