@@ -851,8 +851,9 @@ export function SettingTextField({
   id,
 }) {
   const committedValue = initialValue ?? "";
+  const inputRef = React.useRef(null);
   const [draftValue, setDraftValue] = React.useState(committedValue);
-  const [activeSubmit, setActiveSumbit] = React.useState(false);
+  const [hasLocalEdits, setHasLocalEdits] = React.useState(false);
   const [isPendingConfirmation, setIsPendingConfirmation] = React.useState(false);
   const unitSize = (units || "").length > 8 ? "large" : "normal";
   const textFieldMaxWidth = unitSize === "large" ? "240px" : "180px";
@@ -861,10 +862,10 @@ export function SettingTextField({
     setIsPendingConfirmation(false);
   }
 
-  const value = (activeSubmit || isPendingConfirmation) ? draftValue : committedValue;
+  const value = (hasLocalEdits || isPendingConfirmation) ? draftValue : committedValue;
 
   const onChange = (e) => {
-    setActiveSumbit(true);
+    setHasLocalEdits(true);
     setIsPendingConfirmation(false);
     setDraftValue(e.target.value);
   };
@@ -876,6 +877,8 @@ export function SettingTextField({
   };
 
   const onSubmit = () => {
+    if (disabled || !hasLocalEdits) return;
+
     onUpdate(job, setting, draftValue);
     if (value !== "") {
       setSnackbarMessage(`Updating to ${value}${!units ? "" : ` ${units}`}.`);
@@ -883,14 +886,20 @@ export function SettingTextField({
       setSnackbarMessage("Updating.");
     }
     setSnackbarOpen(true);
-    setActiveSumbit(false);
+    setHasLocalEdits(false);
     setIsPendingConfirmation(true);
   };
 
+  const onCancel = () => {
+    setHasLocalEdits(false);
+    inputRef.current?.blur();
+  };
+
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
       <TextField
         id={id}
+        inputRef={inputRef}
         size="small"
         autoComplete="off"
         disabled={disabled}
@@ -904,17 +913,20 @@ export function SettingTextField({
         variant="outlined"
         onChange={onChange}
         onKeyPress={onKeyPress}
-        sx={{ mt: 2, maxWidth: textFieldMaxWidth }}
+        sx={{ maxWidth: textFieldMaxWidth }}
       />
-      <Button
-        size="small"
-        color="primary"
-        disabled={!activeSubmit}
-        onClick={onSubmit}
-        sx={{  mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
-      >
-        Update
-      </Button>
+      {!disabled && (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button size="small" disabled={!hasLocalEdits} onClick={onSubmit}>
+            Update
+          </Button>
+          {hasLocalEdits && (
+            <Button size="small" color="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -972,10 +984,10 @@ export function SettingNumericField({
   id,
 }) {
   const committedValue = initialValue ?? "";
+  const inputRef = React.useRef(null);
   const [draftValue, setDraftValue] = React.useState(committedValue);
   const [error, setError] = React.useState(false);
   const [hasLocalEdits, setHasLocalEdits] = React.useState(false);
-  const [activeSubmit, setActiveSubmit] = React.useState(false);
   const [isPendingConfirmation, setIsPendingConfirmation] = React.useState(false);
   const unitSize = (units || "").length > 8 ? "large" : "normal";
   const textFieldMaxWidth = unitSize === "large" ? "220px" : "160px";
@@ -1017,7 +1029,6 @@ export function SettingNumericField({
     const isValid = validateNumericInput(input);
     setError(!isValid);
     setHasLocalEdits(true);
-    setActiveSubmit(isValid);
     setIsPendingConfirmation(false);
     setDraftValue(input);
   };
@@ -1029,21 +1040,27 @@ export function SettingNumericField({
   };
 
   const onSubmit = () => {
-    if (!error) {
-      onUpdate(job, setting, draftValue);
-      const message = value !== "" ? `Updating to ${value}${units ? ` ${units}` : ""}.` : "Updating.";
-      setSnackbarMessage(message);
-      setSnackbarOpen(true);
-      setHasLocalEdits(false);
-      setActiveSubmit(false);
-      setIsPendingConfirmation(true);
-    }
+    if (disabled || !hasLocalEdits || error) return;
+
+    onUpdate(job, setting, draftValue);
+    const message = value !== "" ? `Updating to ${value}${units ? ` ${units}` : ""}.` : "Updating.";
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+    setHasLocalEdits(false);
+    setIsPendingConfirmation(true);
+  };
+
+  const onCancel = () => {
+    setHasLocalEdits(false);
+    setError(false);
+    inputRef.current?.blur();
   };
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
       <TextField
         id={id}
+        inputRef={inputRef}
         type="number"
         size="small"
         autoComplete="off"
@@ -1064,17 +1081,20 @@ export function SettingNumericField({
         variant="outlined"
         onChange={onChange}
         onKeyPress={onKeyPress}
-        sx={{ mt: 2, minWidth: "180px", maxWidth: textFieldMaxWidth }}
+        sx={{ minWidth: "180px", maxWidth: textFieldMaxWidth }}
       />
-      <Button
-        size="small"
-        color="primary"
-        disabled={!activeSubmit || error}
-        onClick={onSubmit}
-        sx={{  mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
-      >
-        Update
-      </Button>
+      {!disabled && (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button size="small" disabled={!hasLocalEdits || error} onClick={onSubmit}>
+            Update
+          </Button>
+          {hasLocalEdits && (
+            <Button size="small" color="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

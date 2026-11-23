@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -61,5 +61,25 @@ describe("EditExperimentProfilesContent", () => {
     );
 
     expect(getEditorTextarea()).toHaveValue("name: second\n");
+  });
+
+  test("Cancel reverts unsaved edits to the saved profile", () => {
+    render(
+      <EditExperimentProfilesContent
+        initialCode={"name: first\n"}
+        profileFilename="profile-a.yaml"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+
+    fireEvent.input(getEditorTextarea(), {
+      target: { value: "name: edited\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(getEditorTextarea()).toHaveValue("name: first\n");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 });

@@ -57,6 +57,7 @@ result and should be moved into the theme as repeated patterns are consolidated.
 | Error log fill | `#FF8F7B` | Error log rows or cells |
 | Warning log fill | `#FFEFA4` | Warning log rows or cells |
 | Notice log fill | `#ADDCAF` | Notice log rows or cells |
+| Change highlight | `#B8E3FF` | New values in an unsaved-changes summary |
 
 Do not introduce another near-white table color. The two table row colors are
 exactly:
@@ -591,6 +592,18 @@ Rules:
   when users may need to bookmark, refresh, or share the view.
 - Do not use Chips as `Select` values or `MenuItem` contents.
 - Preserve user input after validation or server errors.
+
+### Unsaved changes
+
+Editors whose changes are committed with an explicit Save, such as the
+configuration editor, may show what will change before it is saved.
+
+- While there are edits, an `Unsaved changes` panel beside the editor lists
+  only what changed; it is absent otherwise, so a read-only visit sees just the
+  editor. New values use
+  `uiColors.changeHighlight` behind the text; replaced and removed values are
+  struck through in secondary text. Use `<ins>` and `<del>` with hidden
+  `Added:` and `Removed:` labels so the change is not carried by colour alone.
 
 ## Dialogs
 

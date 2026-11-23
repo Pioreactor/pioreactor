@@ -27,7 +27,8 @@ export const lightColors = {
   "logWarning": "#ffefa4",
   "logNotice": "#addcaf",
   "editorBackground": "rgb(248,248,248)",
-  "border": "#ccc"
+  "border": "#ccc",
+  "changeHighlight": "#b8e3ff"
 };
 
 
@@ -60,6 +61,7 @@ export const darkColors = {
   logNotice: "#2c4b37",
   editorBackground: "#22232b",
   border: "#55535f",
+  changeHighlight: "#1d4a6e",
 };
 
 // CSS references also work in plain styles and module-level status definitions.

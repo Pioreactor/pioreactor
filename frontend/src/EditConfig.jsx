@@ -12,6 +12,7 @@ import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import Snackbar from './components/Snackbar';
+import ConfigChangeSummary from './components/ConfigChangeSummary';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/SaveOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -74,7 +75,6 @@ function EditableCodeDiv() {
     selectedVersion: CURRENT_VERSION,
     errorMsg: "",
     isError: false,
-    hasChangedSinceSave: false,
     availableTargets: [{ name: "Shared cluster config", value: SHARED_TARGET }],
   });
 
@@ -142,7 +142,6 @@ function EditableCodeDiv() {
         code: text,
         currentCode: text,
         selectedVersion: CURRENT_VERSION,
-        hasChangedSinceSave: false,
         isError: false,
         errorMsg: "",
       }));
@@ -196,7 +195,6 @@ function EditableCodeDiv() {
         ...prev,
         errorMsg: parsedJson.error || getWorkerReachabilityMessage(targetAtSave, "Save failed."),
         isError: true,
-        hasChangedSinceSave: true,
       }));
     } catch (err) {
       setState(prev => ({
@@ -266,7 +264,6 @@ function EditableCodeDiv() {
       ...prev,
       code: "Loading...",
       currentCode: "",
-      hasChangedSinceSave: false,
       isError: false,
       errorMsg: "",
       selectedVersion: CURRENT_VERSION,
@@ -287,7 +284,6 @@ function EditableCodeDiv() {
         ...prev,
         code: prev.currentCode,
         selectedVersion: CURRENT_VERSION,
-        hasChangedSinceSave: false,
       }));
       return;
     }
@@ -301,12 +297,22 @@ function EditableCodeDiv() {
       ...prev,
       code: configBlob.data,
       selectedVersion: version,
-      hasChangedSinceSave: true,
     }));
   };
 
   const onTextChange = (code) => {
-    setState(prev => ({ ...prev, code: code, hasChangedSinceSave: true }));
+    setState(prev => ({ ...prev, code: code }));
+  };
+
+  const cancelChanges = () => {
+    document.activeElement?.blur();
+    setState(prev => ({
+      ...prev,
+      code: prev.currentCode,
+      selectedVersion: CURRENT_VERSION,
+      isError: false,
+      errorMsg: "",
+    }));
   };
 
   const handleSnackbarClose = () => {
@@ -321,8 +327,7 @@ function EditableCodeDiv() {
   }, [state.historicalConfigs]);
 
   const isCodeLoaded = state.code !== null && state.code !== "Loading...";
-  const isHistoricalSelection = state.selectedVersion !== CURRENT_VERSION;
-  const canSaveOrRevert = isCodeLoaded && (state.hasChangedSinceSave || isHistoricalSelection) && !state.saving;
+  const hasUnsavedChanges = isCodeLoaded && state.code !== state.currentCode;
 
   return (
     <React.Fragment>
@@ -361,34 +366,40 @@ function EditableCodeDiv() {
         </FormControl>
       </Box>
 
-      <Box sx={{
-        tabSize: "4ch",
-        border: `1px solid ${uiColors.border}`,
-        m: "10px auto 10px auto",
-        position: "relative",
-        width: "98%",
-        borderRadius: "4px",
-        height: "360px",
-        maxHeight: "360px",
-        overflow: "auto",
-        flex: 1
-      }}>
-        {(state.code !== null) &&
-          <Editor
-            value={state.code}
-            onValueChange={onTextChange}
-            highlight={(code) => highlight(code, languages.ini)}
-            padding={10}
-            style={{
-              fontSize: "14px",
-              fontFamily: 'monospace',
-              backgroundColor: uiColors.surface,
-              borderRadius: "3px",
-              minHeight: "100%"
-            }}
-          />
+      <Grid container spacing={2} sx={{ p: "10px" }}>
+        <Grid size={{ xs: 12, lg: hasUnsavedChanges ? 8 : 12 }}>
+          <Box sx={{
+            tabSize: "4ch",
+            border: `1px solid ${uiColors.border}`,
+            position: "relative",
+            borderRadius: "4px",
+            height: "360px",
+            maxHeight: "360px",
+            overflow: "auto",
+          }}>
+            {(state.code !== null) &&
+              <Editor
+                value={state.code}
+                onValueChange={onTextChange}
+                highlight={(code) => highlight(code, languages.ini)}
+                padding={10}
+                style={{
+                  fontSize: "14px",
+                  fontFamily: 'monospace',
+                  backgroundColor: uiColors.surface,
+                  borderRadius: "3px",
+                  minHeight: "100%"
+                }}
+              />
+            }
+          </Box>
+        </Grid>
+        {hasUnsavedChanges &&
+          <Grid size={{ xs: 12, lg: 4 }} sx={{ maxHeight: { lg: "360px" }, overflow: "auto" }}>
+            <ConfigChangeSummary savedCode={state.currentCode} code={state.code} />
+          </Grid>
         }
-      </Box>
+      </Grid>
       <Box sx={{ display: "flex", justifyContent: "space-between" }}>
         <div>
           <Button
@@ -396,13 +407,18 @@ function EditableCodeDiv() {
             color="primary"
             variant="contained"
             onClick={saveCurrentCode}
-            disabled={!canSaveOrRevert}
+            disabled={!hasUnsavedChanges || state.saving}
             loading={state.saving}
             loadingPosition="end"
             endIcon={<SaveIcon />}
           >
             {state.selectedVersion === CURRENT_VERSION ? "Save" : "Revert"}
           </Button>
+          {hasUnsavedChanges &&
+            <Button color="secondary" onClick={cancelChanges} disabled={state.saving}>
+              Cancel
+            </Button>
+          }
           <Box sx={{ ml: 1, my: 1 }}>{state.isError ? <Alert severity="error">{state.errorMsg}</Alert> : ""}</Box>
           {state.historyErrorMsg && <Alert severity="error" sx={{ ml: 1, my: 1 }}>{state.historyErrorMsg}</Alert>}
         </div>

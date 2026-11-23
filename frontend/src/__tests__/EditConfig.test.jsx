@@ -264,4 +264,48 @@ describe("EditConfig downloads", () => {
     await userEvent.type(editor, "another-option=true");
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
+
+  test("summarizes unsaved edits against the saved config and cancels them", async () => {
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/config/shared") {
+        return Promise.resolve({ ok: true, text: async () => "[stirring.config]\ntarget_rpm=500\nold_key=1\n" });
+      }
+      if (url === "/api/config/shared/history") {
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }
+      if (url === "/api/units") {
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/config"]}>
+        <EditConfig title="Pioreactor ~ Configuration" />
+      </MemoryRouter>,
+    );
+
+    const editor = await screen.findByRole("textbox", { name: "Configuration editor" });
+    expect(screen.queryByRole("region", { name: "Unsaved changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+
+    await userEvent.clear(editor);
+    await userEvent.type(editor, "[[stirring.config]{enter}target_rpm=600{enter}");
+
+    const summary = screen.getByRole("region", { name: "Unsaved changes" });
+    expect(summary.querySelector("ins")).toHaveTextContent("600");
+    expect([...summary.querySelectorAll("del")].map((node) => node.textContent)).toEqual([
+      "Removed: 500",
+      "Removed: old_key=1",
+    ]);
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(editor).toHaveValue("[stirring.config]\ntarget_rpm=500\nold_key=1\n");
+    expect(editor).not.toHaveFocus();
+    expect(screen.queryByRole("region", { name: "Unsaved changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
 });

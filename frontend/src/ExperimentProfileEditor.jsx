@@ -55,6 +55,7 @@ export function ExperimentProfileEditorContent({
   onSave,
 }) {
   const [code, setCode] = React.useState(initialCode);
+  const [savedCode, setSavedCode] = React.useState(initialCode);
   const [filename, setFilename] = React.useState(initialFilename);
   const [openSnackbar, setOpenSnackbar] = React.useState(false);
   const [snackbarMsg, setSnackbarMsg] = React.useState("");
@@ -72,6 +73,12 @@ export function ExperimentProfileEditorContent({
     setIsChanged(true);
   };
 
+  const cancelChanges = () => {
+    document.activeElement?.blur();
+    setCode(savedCode);
+    setIsChanged(false);
+  };
+
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
   };
@@ -87,6 +94,7 @@ export function ExperimentProfileEditorContent({
 
     try {
       await onSave(payload);
+      setSavedCode(payload.code);
       setIsChanged(false);
       setOpenSnackbar(true);
       setSnackbarMsg(
@@ -200,6 +208,11 @@ export function ExperimentProfileEditorContent({
               >
                 {saving ? "Saving..." : "Save"}
               </Button>
+              {!filenameEditable && isChanged &&
+                <Button color="secondary" sx={{ ml: 1 }} onClick={cancelChanges} disabled={saving}>
+                  Cancel
+                </Button>
+              }
               <Box sx={{ ml: 0.7, mt: 1 }}>{visibleSaveError ? <Alert severity="error">{visibleSaveError}</Alert> : ""}</Box>
             </div>
           </Box>
