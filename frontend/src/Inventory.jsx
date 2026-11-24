@@ -272,13 +272,12 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
         <DialogCloseButton onClick={handleClose} />
       </DialogTitle>
       <DialogContent>
-        <p>First, follow the <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">worker setup instructions</a> to set up your new Pioreactor's worker software.</p>
+        <p>First, follow the <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">worker setup instructions</a> to install the Pioreactor image on your new Pioreactor.</p>
 
         <Typography component="p">Before continuing, confirm that:</Typography>
         <ol>
-          <li>The worker image installation is complete.</li>
-          <li>The new worker is powered on.</li>
-          <li>The new worker is displaying a blue light.</li>
+          <li>The image installation is complete.</li>
+          <li>The new Pioreactor is powered on, and its blue LED has blinked.</li>
         </ol>
         <Typography component="p">
           Provide the hostname used when installing the Pioreactor image and select the Pioreactor model. You can change the model later.
