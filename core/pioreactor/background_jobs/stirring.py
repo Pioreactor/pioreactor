@@ -376,9 +376,15 @@ class Stirrer(BackgroundJobWithDodging):
         if during_rpm == 0:
             return 0.0
 
-        predicted_duty_cycle = self.predict_duty_cycle(during_rpm)
-        if predicted_duty_cycle is not None:
-            return predicted_duty_cycle
+        if self.calibration is not None:
+            # don't extrapolate past the measured duty cycles: below them the stir bar can stall.
+            measured_dcs = self.calibration.included_recorded_data()["x"]
+            try:
+                return self.calibration.y_to_x(during_rpm, enforce_bounds=True)
+            except exc.SolutionBelowDomainError:
+                return min(measured_dcs)
+            except exc.SolutionAboveDomainError:
+                return max(measured_dcs)
 
         # without a calibration, assume duty cycle scales linearly with RPM from what we've learned for target_rpm.
         if self.target_rpm:

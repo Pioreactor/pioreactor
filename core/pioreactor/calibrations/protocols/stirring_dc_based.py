@@ -6,6 +6,7 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 import uuid
 from contextlib import nullcontext
+from random import sample
 from typing import Any
 from typing import ClassVar
 from typing import Literal
@@ -34,7 +35,6 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.states import JobState
 from pioreactor.structs import SimpleStirringCalibration
-from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.splines import spline_fit
@@ -49,12 +49,12 @@ if is_testing_env():
 
 def _resolve_dc_bounds(min_dc: float | None, max_dc: float | None) -> tuple[float, float]:
     if max_dc is None and min_dc is None:
-        # seed with initial_duty_cycle
-        config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
-        min_dc = config_initial_duty_cycle * 0.66
-        max_dc = clamp(0, config_initial_duty_cycle * 1.33, 100)
-    elif (max_dc is None) or (min_dc is None):
+        # wide enough to cover the low RPMs used while dodging OD readings.
+        return 10.0, 70.0
+    if max_dc is None or min_dc is None:
         raise ValueError("min_dc and max_dc must both be set.")
+    if not 0 <= min_dc < max_dc <= 100:
+        raise ValueError("Duty cycle bounds must satisfy 0% ≤ minimum < maximum ≤ 100%.")
     return min_dc, max_dc
 
 
@@ -76,8 +76,9 @@ def collect_stirring_measurements(
 
         measured_rpms: list[float] = []
 
-        # go up and down to observe any hysteresis.
-        dcs = linspace(max_dc, min_dc, 5) + linspace(min_dc, max_dc, 5) + linspace(max_dc, min_dc, 5)
+        # two rounds, each in random order, so a stalled bar can't drag down the readings after it.
+        duty_cycles = linspace(min_dc, max_dc, 8)
+        dcs = sample(duty_cycles, len(duty_cycles)) + sample(duty_cycles, len(duty_cycles))
         n_samples = len(dcs)
 
         rpm_calc_context = (
@@ -92,16 +93,11 @@ def collect_stirring_measurements(
             enable_dodging_od=False,
         ) as st:
             rpm_calc.setup()
-            st.duty_cycle = (
-                max_dc + min_dc
-            ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
-            st.start_stirring()
-            if lc.exit_event.wait(3):
-                raise InterruptedError("Stirring calibration aborted.")
 
             for count, dc in enumerate(dcs, start=1):
-                st.set_duty_cycle(dc)
-                if lc.exit_event.wait(2.0):
+                # kick before every reading, so each one starts from a turning stir bar.
+                st.spin_up(dc, kick_seconds=stirring.START_KICK_SECONDS)
+                if lc.exit_event.wait(2.5):
                     raise InterruptedError("Stirring calibration aborted.")
                 rpm = float(rpm_calc.estimate(2))
                 measured_rpms.append(rpm)
@@ -233,7 +229,7 @@ class RunCalibration(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.action(
             "Record calibration",
-            "Press Run calibration to start. This will take up to one minute.",
+            "Press Run calibration to start. This takes about 1½ minutes.",
         )
         step.metadata = {"primary_action_label": "Run calibration"}
         return step

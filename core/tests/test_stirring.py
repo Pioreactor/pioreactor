@@ -551,6 +551,25 @@ def test_dodging_with_nonzero_rpm_during_od_reading_uses_calibration_then_resume
         assert st.duty_cycle == pytest.approx(35.0)
 
 
+@pytest.mark.parametrize(("target_rpm", "expected_duty_cycle"), [(100.0, 20.0), (900.0, 40.0)])
+def test_dodging_clamps_to_the_measured_duty_cycles(target_rpm: float, expected_duty_cycle: float) -> None:
+    from pioreactor.utils.splines import spline_fit
+
+    exp = "test_dodging_clamps_to_the_measured_duty_cycles"
+    cal = linear_stirring_calibration(exp)
+    cal.recorded_data = {"x": [5.0, 20.0, 40.0, 85.0], "y": [100.0, 400.0, 600.0, 900.0]}
+    cal.included = [False, True, True, False]
+    cal.curve_data_ = spline_fit([20.0, 40.0], [400.0, 600.0], knots=2)
+
+    with start_dodging_stirrer(
+        exp, calibration=cal, learned_duty_cycle=35.0, target_rpm_during_od_reading=target_rpm
+    ) as st:
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == pytest.approx(expected_duty_cycle)
+        st.action_to_do_after_od_reading()
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
 def test_changing_target_rpm_during_od_reading_waits_until_after_the_reading() -> None:
     exp = "test_changing_target_rpm_during_od_reading_waits_until_after_the_reading"
 

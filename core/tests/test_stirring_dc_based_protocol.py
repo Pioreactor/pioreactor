@@ -12,16 +12,11 @@ from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
-from pioreactor.config import temporary_config_change
 from pioreactor.whoami import get_testing_experiment_name
 
 
-def test_resolve_dc_bounds_uses_config_defaults() -> None:
-    with temporary_config_change(config, "stirring.config", "initial_duty_cycle", "30"):
-        min_dc, max_dc = stirring_dc_based._resolve_dc_bounds(None, None)
-
-    assert min_dc == pytest.approx(19.8)
-    assert max_dc == pytest.approx(39.9)
+def test_resolve_dc_bounds_covers_low_duty_cycles_by_default() -> None:
+    assert stirring_dc_based._resolve_dc_bounds(None, None) == (10.0, 70.0)
 
 
 def test_resolve_dc_bounds_requires_both_values() -> None:
@@ -164,19 +159,25 @@ def test_collect_stirring_measurements_reports_no_positive_rpm(
         "No positive RPM readings were detected between 10% and 20% duty cycle. "
         "Check that the stirring motor turns and the heating PCB is connected."
     )
-    assert rpm_calculator.estimate.call_count == 15
+    assert rpm_calculator.estimate.call_count == 16
     rpm_calculator.__exit__.assert_called_once()
     stirrer.__exit__.assert_called_once()
     lifecycle.__exit__.assert_called_once()
 
 
-def test_collect_stirring_measurements_keeps_positive_rpm_pairs(
+def test_collect_stirring_measurements_kicks_each_reading_and_drops_stalls(
     stirring_measurement_hardware: tuple[MagicMock, MagicMock, MagicMock],
 ) -> None:
-    _, rpm_calculator, _ = stirring_measurement_hardware
-    rpm_calculator.estimate.side_effect = [0.0, 100.0, 200.0, 0.0, 300.0] * 3
+    _, rpm_calculator, stirrer = stirring_measurement_hardware
 
-    dcs, rpms = stirring_dc_based.collect_stirring_measurements(min_dc=10.0, max_dc=20.0)
+    def measure_rpm(_seconds: float) -> float:
+        (dc,) = stirrer.spin_up.call_args.args
+        return 0.0 if dc < 15.0 else 10.0 * dc
 
-    assert dcs == [17.5, 15.0, 10.0, 12.5, 15.0, 20.0, 17.5, 15.0, 10.0]
-    assert rpms == [100.0, 200.0, 300.0] * 3
+    rpm_calculator.estimate.side_effect = measure_rpm
+
+    dcs, rpms = stirring_dc_based.collect_stirring_measurements(min_dc=10.0, max_dc=45.0)
+
+    assert stirrer.spin_up.call_count == 16
+    assert sorted(dcs) == sorted([15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0] * 2)
+    assert rpms == [10.0 * dc for dc in dcs]

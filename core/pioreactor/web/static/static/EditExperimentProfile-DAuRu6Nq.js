@@ -1,1 +1,0 @@
-import{n as e,t}from"./ExperimentProfileEditor-B4k4Zc-a.js";import{a as n}from"./ExperimentContext-H_b0tSFA.js";var r=n();function i({initialCode:e,profileFilename:n}){return(0,r.jsx)(t,{initialCode:e,initialFilename:n,filenameEditable:!1,onSave:async()=>{}})}function a({title:t}){return(0,r.jsx)(e,{mode:`edit`,title:t})}export{i as EditExperimentProfilesContent,a as default};
