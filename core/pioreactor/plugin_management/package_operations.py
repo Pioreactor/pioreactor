@@ -67,15 +67,9 @@ def install_plugin_package(
             return False
 
         requirement = f"{pip_plugin_name}=={version}" if version else pip_plugin_name
-        run_pip_as_pioreactor(
-            [
-                "install",
-                "--upgrade",
-                "--force-reinstall",
-                "--ignore-installed",
-                requirement,
-            ]
-        )
+        # only upgrade dependencies the plugin needs: forcing them over the installed ones
+        # replaced pinned packages like Adafruit-Blinka with newer, incompatible versions.
+        run_pip_as_pioreactor(["install", "--upgrade", requirement])
         return True
 
 

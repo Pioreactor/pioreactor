@@ -420,15 +420,7 @@ def test_install_plugin_package_pins_requested_version(monkeypatch: pytest.Monke
     )
 
     assert package_operations.install_plugin_package("pioreactor_demo_plugin", None, "1.2.3", is_leader=True)
-    assert pip_calls == [
-        [
-            "install",
-            "--upgrade",
-            "--force-reinstall",
-            "--ignore-installed",
-            "pioreactor-demo-plugin==1.2.3",
-        ]
-    ]
+    assert pip_calls == [["install", "--upgrade", "pioreactor-demo-plugin==1.2.3"]]
 
 
 def test_plugin_install_cli_accepts_exact_version(monkeypatch: pytest.MonkeyPatch) -> None:
