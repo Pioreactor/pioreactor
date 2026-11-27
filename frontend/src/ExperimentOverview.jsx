@@ -91,6 +91,7 @@ function Charts(props) {
                   // Charts keep the colors they resolve when history loads, so new choices remount them.
                   key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}-${props.unitColorsKey}`}
                   scheduleHistory={scheduleHistory}
+                  showEmptyTimeRangeMessage
                   chartKey={chart_key}
                   config={config}
                   dataSource={chart.data_source}

@@ -48,6 +48,7 @@ function renderChart(overrides = {}, historicalData = { series: [], data: [] }) 
   const unsubscribeFromTopic = jest.fn();
   global.fetch = jest.fn(() =>
     Promise.resolve({
+      ok: true,
       json: () => Promise.resolve(historicalData),
     }),
   );
@@ -115,6 +116,7 @@ test.each([undefined, "unit1"])("changing time zero reloads uncached history and
   await waitFor(() => expect(getRenderedPoints()).toEqual([{ x: 1, y: 1 }, { x: 3, y: 3 }]));
   const oldUrl = global.fetch.mock.calls[0][0];
   global.fetch.mockResolvedValue({
+    ok: true,
     json: async () => ({ series: ["unit1"], data: [[{ x: "2026-09-01T03:00:00Z", y: 3 }]] }),
   });
   const newStart = "2026-09-01T02:00:00Z";
@@ -166,25 +168,30 @@ test("batches live points into one update and drops points older than the lookba
   expect(points.every((point) => typeof point.x === "number")).toBe(true);
 });
 
-test("keeps every live point when the lookback is 0", async () => {
-  const now = Date.now();
-  const { subscribeToTopic } = renderChart({ lookback: 0, payloadKey: "temperature" });
-
-  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-  // Let the (empty) history fetch resolve so live messages are accepted.
-  await act(async () => {});
-  const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
-
+test("Now mode skips history and accepts live points immediately", () => {
   jest.useFakeTimers();
-  act(() => {
-    for (const [offsetMs, y] of [[-60 * 1000, 32], [-1000, 33]]) {
-      onMessage(
-        "pioreactor/unit1/exp1/temperature_automation/temperature",
-        JSON.stringify({ timestamp: new Date(now + offsetMs).toISOString(), temperature: y }),
-        { retain: false },
-      );
-    }
+  const now = Date.now();
+  const scheduleHistory = jest.fn();
+  renderChart({
+    lookback: 0,
+    payloadKey: "temperature",
+    scheduleHistory,
+    showEmptyTimeRangeMessage: true,
+    subscribeToTopic: (_topic, onMessage) => {
+      for (const [offsetMs, y] of [[-60 * 1000, 32], [-1000, 33]]) {
+        onMessage(
+          "pioreactor/unit1/exp1/temperature_automation/temperature",
+          JSON.stringify({ timestamp: new Date(now + offsetMs).toISOString(), temperature: y }),
+          { retain: false },
+        );
+      }
+    },
   });
+
+  expect(scheduleHistory).not.toHaveBeenCalled();
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(screen.queryByText("No data in this time range")).not.toBeInTheDocument();
 
   act(() => {
     jest.advanceTimersByTime(5000);
@@ -193,15 +200,24 @@ test("keeps every live point when the lookback is 0", async () => {
   expect(getRenderedPoints().map((point) => point.y)).toEqual([32, 33]);
 });
 
-test("shows a spinner until queued history has loaded", async () => {
+test("shows the empty-range message once history loads and clears it when a live point is plotted", async () => {
+  jest.useFakeTimers();
   let runQueued;
   const scheduleHistory = jest.fn((element, load) => {
     runQueued = load;
     return () => {};
   });
-  renderChart({ title: "Temperature", scheduleHistory });
+  const { subscribeToTopic } = renderChart({
+    title: "Temperature",
+    lookback: 1,
+    payloadKey: "temperature",
+    topic: "temperature_automation/temperature",
+    scheduleHistory,
+    showEmptyTimeRangeMessage: true,
+  });
 
   expect(screen.getByRole("progressbar", { name: "Loading Temperature" })).toBeInTheDocument();
+  expect(screen.queryByText("No data in this time range")).not.toBeInTheDocument();
   expect(global.fetch).not.toHaveBeenCalled();
 
   await act(async () => {
@@ -209,6 +225,71 @@ test("shows a spinner until queued history has loaded", async () => {
   });
 
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent("No data in this time range");
+
+  const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
+  const publishPoint = (timestamp) => {
+    act(() => {
+      onMessage(
+        "pioreactor/unit1/exp1/temperature_automation/temperature",
+        JSON.stringify({ timestamp: new Date(timestamp).toISOString(), temperature: 32 }),
+        { retain: false },
+      );
+      jest.advanceTimersByTime(5000);
+    });
+  };
+
+  publishPoint(Date.now() - 2 * 60 * 60 * 1000);
+  expect(screen.getByRole("status")).toHaveTextContent("No data in this time range");
+
+  publishPoint(Date.now());
+  expect(getRenderedPoints().map((point) => point.y)).toEqual([32]);
+  expect(screen.queryByText("No data in this time range")).not.toBeInTheDocument();
+});
+
+test("switching ranges clears the old empty message while history loads", async () => {
+  let loadHistory;
+  const scheduleHistory = (_element, load) => {
+    loadHistory = load;
+  };
+  const { rerender, props } = renderChart({ lookback: 1, scheduleHistory, showEmptyTimeRangeMessage: true });
+  await act(async () => { await loadHistory(); });
+  expect(screen.getByText("No data in this time range")).toBeInTheDocument();
+
+  global.fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ series: ["unit1"], data: [[{ x: formatServerTimestamp(Date.now()), y: 3 }]] }),
+  });
+  rerender(<Chart {...props} lookback={12} />);
+  expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  expect(screen.queryByText("No data in this time range")).not.toBeInTheDocument();
+
+  await act(async () => { await loadHistory(); });
+  expect(getRenderedPoints()).toHaveLength(1);
+  expect(screen.queryByText("No data in this time range")).not.toBeInTheDocument();
+});
+
+test("a failed history response does not show the empty-range message", async () => {
+  let loadHistory;
+  const scheduleHistory = (_element, load) => {
+    loadHistory = load;
+  };
+  renderChart({ lookback: 1, scheduleHistory, showEmptyTimeRangeMessage: true });
+  global.fetch.mockResolvedValueOnce({
+    ok: false,
+    status: 503,
+    json: async () => ({ series: [], data: [] }),
+  });
+
+  const log = jest.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    await act(async () => { await loadHistory(); });
+  } finally {
+    log.mockRestore();
+  }
+
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(screen.queryByText("No data in this time range")).not.toBeInTheDocument();
 });
 
 test("does not refetch history when the color map identity changes", async () => {

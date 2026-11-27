@@ -16,6 +16,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import DownloadIcon from "@mui/icons-material/Download";
+import EmptyState from "./EmptyState";
 import {
   VictoryChart,
   VictoryLabel,
@@ -41,6 +42,7 @@ dayjs.extend(utc);
 const sensorRe = /^(.*)-(\d+)$/;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const DOWNSAMPLED_TARGET_POINTS = 1400;
+const EMPTY_SERIES = {};
 // Live points are buffered and committed in batches so each MQTT message doesn't redraw the chart.
 const LIVE_FLUSH_INTERVAL_MS = 5000;
 const HIDDEN_LIVE_FLUSH_INTERVAL_MS = 60 * 1000;
@@ -72,6 +74,8 @@ const sensorStyles = {
 // Vertical layout: the plot area keeps a fixed height and the legend grows below the x-axis.
 const PLOT_TOP = 50;
 const PLOT_HEIGHT = 195;
+const PLOT_LEFT = 70;
+const PLOT_RIGHT = 50;
 const AXIS_LABEL_SPACE = 40;
 const LEGEND_Y = PLOT_TOP + PLOT_HEIGHT + AXIS_LABEL_SPACE;
 const LEGEND_FONT_SIZE = 13;
@@ -160,6 +164,7 @@ function Chart(props) {
     payloadKey,
     relabelMap,
     scheduleHistory,
+    showEmptyTimeRangeMessage,
     subscribeToTopic,
     title,
     topic,
@@ -174,13 +179,31 @@ function Chart(props) {
   const topics = useMemo(() => toArray(topic), [topic]);
   const chartContainerRef = useRef(null);
   const [chartWidth, setChartWidth] = useState(600);
-  const [seriesMap, setSeriesMap] = useState({});
+  const [seriesMap, setSeriesMap] = useState(EMPTY_SERIES);
   const [hiddenSeries, setHiddenSeries] = useState(() => new Set());
   const [hoveredSeries, setHoveredSeries] = useState(null);
-  const [fetched, setFetched] = useState(false);
+  const [historyResult, setHistoryResult] = useState(null);
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
   const pendingPointsRef = useRef(new Map());
   const flushTimerRef = useRef(null);
+
+  const historyRequest = useMemo(() => {
+    const queryParams = new URLSearchParams({
+      target_points: downSample ? DOWNSAMPLED_TARGET_POINTS : 1000000,
+      lookback,
+      // A changed time zero must not reuse history cached before the edit.
+      started_at: experimentStartTime,
+    });
+    const basePath = unit
+      ? `/api/workers/${unit}/experiments/${experimentPathSegment(experiment)}/time_series/${dataSource}`
+      : `/api/experiments/${experimentPathSegment(experiment)}/time_series/${dataSource}`;
+    const columnSegment = dataSourceColumn ? `/${dataSourceColumn}` : "";
+    return { url: `${basePath}${columnSegment}?${queryParams}` };
+  }, [dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, lookback, unit]);
+  const rangeHistoryResult = historyResult?.request === historyRequest ? historyResult : null;
+  const waitingForHistory = lookback !== 0 && !rangeHistoryResult;
+  const emptyTimeRange = showEmptyTimeRangeMessage && rangeHistoryResult?.succeeded
+    && !Object.values(seriesMap).some(({ data }) => data.length > 0);
 
   const ChartContainer = useMemo(
     () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
@@ -306,7 +329,7 @@ function Chart(props) {
     [isPartitionedBySensor, unit]
   );
 
-  const legendAvailableWidth = Math.max(200, chartWidth - 70 - 50); // spans the plot area
+  const legendAvailableWidth = Math.max(200, chartWidth - PLOT_LEFT - PLOT_RIGHT);
 
   const fitLegendLabel = useCallback(
     (name) => {
@@ -680,7 +703,7 @@ function Chart(props) {
   });
 
   const onMessage = useEffectEvent((incomingTopic, message, packet) => {
-    if (!fetched) {
+    if (!experiment || waitingForHistory) {
       return;
     }
     if (packet.retain) {
@@ -776,14 +799,13 @@ function Chart(props) {
     if (!experiment) {
       return undefined;
     }
+    if (lookback === 0) {
+      // Start a fresh live series if the experiment's time zero or chart settings change.
+      pendingPointsRef.current.clear();
+      setSeriesMap(EMPTY_SERIES);
+      return undefined;
+    }
     const controller = new AbortController();
-
-    const queryParams = new URLSearchParams({
-      target_points: downSample ? DOWNSAMPLED_TARGET_POINTS : 1000000,
-      lookback,
-      // A changed time zero must not reuse history cached before the edit.
-      started_at: experimentStartTime,
-    });
 
     // Keep x values as numbers: a dayjs object per point is far heavier to retain.
     let transformX;
@@ -796,15 +818,12 @@ function Chart(props) {
       transformX = (x) => dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").valueOf();
     }
 
-    const basePath = unit
-      ? `/api/workers/${unit}/experiments/${experimentPathSegment(experiment)}/time_series/${dataSource}`
-      : `/api/experiments/${experimentPathSegment(experiment)}/time_series/${dataSource}`;
-    const columnSegment = dataSourceColumn ? `/${dataSourceColumn}` : "";
-    const url = `${basePath}${columnSegment}?${queryParams}`;
-
     async function getHistoricalDataFromServer() {
       try {
-        const response = await fetch(url, { signal: controller.signal });
+        const response = await fetch(historyRequest.url, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Chart history request failed (${response.status})`);
+        }
         const data = await response.json();
         if (controller.signal.aborted) {
           return;
@@ -831,19 +850,18 @@ function Chart(props) {
         }
         pendingPointsRef.current = new Map();
         setSeriesMap(initialSeriesMap);
-        setFetched(true);
+        setHistoryResult({ request: historyRequest, succeeded: true });
       } catch (error) {
         if (controller.signal.aborted) {
           return;
         }
         console.log(error);
-        setFetched(true);
+        setHistoryResult({ request: historyRequest, succeeded: false });
       }
     }
 
-    // "Now" charts collect live points from mount and have no history to prioritize.
     let cancelQueued;
-    if (scheduleHistory && lookback !== 0) {
+    if (scheduleHistory) {
       cancelQueued = scheduleHistory(chartContainerRef.current, getHistoricalDataFromServer);
     } else {
       getHistoricalDataFromServer();
@@ -852,7 +870,7 @@ function Chart(props) {
       cancelQueued?.();
       controller.abort();
     };
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, experimentStartTime, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit, scheduleHistory]);
+  }, [byDuration, experiment, experimentStartMs, historyRequest, lookback, mapPartitionedSeriesName, shouldIncludeUnit, scheduleHistory]);
 
   useEffect(() => {
     if (!client || !isLiveChart) {
@@ -885,7 +903,7 @@ function Chart(props) {
         style={{ parent: { width: "100%" } }}
         title={title}
         domainPadding={10}
-        padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: PLOT_TOP }}
+        padding={{ left: PLOT_LEFT, right: PLOT_RIGHT, bottom: legendBottomPadding, top: PLOT_TOP }}
         events={legendEvents}
         height={chartHeight}
         width={chartWidth}
@@ -977,7 +995,7 @@ function Chart(props) {
           }}
         />
         <VictoryLegend
-          x={70}
+          x={PLOT_LEFT}
           y={LEGEND_Y}
           // victory-legend reads titleComponent.props directly; React 19 drops its defaultProps here.
           titleComponent={<VictoryLabel />}
@@ -996,7 +1014,7 @@ function Chart(props) {
         />
         {names.map(selectVictoryLines)}
       </VictoryChart>
-      {experiment && !fetched && (
+      {experiment && waitingForHistory && (
         // Queued charts can wait behind visible ones, so show that their history is still coming.
         <Box
           sx={{
@@ -1009,6 +1027,29 @@ function Chart(props) {
           }}
         >
           <CircularProgress size={24} aria-label={`Loading ${title || "chart"}`} />
+        </Box>
+      )}
+      {showEmptyTimeRangeMessage && (
+        <Box
+          role="status"
+          sx={{
+            position: "absolute",
+            top: PLOT_TOP,
+            left: PLOT_LEFT,
+            right: PLOT_RIGHT,
+            height: PLOT_HEIGHT,
+            display: "grid",
+            placeItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          {emptyTimeRange && (
+            <EmptyState>
+              <Box component="span" sx={{ bgcolor: "background.paper", px: 0.5 }}>
+                No data in this time range
+              </Box>
+            </EmptyState>
+          )}
         </Box>
       )}
       <Tooltip title="Download chart" describeChild>

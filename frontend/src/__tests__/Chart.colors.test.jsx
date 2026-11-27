@@ -8,7 +8,7 @@ beforeAll(() => {
 });
 
 test.each(["linear", "none"])("sensor legends keep circular swatches and remain toggleable (%s)", async (interpolation) => {
-  global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({
     series: ["unit1-1", "unit1-2", "unit1-3", "unit1-4"],
     data: Array.from({ length: 4 }, () => [
       { x: "2026-09-01T01:00:00Z", y: 1 },
@@ -49,7 +49,7 @@ test.each(["linear", "none"])("sensor legends keep circular swatches and remain 
 
 test("legend labels toggle and dim their series", async () => {
   const series = Array.from({ length: 4 }, (_, i) => `unit${i + 1}`);
-  global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({
     series,
     data: series.map(() => [
       { x: "2026-09-01T01:00:00Z", y: 1 },
@@ -80,7 +80,7 @@ test("legend labels use the available width and only long ones are shortened", a
   TextSize._approximateTextSizeInternal.impl = (text) => ({ width: String(text).length * 7, height: 15 });
   try {
     const series = Array.from({ length: 6 }, (_, i) => `unit${i + 1}`);
-    global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({
       series,
       data: series.map(() => [
         { x: "2026-09-01T01:00:00Z", y: 1 },
@@ -113,7 +113,7 @@ test("legend labels use the available width and only long ones are shortened", a
 
 test("legend entries are in natural order by display label", async () => {
   const series = ["pio10", "Pio3", "pio2", "pio1"];
-  global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({
     series,
     data: series.map(() => [
       { x: "2026-09-01T01:00:00Z", y: 1 },
