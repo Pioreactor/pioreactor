@@ -56,6 +56,7 @@ from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_focus_preview
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import delete_camera_focus_preview
+from pioreactor.camera import get_camera_detection_status
 from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import start_camera_warmer
@@ -218,6 +219,11 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
     if not whoami.is_active(unit):
         return {"captured": False, "reason": "inactive"}
 
+    # Check the camera before asking the leader for the experiment, so a unit without a camera doesn't
+    # ask the leader every minute. Definitive detection results are cached, so this probes once per process.
+    if get_camera_detection_status() == "configured_camera_not_detected":
+        return {"captured": False, "reason": "camera_unavailable"}
+
     try:
         experiment = whoami.get_assigned_experiment_name(unit)
     except (exc.NotAssignedAnExperimentError, HTTPException):
@@ -225,10 +231,6 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
 
     if not camera_snapshot_is_due(unit, experiment, interval_minutes):
         return {"captured": False, "reason": "not_due"}
-
-    camera_status = get_camera_status(unit, experiment=experiment)
-    if camera_status["detection_status"] == "configured_camera_not_detected":
-        return {"captured": False, "reason": "camera_unavailable"}
 
     try:
         metadata = capture_camera_still(

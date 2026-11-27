@@ -64,11 +64,7 @@ def test_periodic_camera_capture_attempts_capture_when_detection_is_unknown(
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
-    monkeypatch.setattr(
-        tasks,
-        "get_camera_status",
-        lambda unit, *, experiment: {"detection_status": "unknown"},
-    )
+    monkeypatch.setattr(tasks, "get_camera_detection_status", lambda: "unknown")
     monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
     monkeypatch.setattr(tasks, "capture_camera_still", unavailable_camera)
 
@@ -83,13 +79,13 @@ def test_periodic_camera_capture_skips_confirmed_missing_camera(
     _clear_lock("camera-lock")
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
-    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(tasks.whoami, "is_active", lambda unit: True)
     monkeypatch.setattr(
-        tasks,
-        "get_camera_status",
-        lambda unit, *, experiment: {"detection_status": "configured_camera_not_detected"},
+        tasks.whoami,
+        "get_assigned_experiment_name",
+        lambda unit: pytest.fail("a unit without a camera must not ask the leader for its experiment"),
     )
-    monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
+    monkeypatch.setattr(tasks, "get_camera_detection_status", lambda: "configured_camera_not_detected")
     monkeypatch.setattr(
         tasks,
         "capture_camera_still",
@@ -101,18 +97,19 @@ def test_periodic_camera_capture_skips_confirmed_missing_camera(
     assert result == {"captured": False, "reason": "camera_unavailable"}
 
 
-def test_periodic_camera_capture_does_not_probe_before_snapshot_is_due(
+def test_periodic_camera_capture_skips_capture_before_snapshot_is_due(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(tasks, "get_camera_detection_status", lambda: "detected")
     monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: False)
     monkeypatch.setattr(
         tasks,
-        "get_camera_status",
-        lambda unit, *, experiment: pytest.fail("camera detection must wait until a snapshot is due"),
+        "capture_camera_still",
+        lambda *_args, **_kwargs: pytest.fail("a snapshot that isn't due must not be captured"),
     )
 
     result = tasks.capture_camera_still_periodic_task.call_local()
@@ -147,8 +144,8 @@ def test_periodic_camera_capture_noops_when_worker_is_inactive(
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
     monkeypatch.setattr(
         tasks,
-        "get_camera_status",
-        lambda unit, **_kwargs: pytest.fail("inactive workers must not probe the camera"),
+        "get_camera_detection_status",
+        lambda: pytest.fail("inactive workers must not probe the camera"),
     )
 
     result = tasks.capture_camera_still_periodic_task.call_local()
@@ -167,9 +164,7 @@ def test_periodic_camera_capture_ignores_legacy_camera_feature_flag(
     monkeypatch.setattr(tasks.whoami, "is_active", lambda unit: True)
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
     monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
-    monkeypatch.setattr(
-        tasks, "get_camera_status", lambda unit, *, experiment: {"detection_status": "detected"}
-    )
+    monkeypatch.setattr(tasks, "get_camera_detection_status", lambda: "detected")
     metadata = CameraStillMetadata(
         experiment="experiment-a",
         captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
